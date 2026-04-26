@@ -1,0 +1,32 @@
+# dependencies
+node_modules/
+
+# next.js
+.next/
+out/
+
+# build
+dist/
+
+# env files
+.env
+.env.local
+.env.*.local
+
+# vercel
+.vercel
+
+# os
+.DS_Store
+Thumbs.db
+
+# editor
+*.swp
+*.swo
+*~
+
+# drizzle
+drizzle/meta/_journal.json.bak
+
+# firebase cache (legacy)
+.firebase/

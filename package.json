@@ -1,0 +1,46 @@
+{
+  "name": "dlr",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "worker": "tsx worker.ts",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:seed": "tsx scripts/seed.ts",
+    "sim": "tsx scripts/simulate-webhook.ts"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "bullmq": "^5.4.2",
+    "date-fns": "^4.1.0",
+    "drizzle-orm": "^0.30.10",
+    "ioredis": "^5.3.2",
+    "libphonenumber-js": "^1.12.41",
+    "next": "14.2.35",
+    "next-auth": "^4.24.7",
+    "papaparse": "^5.5.3",
+    "postgres": "^3.4.4",
+    "react": "^18",
+    "react-dom": "^18",
+    "telnyx": "^2.1.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^20",
+    "@types/papaparse": "^5.5.2",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "drizzle-kit": "^0.21.4",
+    "eslint": "^8",
+    "eslint-config-next": "14.2.35",
+    "postcss": "^8",
+    "tailwindcss": "^3.4.1",
+    "tsx": "^4.9.3",
+    "typescript": "^5"
+  }
+}
