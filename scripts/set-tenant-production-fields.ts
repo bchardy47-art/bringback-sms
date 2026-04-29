@@ -154,7 +154,8 @@ async function main() {
     campaignUseCase:      FIELDS.campaignUseCase,
     consentExplanation:   FIELDS.consentExplanation,
     tenDlcStatus:         FIELDS.tenDlcStatus,
-    tenDlcSampleMessages: sql`${JSON.stringify(SAMPLE_MESSAGES)}::jsonb`,
+    // tenDlcSampleMessages omitted here — written via raw psql (column is text[] in DB,
+    // schema.ts incorrectly declares it as jsonb — see tech debt note below).
     updatedAt:            new Date(),
   }).where(eq(tenants.id, tenant.id))
 
