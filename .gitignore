@@ -30,3 +30,32 @@ drizzle/meta/_journal.json.bak
 
 # firebase cache (legacy)
 .firebase/
+
+# SSH keys — never commit
+keys/
+
+# TypeScript build info
+tsconfig.tsbuildinfo
+
+# Local dev phase logs
+phase*-local.log
+
+# Empty artifact files from tsx/npm invocations
+dlr@0.1.0
+tsx
+
+# Local test scripts
+test-auth.js
+
+# Claude agent memory
+.claude/
+
+# Server-specific convenience scripts (hardcoded IPs — keep local only)
+*.command
+deploy_now.sh
+finish_deploy.sh
+start_pm2.sh
+set_webhook.sh
+
+# Stale root-level PM2 config (canonical copy is scripts/ecosystem.config.js)
+/ecosystem.config.js

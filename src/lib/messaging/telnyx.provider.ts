@@ -74,20 +74,32 @@ export class TelnyxProvider implements MessagingProvider {
     }
   }
 
-  // Telnyx signs webhooks with Ed25519. Public key is base64-encoded DER SPKI.
+  // Telnyx signs webhooks with Ed25519.
+  // The public key from the portal is a raw 32-byte Ed25519 key (base64-encoded),
+  // NOT a DER SPKI structure. We must prepend the SPKI header so Node.js crypto
+  // can import it. The header for Ed25519 SPKI DER is the 12-byte sequence:
+  //   30 2a 30 05 06 03 2b 65 70 03 21 00
   verifyWebhookSignature(rawBody: string, headers: Record<string, string>): boolean {
     try {
-      const signature = headers['telnyx-signature-ed25519-1']
+      // Telnyx may send the signature header with or without the -1 suffix
+      const signature =
+        headers['telnyx-signature-ed25519'] ||
+        headers['telnyx-signature-ed25519-1']
       const timestamp = headers['telnyx-timestamp']
       if (!signature || !timestamp) return false
 
       const message = `${timestamp}|${rawBody}`
-      const publicKeyBuffer = Buffer.from(this.publicKey, 'base64')
+
+      // Convert raw 32-byte Ed25519 key → DER SPKI (44 bytes) by prepending the
+      // ASN.1 SubjectPublicKeyInfo header for Ed25519 (OID 1.3.101.112)
+      const rawKeyBuffer = Buffer.from(this.publicKey, 'base64')
+      const SPKI_PREFIX = Buffer.from('302a300506032b6570032100', 'hex')
+      const spkiBuffer = Buffer.concat([SPKI_PREFIX, rawKeyBuffer])
 
       const verify = createVerify('ed25519')
       verify.update(message)
       return verify.verify(
-        { key: publicKeyBuffer, format: 'der', type: 'spki' } as Parameters<typeof verify.verify>[0],
+        { key: spkiBuffer, format: 'der', type: 'spki' } as Parameters<typeof verify.verify>[0],
         Buffer.from(signature, 'base64')
       )
     } catch {

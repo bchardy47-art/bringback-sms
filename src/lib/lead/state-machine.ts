@@ -6,6 +6,7 @@ export type LeadState =
   | 'active'
   | 'stale'
   | 'orphaned'
+  | 'revival_eligible'  // passed suppression — waiting for enrollment
   | 'enrolled'
   | 'responded'
   | 'revived'
@@ -14,18 +15,35 @@ export type LeadState =
   | 'opted_out'
   | 'dead'
 
-// Defines which transitions are allowed. Key = from state, value = allowed to states.
+// ── Allowed transitions ───────────────────────────────────────────────────────
+//
+// Key design decisions:
+//
+//  • stale / orphaned  → revival_eligible ONLY (no direct → enrolled)
+//    The eligibility agent is the sole gatekeeper between candidate and enrolled.
+//
+//  • revival_eligible  → enrolled (enrollment agent picks these up)
+//    Can also fall back to stale (if eligibility is re-run and conditions change)
+//    or move to opted_out / dead if discovered during eligibility.
+//
+//  • revived           → enrolled is still allowed (manual human re-enrollment
+//    after a warm conversation — not an auto path).
+//
+//  • exhausted         → revival_eligible (goes back through eligibility before
+//    being re-enrolled; the eligibility pass will enforce cooldown).
+
 const ALLOWED_TRANSITIONS: Record<LeadState, LeadState[]> = {
-  active:    ['stale', 'orphaned', 'opted_out', 'dead'],
-  stale:     ['enrolled', 'opted_out', 'dead'],
-  orphaned:  ['enrolled', 'opted_out', 'dead'],
-  enrolled:  ['responded', 'exhausted', 'opted_out', 'dead'],
-  responded: ['revived', 'opted_out', 'dead'],
-  revived:   ['converted', 'enrolled', 'opted_out', 'dead'],
-  exhausted: ['enrolled', 'opted_out', 'dead'],
-  converted: ['dead'],
-  opted_out: ['active', 'dead'], // UNSTOP can re-activate
-  dead:      [],
+  active:           ['stale', 'orphaned', 'opted_out', 'dead'],
+  stale:            ['revival_eligible', 'opted_out', 'dead'],           // ← no longer direct → enrolled
+  orphaned:         ['revival_eligible', 'opted_out', 'dead'],           // ← no longer direct → enrolled
+  revival_eligible: ['enrolled', 'stale', 'opted_out', 'dead'],         // ← the eligibility gate
+  enrolled:         ['responded', 'exhausted', 'opted_out', 'dead'],
+  responded:        ['revived', 'opted_out', 'dead'],
+  revived:          ['converted', 'enrolled', 'opted_out', 'dead'],     // manual re-enroll OK
+  exhausted:        ['revival_eligible', 'stale', 'opted_out', 'dead'], // back through eligibility
+  converted:        ['dead'],
+  opted_out:        ['active', 'dead'],                                  // UNSTOP re-activates
+  dead:             [],
 }
 
 export function isValidTransition(from: LeadState, to: LeadState): boolean {
@@ -54,6 +72,7 @@ export async function transition(
     updatedAt: now,
   }
 
+  // Stamp convenience timestamps on key transitions
   if (to === 'stale') updates.staleAt = now
   if (to === 'enrolled') updates.enrolledAt = now
   if (to === 'revived') updates.revivedAt = now

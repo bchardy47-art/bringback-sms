@@ -1,33 +1,41 @@
 /**
- * DEV-ONLY — manually trigger the stale detection + auto-enroll cycle.
+ * DEV-ONLY — manually trigger the full revival pipeline for a tenant.
  *
- * In production this route returns 404 unconditionally. It is intentionally
- * NOT protected by session auth in dev so it can be called from curl or the
- * simulate-webhook script without a cookie jar.
+ * Runs all three phases:
+ *   1. detectStaleLeads       — marks active → stale
+ *   2. runEligibilityPass     — evaluates stale leads, marks eligible → revival_eligible
+ *   3. enrollEligibleLeads    — enrolls revival_eligible leads into active workflows
  *
- * Usage (dev only):
+ * Pass dryRun: true to preview phases 1 & 2 without writing transitions or enrolling.
+ *
+ * In production this route returns 404 unconditionally.
+ *
+ * Usage:
  *   curl -X POST http://localhost:3000/api/dev/trigger-stale \
  *        -H 'Content-Type: application/json' \
  *        -d '{"tenantId":"<uuid>"}'
  *
- * Response:
- *   { "marked": 3, "enrolled": 6 }
+ *   # Preview only (no state changes):
+ *   curl -X POST http://localhost:3000/api/dev/trigger-stale \
+ *        -H 'Content-Type: application/json' \
+ *        -d '{"tenantId":"<uuid>","dryRun":true}'
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { detectStaleLeads, autoEnrollStaleLeads } from '@/lib/engine/enroll'
+import { detectStaleLeads, enrollEligibleLeads } from '@/lib/engine/enroll'
+import { runEligibilityPass } from '@/lib/engine/eligibility'
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  // Hard block in production — return a generic 404 so the route isn't
-  // even discoverable by scanners.
   if (process.env.NODE_ENV === 'production') {
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
 
   let tenantId: string | undefined
+  let dryRun = false
   try {
-    const body = await req.json() as { tenantId?: string }
+    const body = await req.json() as { tenantId?: string; dryRun?: boolean }
     tenantId = body.tenantId
+    dryRun = body.dryRun ?? false
   } catch {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
   }
@@ -36,12 +44,27 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'tenantId is required' }, { status: 400 })
   }
 
-  console.log(`[dev/trigger-stale] Running for tenant ${tenantId}`)
+  console.log(`[dev/trigger-stale] tenant=${tenantId} dryRun=${dryRun}`)
 
+  // Phase 1: stale detection (always runs — marking stale is safe)
   const marked = await detectStaleLeads(tenantId)
-  const enrolled = await autoEnrollStaleLeads(tenantId)
 
-  console.log(`[dev/trigger-stale] marked=${marked} enrolled=${enrolled}`)
+  // Phase 2: eligibility pass (dry-run aware)
+  const eligibility = await runEligibilityPass(tenantId, { dryRun })
 
-  return NextResponse.json({ marked, enrolled })
+  // Phase 3: enrollment (skipped in dry-run)
+  const enrolled = dryRun ? 0 : await enrollEligibleLeads(tenantId)
+
+  return NextResponse.json({
+    dryRun,
+    phase1_marked_stale: marked,
+    phase2_eligibility: {
+      evaluated: eligibility.evaluated,
+      eligible: eligibility.eligible,
+      suppressed: eligibility.suppressed,
+      byReason: eligibility.byReason,
+    },
+    phase3_enrolled: enrolled,
+    leads: dryRun ? eligibility.leads : undefined,
+  })
 }

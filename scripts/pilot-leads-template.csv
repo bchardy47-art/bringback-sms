@@ -1,0 +1,6 @@
+firstName,lastName,phone,email,vehicleName,leadSource,originalInquiryAt,consentStatus,consentSource,consentCapturedAt,notes
+Jane,Smith,+16025551234,jane.smith@email.com,2024 Toyota Camry XSE,Cars.com,2026-03-15T10:30:00Z,explicit,web_form,2026-03-15T10:30:00Z,Internet lead - inquired about Camry XSE. Has not responded to follow-up calls.
+John,Doe,+16025555678,john.doe@email.com,2024 Ford F-150 XLT,AutoTrader,2026-03-10T14:00:00Z,explicit,web_form,2026-03-10T14:00:00Z,Vehicle detail page lead. Requested pricing, went quiet after one call.
+Maria,Garcia,+16025559012,maria.garcia@email.com,2024 Honda CR-V EX,Dealer website,2026-03-20T09:15:00Z,implied,phone_inquiry,2026-03-20T09:15:00Z,Phone-up. Left message, no callback. Open to follow-up per inquiry notes.
+Robert,Johnson,+16025553456,robert.johnson@email.com,2023 Chevrolet Silverado 1500,TrueCar,2026-02-28T16:45:00Z,explicit,web_form,2026-02-28T16:45:00Z,Older lead - 58 days stale. Strong intent signal at submission. Worth one final touch.
+Ashley,Williams,+16025557890,ashley.williams@email.com,2024 Hyundai Tucson SEL,Cars.com,2026-04-01T11:00:00Z,explicit,web_form,2026-04-01T11:00:00Z,Recent lead - 27 days stale. No contact made after initial CRM entry.

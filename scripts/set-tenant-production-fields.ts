@@ -63,7 +63,10 @@ const FIELDS = {
   campaignUseCase:   'Automated follow-up messages to leads who previously inquired about vehicle purchases but have not responded. Messages re-engage customers with relevant vehicle options and invite them to reply or opt out.',
 
   // Describes how customer SMS consent is collected.
-  consentExplanation: 'Customers provide consent by submitting a web inquiry form that includes SMS opt-in language. Consent records are retained in our CRM.',
+  // Using conservative Version 2 wording (prior-inquiry / established relationship).
+  // Switch to Version 1 (explicit opt-in) only when all pilot leads come from a confirmed
+  // SMS opt-in form and you can provide proof to TCR on request.
+  consentExplanation: 'Customers initiated contact with the dealership by submitting a vehicle inquiry or contacting the dealership directly to express interest in purchasing a vehicle. Messages are sent only to individuals with an established prior business relationship with the dealership based on that inquiry. Every message includes opt-out instructions (reply STOP), and opt-outs are honored immediately and permanently. This program does not contact cold or purchased lists.',
 
   // ── 10DLC registration status ─────────────────────────────────────────────
   // Leave as 'not_started' until you actually submit in Telnyx portal.

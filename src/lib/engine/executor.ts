@@ -1,14 +1,20 @@
 import { eq } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import {
-  leads, workflowEnrollments, workflowStepExecutions, workflowSteps, tenants,
+  leads, conversations, messages, phoneNumbers,
+  workflowEnrollments, workflowStepExecutions, workflowSteps, tenants,
   type SendSmsConfig, type ConditionConfig, type AssignConfig,
 } from '@/lib/db/schema'
+
+// Drizzle relational query types need explicit assertion when accessed via with:{} relations
+type LeadRow = typeof leads.$inferSelect
+type StepRow = typeof workflowSteps.$inferSelect
 import { shouldStop } from './stop-conditions'
 import { evaluateCondition } from './conditions'
 import { scheduleStep } from './scheduler'
 import { escalateToHuman } from './escalate'
 import { getRetryDelay, hasRetriesRemaining } from './retry'
+import { runSendGuard, GUARD_CANCEL_REASONS, type SendGuardReason } from './send-guard'
 import { sendMessage } from '@/lib/messaging/send'
 import { workflowStepQueue } from '@/lib/queue/queues'
 import { transition } from '@/lib/lead/state-machine'
@@ -54,8 +60,8 @@ export async function executeStep(stepExecutionId: string): Promise<void> {
     return
   }
 
-  const lead = enrollment.lead
-  const step = execution.step
+  const lead = enrollment.lead as LeadRow
+  const step = execution.step as StepRow
 
   // ── Stop condition check ──────────────────────────────────────────────────
   const stopReason = shouldStop({
@@ -72,7 +78,7 @@ export async function executeStep(stepExecutionId: string): Promise<void> {
     if (enrollment.status === 'active') {
       await db
         .update(workflowEnrollments)
-        .set({ status: 'cancelled', completedAt: new Date() })
+        .set({ status: 'cancelled', completedAt: new Date(), stopReason, stoppedAt: new Date() })
         .where(eq(workflowEnrollments.id, enrollment.id))
     }
     return
@@ -84,8 +90,8 @@ export async function executeStep(stepExecutionId: string): Promise<void> {
     let shouldAdvance = true
 
     if (config.type === 'send_sms') {
-      const result = await executeSendSms(config, lead, enrollment.id, step.id, stepExecutionId)
-      // opted_out path already cancelled the enrollment — do not advance
+      const result = await executeSendSms(config, lead, enrollment, step.id, execution)
+      // guard cancelled path — do not advance
       if (result === 'cancelled') return
 
     } else if (config.type === 'condition') {
@@ -94,14 +100,18 @@ export async function executeStep(stepExecutionId: string): Promise<void> {
       })
 
       if (outcome === 'stop') {
-        await markEnrollmentDone(stepExecutionId, enrollment.id, 'completed')
+        await markEnrollmentDone(stepExecutionId, enrollment.id, 'completed', 'condition_stop')
         await maybeMarkExhausted(enrollment.id, lead.id, lead.state)
         return
       }
 
       await db
         .update(workflowStepExecutions)
-        .set({ status: outcome === 'skip' ? 'skipped' : 'executed', executedAt: new Date() })
+        .set({
+          status: outcome === 'skip' ? 'skipped' : 'executed',
+          executedAt: new Date(),
+          ...(outcome === 'skip' ? { skipReason: 'condition_skip', skippedAt: new Date() } : {}),
+        })
         .where(eq(workflowStepExecutions.id, stepExecutionId))
 
     } else if (config.type === 'assign') {
@@ -122,23 +132,84 @@ export async function executeStep(stepExecutionId: string): Promise<void> {
 
 // ── Step handlers ─────────────────────────────────────────────────────────
 
-// Returns 'ok' to continue advancing, 'cancelled' to halt (opted-out path).
+// Returns 'ok' to continue advancing, 'cancelled' to halt.
 async function executeSendSms(
   config: SendSmsConfig,
   lead: typeof leads.$inferSelect,
-  enrollmentId: string,
+  enrollment: typeof workflowEnrollments.$inferSelect,
   stepId: string,
-  stepExecutionId: string
+  stepExecution: typeof workflowStepExecutions.$inferSelect,
 ): Promise<'ok' | 'cancelled'> {
+  const enrollmentId   = enrollment.id
+  const stepExecutionId = stepExecution.id
+
+  // ── Load tenant for template rendering and guard ──────────────────────────
   const tenant = await db.query.tenants.findFirst({ where: eq(tenants.id, lead.tenantId) })
-  const body = renderTemplate(config.template, {
-    firstName: lead.firstName,
-    lastName: lead.lastName,
-    fullName: `${lead.firstName} ${lead.lastName}`,
-    vehicleOfInterest: lead.vehicleOfInterest ?? '',
-    dealershipName: tenant?.name ?? '',
-    dealerPhone: ((tenant?.settings ?? {}) as Record<string, string>).dealerPhone ?? '',
+
+  // ── Send-time guard — canonical pre-send decision point ───────────────────
+  //
+  // Runs before template rendering and before calling the SMS provider.
+  // Any block here results in a skipped/cancelled step with a full audit row.
+  const guard = await runSendGuard({
+    lead,
+    enrollment,
+    stepExecutionId,
+    scheduledAt: stepExecution.scheduledAt,
+    tenant,
+    workflowId: enrollment.workflowId,
   })
+
+  if (!guard.allowed) {
+    const shouldCancel = GUARD_CANCEL_REASONS.has(guard.reason)
+    console.log(
+      `[send-guard] BLOCKED — step ${stepExecutionId} | reason: ${guard.reason}` +
+      (guard.detail ? ` | ${guard.detail}` : '') +
+      ` | enrollment: ${shouldCancel ? 'cancel' : 'skip'}`
+    )
+
+    // Render template now so the audit row shows the intended message body
+    const rawAuditBody = renderTemplate(config.template, buildTemplateVars(lead, tenant))
+    const body = config.optOutFooter ? `${rawAuditBody}\n\n${config.optOutFooter}` : rawAuditBody
+
+    // Write audit row with skip_reason stamped
+    await writeGuardAuditRow({
+      tenantId: lead.tenantId,
+      leadId: lead.id,
+      to: lead.phone,
+      body,
+      workflowStepId: stepId,
+      stepExecutionId,
+      skipReason: guard.reason,
+    })
+
+    // Mark step execution as skipped
+    await db
+      .update(workflowStepExecutions)
+      .set({ status: 'skipped', executedAt: new Date(), error: `guard:${guard.reason}` })
+      .where(eq(workflowStepExecutions.id, stepExecutionId))
+
+    // Cancel or leave enrollment based on reason category
+    if (shouldCancel && enrollment.status === 'active') {
+      await db
+        .update(workflowEnrollments)
+        .set({
+          status: 'cancelled',
+          completedAt: new Date(),
+          stopReason: guard.reason,
+          stoppedAt: new Date(),
+        })
+        .where(eq(workflowEnrollments.id, enrollmentId))
+    }
+
+    return 'cancelled'
+  }
+
+  // ── Guard passed — render and send ───────────────────────────────────────
+  // Build the same body that preview.ts produces: template + opt-out footer.
+  // The footer (if set) is appended here so the sent body exactly matches the
+  // dry-run preview that was reviewed and approved.
+  const rawBody = renderTemplate(config.template, buildTemplateVars(lead, tenant))
+  const body = config.optOutFooter ? `${rawBody}\n\n${config.optOutFooter}` : rawBody
 
   const outcome = await sendMessage({
     tenantId: lead.tenantId,
@@ -146,19 +217,26 @@ async function executeSendSms(
     to: lead.phone,
     body,
     workflowStepId: stepId,
+    stepExecutionId,  // idempotency: one message per step execution
   })
 
-  if (outcome.skipped === 'opted_out') {
-    console.log(`[executor] Lead ${lead.id} opted out — cancelling enrollment ${enrollmentId}`)
+  // Belt-and-suspenders: sendMessage can still return skipped if SMS_LIVE_MODE
+  // was toggled off between the guard check and the provider call.
+  if (outcome.skipped) {
+    console.warn(`[executor] sendMessage skipped after guard passed — reason: ${outcome.skipped}`)
     await db
       .update(workflowStepExecutions)
-      .set({ status: 'skipped', executedAt: new Date(), error: 'opted_out' })
+      .set({ status: 'skipped', executedAt: new Date(), error: `post-guard:${outcome.skipped}` })
       .where(eq(workflowStepExecutions.id, stepExecutionId))
-    await db
-      .update(workflowEnrollments)
-      .set({ status: 'cancelled', completedAt: new Date() })
-      .where(eq(workflowEnrollments.id, enrollmentId))
     return 'cancelled'
+  }
+
+  // Stamp lastAutomatedAt so cooldown and eligibility checks stay accurate
+  if (!outcome.dryRun) {
+    await db
+      .update(leads)
+      .set({ lastAutomatedAt: new Date(), updatedAt: new Date() })
+      .where(eq(leads.id, lead.id))
   }
 
   await db
@@ -167,6 +245,77 @@ async function executeSendSms(
     .where(eq(workflowStepExecutions.id, stepExecutionId))
 
   return 'ok'
+}
+
+// ── Template helpers ──────────────────────────────────────────────────────────
+
+function renderTemplate(template: string, vars: Record<string, string>): string {
+  return template.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] ?? '')
+}
+
+
+function buildTemplateVars(
+  lead: typeof leads.$inferSelect,
+  tenant: typeof tenants.$inferSelect | null | undefined,
+): Record<string, string> {
+  return {
+    firstName: lead.firstName,
+    lastName: lead.lastName,
+    fullName: `${lead.firstName} ${lead.lastName}`,
+    vehicleOfInterest: lead.vehicleOfInterest ?? '',
+    dealershipName: tenant?.name ?? '',
+    dealerPhone: ((tenant?.settings ?? {}) as Record<string, string>).dealerPhone ?? '',
+  }
+}
+
+// ── Guard audit row writer ────────────────────────────────────────────────────
+//
+// Creates a message row (status=queued, skip_reason set) so the audit trail
+// shows exactly what would have been sent and why it was blocked.
+// Non-fatal — a failure here should not prevent the step from being marked skipped.
+
+async function writeGuardAuditRow(p: {
+  tenantId: string
+  leadId: string
+  to: string
+  body: string
+  workflowStepId?: string
+  stepExecutionId: string
+  skipReason: SendGuardReason
+}): Promise<void> {
+  try {
+    const phoneNumber = await db.query.phoneNumbers.findFirst({
+      where: eq(phoneNumbers.tenantId, p.tenantId),
+    })
+    if (!phoneNumber) return // no phone configured — skip audit row silently
+
+    const [conversation] = await db
+      .insert(conversations)
+      .values({
+        tenantId: p.tenantId,
+        leadId: p.leadId,
+        tenantPhone: phoneNumber.number,
+        leadPhone: p.to,
+      })
+      .onConflictDoUpdate({ target: conversations.leadId, set: { updatedAt: new Date() } })
+      .returning()
+
+    await db
+      .insert(messages)
+      .values({
+        conversationId: conversation.id,
+        direction: 'outbound',
+        body: p.body,
+        status: 'queued',
+        workflowStepId: p.workflowStepId ?? null,
+        stepExecutionId: p.stepExecutionId,
+        skipReason: p.skipReason,
+        skippedAt: new Date(),
+      })
+      .onConflictDoNothing() // stepExecutionId unique index — safe to retry
+  } catch (err) {
+    console.error('[executor] Failed to write guard audit row:', err instanceof Error ? err.message : err)
+  }
 }
 
 async function executeAssign(config: AssignConfig, leadId: string): Promise<void> {
@@ -188,13 +337,14 @@ async function advanceEnrollment(
 
   if (!nextStep) {
     // No more steps — enrollment complete
-    await markEnrollmentDone(null, enrollmentId, 'completed')
+    await markEnrollmentDone(null, enrollmentId, 'completed', 'all_steps_executed')
     const enrollment = await db.query.workflowEnrollments.findFirst({
       where: eq(workflowEnrollments.id, enrollmentId),
       with: { lead: true },
     })
     if (enrollment) {
-      await maybeMarkExhausted(enrollmentId, enrollment.lead.id, enrollment.lead.state)
+      const lead2 = enrollment.lead as LeadRow
+      await maybeMarkExhausted(enrollmentId, lead2.id, lead2.state)
     }
     return
   }
@@ -213,7 +363,8 @@ async function advanceEnrollment(
 async function markEnrollmentDone(
   stepExecutionId: string | null,
   enrollmentId: string,
-  finalStatus: 'completed' | 'cancelled'
+  finalStatus: 'completed' | 'cancelled',
+  stopReason?: string,
 ): Promise<void> {
   if (stepExecutionId) {
     await db
@@ -223,7 +374,12 @@ async function markEnrollmentDone(
   }
   await db
     .update(workflowEnrollments)
-    .set({ status: finalStatus, completedAt: new Date() })
+    .set({
+      status: finalStatus,
+      completedAt: new Date(),
+      stopReason: stopReason ?? finalStatus,
+      stoppedAt: new Date(),
+    })
     .where(eq(workflowEnrollments.id, enrollmentId))
 }
 
@@ -280,8 +436,3 @@ async function handleStepError(
   }
 }
 
-// ── Template renderer ─────────────────────────────────────────────────────
-
-function renderTemplate(template: string, vars: Record<string, string>): string {
-  return template.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] ?? '')
-}
