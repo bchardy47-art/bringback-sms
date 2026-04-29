@@ -29,7 +29,7 @@
 import { config } from 'dotenv'
 config({ path: new URL('../.env.local', import.meta.url).pathname })
 
-import { eq } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
 import { db } from '../src/lib/db'
 import { tenants } from '../src/lib/db/schema'
 
@@ -154,7 +154,7 @@ async function main() {
     campaignUseCase:      FIELDS.campaignUseCase,
     consentExplanation:   FIELDS.consentExplanation,
     tenDlcStatus:         FIELDS.tenDlcStatus,
-    tenDlcSampleMessages: SAMPLE_MESSAGES,
+    tenDlcSampleMessages: sql`${JSON.stringify(SAMPLE_MESSAGES)}::jsonb`,
     updatedAt:            new Date(),
   }).where(eq(tenants.id, tenant.id))
 
