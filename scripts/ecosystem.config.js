@@ -20,6 +20,7 @@ module.exports = {
       name: 'dlr-worker',
       script: 'node_modules/.bin/tsx',
       args: 'worker.ts',
+      exec_mode: 'fork',
       cwd: '/opt/dlr',
       env: {
         NODE_ENV: 'production',
