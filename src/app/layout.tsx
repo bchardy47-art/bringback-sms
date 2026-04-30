@@ -8,7 +8,7 @@ const inter = Inter({ subsets: ['latin'] })
 export const metadata: Metadata = {
   title: 'DLR — Dead Lead Revival',
   description: 'Revenue recovery for auto dealerships',
-  robots: 'noindex, nofollow',
+  robots: 'index, follow',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
