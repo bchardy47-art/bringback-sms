@@ -140,7 +140,7 @@ export default function SmsConsentPage() {
 
         {/* Below-button disclosure */}
         <p style={{ fontSize: 12, color: '#888', marginTop: 14, marginBottom: 0, textAlign: 'center' }}>
-          By submitting, you agree to receive SMS messages from BCHardy LLC. Msg &amp; data
+          Check the box above to consent to SMS messages from BCHardy LLC. Msg &amp; data
           rates may apply. Reply STOP to unsubscribe at any time.
         </p>
       </form>
