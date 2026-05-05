@@ -101,7 +101,6 @@ export default function SmsConsentPage() {
             <input
               type="checkbox"
               name="sms_consent"
-              required
               style={{ marginTop: 3, width: 16, height: 16, flexShrink: 0, cursor: 'pointer' }}
             />
             <span style={{ fontSize: 13, color: '#333', lineHeight: 1.6 }}>
