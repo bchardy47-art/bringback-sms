@@ -105,11 +105,11 @@ export default function SmsConsentPage() {
             />
             <span style={{ fontSize: 13, color: '#333', lineHeight: 1.6 }}>
               By checking this box and submitting this form, I expressly consent to receive
-              recurring automated SMS text messages from <strong>BCHardy LLC</strong> (operating
+              recurring automated marketing SMS text messages from <strong>BCHardy LLC</strong> (operating
               as <strong>Dead Lead Revival / DLR</strong>) at the mobile phone number provided
-              above. Messages may include follow-up communications regarding my vehicle purchase
-              inquiry. <strong>Message frequency varies.</strong> Message and data rates may
-              apply. Consent is not a condition of any purchase or service. Reply{' '}
+              above. Marketing messages may include follow-up communications regarding my vehicle
+              purchase inquiry. <strong>Message frequency varies.</strong> Message and data rates
+              may apply. Consent is not a condition of any purchase or service. Reply{' '}
               <strong>STOP</strong> at any time to unsubscribe. Reply <strong>HELP</strong> for
               assistance. View our{' '}
               <a href="/privacy" style={{ color: '#0070f3' }}>Privacy Policy</a> and{' '}
@@ -140,7 +140,7 @@ export default function SmsConsentPage() {
 
         {/* Below-button disclosure */}
         <p style={{ fontSize: 12, color: '#888', marginTop: 14, marginBottom: 0, textAlign: 'center' }}>
-          Check the box above to consent to SMS messages from BCHardy LLC. Msg &amp; data
+          Check the box above to consent to marketing SMS messages from BCHardy LLC. Msg &amp; data
           rates may apply. Reply STOP to unsubscribe at any time.
         </p>
       </form>
