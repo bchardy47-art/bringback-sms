@@ -1,4 +1,4 @@
-import { createVerify } from 'crypto'
+import { verify as cryptoVerify } from 'crypto'
 import type {
   MessagingProvider,
   SendMessageParams,
@@ -81,28 +81,53 @@ export class TelnyxProvider implements MessagingProvider {
   //   30 2a 30 05 06 03 2b 65 70 03 21 00
   verifyWebhookSignature(rawBody: string, headers: Record<string, string>): boolean {
     try {
-      // Telnyx may send the signature header with or without the -1 suffix
-      const signature =
-        headers['telnyx-signature-ed25519'] ||
-        headers['telnyx-signature-ed25519-1']
+      const signature = headers['telnyx-signature-ed25519']
       const timestamp = headers['telnyx-timestamp']
-      if (!signature || !timestamp) return false
+      if (!signature || !timestamp) {
+        console.warn(
+          `[webhook/telnyx] missing headers — sig=${!!signature} ts=${!!timestamp}`,
+        )
+        return false
+      }
 
       const message = `${timestamp}|${rawBody}`
 
-      // Convert raw 32-byte Ed25519 key → DER SPKI (44 bytes) by prepending the
-      // ASN.1 SubjectPublicKeyInfo header for Ed25519 (OID 1.3.101.112)
       const rawKeyBuffer = Buffer.from(this.publicKey, 'base64')
+      if (rawKeyBuffer.length !== 32) {
+        console.warn(
+          `[webhook/telnyx] TELNYX_PUBLIC_KEY decodes to ${rawKeyBuffer.length} bytes (expected 32)`,
+        )
+        return false
+      }
       const SPKI_PREFIX = Buffer.from('302a300506032b6570032100', 'hex')
       const spkiBuffer = Buffer.concat([SPKI_PREFIX, rawKeyBuffer])
 
-      const verify = createVerify('ed25519')
-      verify.update(message)
-      return verify.verify(
-        { key: spkiBuffer, format: 'der', type: 'spki' } as Parameters<typeof verify.verify>[0],
-        Buffer.from(signature, 'base64')
+      const sigBuffer = Buffer.from(signature, 'base64')
+      if (sigBuffer.length !== 64) {
+        console.warn(
+          `[webhook/telnyx] sig buffer is ${sigBuffer.length} bytes (expected 64) — header.len=${signature.length} header.prefix=${JSON.stringify(signature.slice(0, 24))}`,
+        )
+        return false
+      }
+
+      // Ed25519 is a "pure" signature scheme (no separate digest step),
+      // so Node's one-shot crypto.verify(null, …) is the correct API.
+      // The streaming createVerify('ed25519') path throws "Invalid digest"
+      // in Node 20 because it routes through EVP_DigestVerifyFinal.
+      const ok = cryptoVerify(
+        null,
+        Buffer.from(message, 'utf8'),
+        { key: spkiBuffer, format: 'der', type: 'spki' },
+        sigBuffer,
       )
-    } catch {
+      if (!ok) {
+        console.warn(
+          `[webhook/telnyx] signature mismatch — ts=${timestamp} bodyLen=${rawBody.length} sigB64Len=${signature.length}`,
+        )
+      }
+      return ok
+    } catch (err) {
+      console.warn('[webhook/telnyx] verify threw:', (err as Error)?.message)
       return false
     }
   }
