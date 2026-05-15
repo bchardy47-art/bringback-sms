@@ -8,6 +8,7 @@ import { leads, workflows } from '@/lib/db/schema'
 import { LeadStateHistory } from '@/components/leads/LeadStateHistory'
 import { EnrollLeadButton } from '@/components/leads/EnrollLeadButton'
 import { ConversationPreview } from '@/components/leads/ConversationPreview'
+import { VehicleEditField } from '@/components/leads/VehicleEditField'
 
 const STATE_LABELS: Record<string, string> = {
   active:    'Active',
@@ -86,7 +87,7 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
         {/* Left: lead info */}
         <div className="lg:col-span-1 space-y-4">
           <Section title="Details">
-            <Field label="Vehicle" value={lead.vehicleOfInterest} />
+            <VehicleEditField leadId={lead.id} initialValue={lead.vehicleOfInterest} />
             <Field label="Email" value={lead.email} />
             <Field label="Salesperson" value={lead.salespersonName} />
             <Field label="Source" value={lead.crmSource} />
