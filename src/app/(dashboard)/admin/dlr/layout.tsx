@@ -8,6 +8,7 @@ import { authOptions } from '@/lib/auth'
 const NAV = [
   // ── Always first ─────────────────────────────────────────────────
   { href: '/admin/dlr',              label: 'Overview' },
+  { href: '/admin/dlr/intakes',      label: '🏠 Intakes' },
   // ── Setup (do these before importing leads) ───────────────────────
   { href: '/admin/dlr/production',   label: 'Production' },
   { href: '/admin/dlr/readiness',    label: 'Readiness' },
@@ -34,7 +35,8 @@ export default async function DlrAdminLayout({
   children: React.ReactNode
 }) {
   const session = await getServerSession(authOptions)
-  if (!session) redirect('/login')
+  if (!session?.user?.tenantId) redirect('/login')
+  if (session.user.role !== 'admin') redirect('/')
 
   return (
     <div className="min-h-full bg-gray-50">
