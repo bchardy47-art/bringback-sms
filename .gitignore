@@ -56,6 +56,23 @@ deploy_now.sh
 finish_deploy.sh
 start_pm2.sh
 set_webhook.sh
+remote_resend.sh
 
 # Stale root-level PM2 config (canonical copy is scripts/ecosystem.config.js)
 /ecosystem.config.js
+
+# Ad-hoc operator / debug scripts kept at the repo root. These are one-off
+# tsx invocations and not part of the deployable code; keep them local only.
+/*.mts
+
+# Ad-hoc captured output (pm2 dumps, build error pastes, vps log captures)
+build_error.txt
+pm2_check.txt
+vps_logs.txt
+tenant_list.txt
+
+# Ad-hoc test fixture CSVs committed alongside operator scripts
+test_leads.csv
+test_leads_live.csv
+test_pilot_leads.csv
+test_pilot_leads_v2.csv
