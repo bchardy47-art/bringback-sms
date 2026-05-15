@@ -1,5 +1,3 @@
-'use server'
-
 /**
  * Phase 16 — Pilot Data Pack
  * /admin/dlr/pilot-pack
@@ -63,22 +61,14 @@ const READINESS_STATUS_STYLE: Record<string, { color: string; barColor: string; 
 
 // ── Page ───────────────────────────────────────────────────────────────────────
 
-export default async function PilotPackPage({
-  searchParams,
-}: {
-  searchParams: { tenantId?: string }
-}) {
+export default async function PilotPackPage() {
   const session = await getServerSession(authOptions)
-  if (!session) redirect('/login')
+  if (!session?.user?.tenantId) redirect('/login')
+  if (session.user.role !== 'admin') redirect('/')
 
-  const allTenants = await db
-    .select({ id: tenants.id, name: tenants.name })
-    .from(tenants)
-    .orderBy(tenants.name)
+  const tenantId = session.user.tenantId
 
-  const tenantId = searchParams.tenantId ?? allTenants[0]?.id ?? ''
-
-  let packData = tenantId ? await getPilotPackData(tenantId) : null
+  const packData = await getPilotPackData(tenantId)
   const { tenant, workflow, batch, selectedLeads, dryRunReport, readinessScore, tenDLCWaitingStatus, workflowStepCount } = packData ?? {}
 
   const waitingStyle = tenDLCWaitingStatus ? (WAITING_STATUS_STYLE[tenDLCWaitingStatus] ?? WAITING_STATUS_STYLE.waiting_on_10dlc) : null
@@ -96,24 +86,7 @@ export default async function PilotPackPage({
         </p>
       </div>
 
-      {/* Tenant selector */}
-      <form method="GET" className="flex items-center gap-3">
-        <label className="text-sm font-medium text-gray-700">Tenant:</label>
-        <select
-          name="tenantId"
-          defaultValue={tenantId}
-          className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-300 focus:outline-none"
-        >
-          {allTenants.map(t => (
-            <option key={t.id} value={t.id}>{t.name}</option>
-          ))}
-        </select>
-        <button type="submit" className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-xs font-medium">
-          Switch
-        </button>
-      </form>
-
-      {tenantId && packData && readinessScore && readinessStyle && waitingStyle && tenDLCWaitingStatus && (
+      {packData && readinessScore && readinessStyle && waitingStyle && tenDLCWaitingStatus && (
 
         <>
           {/* ── Top status bar ────────────────────────────────────────���─────── */}
@@ -411,7 +384,7 @@ export default async function PilotPackPage({
       )}
 
       {/* Empty state */}
-      {tenantId && !packData && (
+      {!packData && (
         <div className="text-center py-16 text-sm text-gray-400">
           No data available for this tenant.
         </div>

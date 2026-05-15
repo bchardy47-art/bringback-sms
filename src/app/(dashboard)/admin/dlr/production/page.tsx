@@ -1,18 +1,16 @@
-'use server'
-
 /**
  * Phase 12 — Telnyx Production Configuration
  * /admin/dlr/production
  *
- * Shows the full Telnyx configuration audit: env vars, tenant config,
- * webhook setup, and 10DLC submission readiness. Also displays the sample
- * message library for 10DLC campaign submission.
+ * Shows the full Telnyx configuration audit for the caller's tenant.
+ * Read-only. Admin role required.
  */
 
+import { getServerSession } from 'next-auth'
+import { redirect } from 'next/navigation'
+import { authOptions } from '@/lib/auth'
 import { runTelnyxConfigAudit, type TelnyxConfigAuditResult, type AuditSeverity } from '@/lib/telnyx/config-audit'
 import { getSampleMessages, generateTcrSampleSet, type SampleMessage } from '@/lib/pilot/sample-messages'
-import { db } from '@/lib/db'
-import { tenants } from '@/lib/db/schema'
 
 // ── Status helpers ─────────────────────────────────────────────────────────────
 
@@ -183,10 +181,11 @@ function SampleMessageCard({ sample, index }: { sample: SampleMessage; index: nu
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default async function ProductionPage() {
-  const allTenants = await db.query.tenants.findMany()
-  const audits: TelnyxConfigAuditResult[] = await Promise.all(
-    allTenants.map(t => runTelnyxConfigAudit(t.id))
-  )
+  const session = await getServerSession(authOptions)
+  if (!session?.user?.tenantId) redirect('/login')
+  if (session.user.role !== 'admin') redirect('/')
+
+  const audits: TelnyxConfigAuditResult[] = [await runTelnyxConfigAudit(session.user.tenantId)]
 
   const samples      = getSampleMessages()
   const tcrSamples   = generateTcrSampleSet(6)

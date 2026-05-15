@@ -18,11 +18,16 @@ const STATUS_COLOR: Record<string, string> = {
   cancelled:  'bg-red-100 text-red-600',
 }
 
-export default async function PilotListPage() {
+export default async function PilotListPage({
+  searchParams,
+}: {
+  searchParams?: { tenantId?: string; batchId?: string }
+}) {
   const session = await getServerSession(authOptions)
   if (!session) redirect('/login')
 
-  const tenantId = session.user.tenantId
+  // Admin can pass ?tenantId= to view any tenant's batches (used by batch-queue nav links)
+  const tenantId = searchParams?.tenantId ?? session.user.tenantId
 
   const batches = await db.query.pilotBatches.findMany({
     where: eq(pilotBatches.tenantId, tenantId),
@@ -47,7 +52,7 @@ export default async function PilotListPage() {
           <h1 className="text-xl font-bold text-gray-900">Pilot Batches</h1>
           <p className="text-sm text-gray-500 mt-0.5">
             Manually-approved batches of up to {HARD_PILOT_CAP} leads. Preview → Approve → Send.
-            Batches stay in <strong>draft</strong> until you pass the Phase 13 confirmation gate.
+            Batches stay in <strong>draft</strong> until live send approval is granted.
           </p>
         </div>
         <Link
@@ -59,7 +64,7 @@ export default async function PilotListPage() {
       </div>
 
       {/* No live SMS banner */}
-      <NoLiveSMSBanner reason="Pilot batches stay in draft until 10DLC is approved and the confirmation gate is passed" />
+      <NoLiveSMSBanner reason="Pilot batches stay in draft until 10DLC is approved and live send approval is granted" />
 
       {/* Batch list */}
       {batches.length === 0 ? (
