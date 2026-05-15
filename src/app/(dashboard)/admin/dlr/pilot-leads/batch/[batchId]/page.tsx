@@ -1,26 +1,19 @@
-'use server'
-
 /**
  * Phase 15 — Pilot Batch Review Page
  * /admin/dlr/pilot-leads/batch/[batchId]
  *
- * Shows:
- *   - Batch summary (status, tenant, workflow, lead count)
- *   - Per-lead rows with rendered message previews
- *   - Consent summary
- *   - Pre-approval checklist (must be completed mentally before clicking approve)
- *
- * No sends occur from this page. It is read-only plus the approve action.
+ * Read-only page (plus the approve action invoked from BatchChecklist).
+ * Scoped to the caller's session tenant — admin role required.
  */
 
 import { db } from '@/lib/db'
 import { pilotBatches, pilotBatchLeads, leads, workflows, tenants } from '@/lib/db/schema'
-import { eq } from 'drizzle-orm'
+import { and, eq, inArray } from 'drizzle-orm'
 import { getServerSession } from 'next-auth'
-import { redirect } from 'next/navigation'
+import { redirect, notFound } from 'next/navigation'
 import { authOptions } from '@/lib/auth'
 import type { PilotPreviewMessage } from '@/lib/db/schema'
-import { notFound } from 'next/navigation'
+import { BatchChecklist } from './BatchChecklist'
 
 type RouteContext = { params: { batchId: string } }
 
@@ -33,42 +26,38 @@ const CONSENT_STYLE: Record<string, string> = {
 
 export default async function PilotBatchReviewPage({ params }: RouteContext) {
   const session = await getServerSession(authOptions)
-  if (!session) redirect('/login')
+  if (!session?.user?.tenantId) redirect('/login')
+  if (session.user.role !== 'admin') redirect('/')
 
-  // Load batch with relations
   const batch = await db.query.pilotBatches.findFirst({
-    where: eq(pilotBatches.id, params.batchId),
+    where: and(
+      eq(pilotBatches.id, params.batchId),
+      eq(pilotBatches.tenantId, session.user.tenantId),
+    ),
   })
   if (!batch) notFound()
 
   const [tenant, workflow, batchLeadRows] = await Promise.all([
     db.query.tenants.findFirst({ where: eq(tenants.id, batch.tenantId) }),
-    db.query.workflows.findFirst({ where: eq(workflows.id, batch.workflowId ?? '') }),
-    db
-      .select()
-      .from(pilotBatchLeads)
-      .where(eq(pilotBatchLeads.batchId, params.batchId)),
+    batch.workflowId
+      ? db.query.workflows.findFirst({ where: eq(workflows.id, batch.workflowId) })
+      : Promise.resolve(null),
+    db.select().from(pilotBatchLeads).where(eq(pilotBatchLeads.batchId, params.batchId)),
   ])
 
-  // Load lead records for each batch lead
   const leadIds = batchLeadRows.map(r => r.leadId)
   const leadRecords = leadIds.length > 0
     ? await db
         .select()
         .from(leads)
-        .where(eq(leads.id, leadIds[0]))
-        .then(async () => {
-          // Fetch all in parallel
-          const all = await Promise.all(
-            leadIds.map(id => db.query.leads.findFirst({ where: eq(leads.id, id) }))
-          )
-          return all.filter((l): l is NonNullable<typeof l> => !!l)
-        })
+        .where(and(
+          inArray(leads.id, leadIds),
+          eq(leads.tenantId, session.user.tenantId),
+        ))
     : []
 
   const leadMap = new Map(leadRecords.map(l => [l.id, l]))
 
-  // Consent summary
   const consentCounts: Record<string, number> = {}
   for (const lead of leadRecords) {
     const c = lead.consentStatus ?? 'unknown'
@@ -78,7 +67,6 @@ export default async function PilotBatchReviewPage({ params }: RouteContext) {
   const isDraft    = batch.status === 'draft'
   const totalLeads = batchLeadRows.length
 
-  // Count fallback usage across all previews
   let fallbackCount = 0
   for (const bl of batchLeadRows) {
     const previews = (bl.previewMessages as PilotPreviewMessage[] | null) ?? []
@@ -93,7 +81,7 @@ export default async function PilotBatchReviewPage({ params }: RouteContext) {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Pilot Batch Review</h1>
           <p className="mt-1 text-sm text-gray-500">
-            Review this batch before approval. No SMS will be sent until the Phase 13 confirmation gate is passed.
+            Review this batch before approval. No SMS will be sent until live send approval is granted.
           </p>
         </div>
         <a
@@ -231,50 +219,19 @@ export default async function PilotBatchReviewPage({ params }: RouteContext) {
         </div>
       </div>
 
-      {/* Pre-approval checklist */}
+      {/* Pre-approval checklist — gated: all boxes must be checked to proceed */}
       {isDraft && (
-        <div className="border-2 border-amber-200 rounded-xl overflow-hidden">
-          <div className="bg-amber-50 px-5 py-3 border-b border-amber-200">
-            <h2 className="text-sm font-semibold text-amber-900">Pre-Approval Checklist</h2>
-            <p className="text-xs text-amber-700 mt-0.5">
-              Confirm all items below before approving this batch.
-              Approval does <strong>not</strong> send messages — that requires the Phase 13 confirmation gate.
-            </p>
-          </div>
-          <div className="px-5 py-4 space-y-2 text-sm text-gray-700">
-            {[
-              'All selected leads have confirmed or implied SMS consent',
-              'Message templates have been reviewed and are accurate',
-              'No leads have opted out or have revoked consent',
-              'Fallback templates (if used) are acceptable for leads without vehicle interest',
-              'The workflow opt-out footer is present on at least one step',
-              `Lead count does not exceed ${batch.maxLeadCount ?? 5} (current: ${totalLeads})`,
-              '10DLC registration is approved or in progress before live sending',
-            ].map((item, i) => (
-              <label key={i} className="flex items-start gap-3 cursor-pointer">
-                <input type="checkbox" className="mt-0.5 h-4 w-4 rounded border-gray-300 text-blue-600" />
-                <span>{item}</span>
-              </label>
-            ))}
-          </div>
-          <div className="px-5 pb-5">
-            <a
-              href={`/admin/dlr/pilot?batchId=${params.batchId}`}
-              className="inline-block px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg"
-            >
-              Proceed to Pilot Batch Approval →
-            </a>
-            <p className="text-xs text-gray-400 mt-2">
-              You will be asked for the confirmation phrase and to check all required boxes before any SMS is sent.
-            </p>
-          </div>
-        </div>
+        <BatchChecklist
+          batchId={params.batchId}
+          totalLeads={totalLeads}
+          maxLeads={batch.maxLeadCount ?? 5}
+        />
       )}
 
       {/* Nav */}
       <div className="text-xs text-gray-400 space-x-3">
         <a href="/admin/dlr/pilot-leads" className="text-blue-600 underline">← Pilot Leads</a>
-        <a href="/admin/dlr/pilot" className="text-blue-600 underline">Pilot Batches</a>
+        <a href="/admin/dlr/pilot" className="text-blue-600 underline">All Pilot Batches</a>
         <a href="/admin/dlr/live-pilot" className="text-blue-600 underline">Live Pilot</a>
       </div>
     </div>
