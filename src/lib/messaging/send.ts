@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm'
 import { db } from '@/lib/db'
-import { conversations, messages, phoneNumbers } from '@/lib/db/schema'
+import { conversations, leads, messages, phoneNumbers } from '@/lib/db/schema'
 import { getProvider } from './index'
 import { isOptedOut } from './opt-out'
 
@@ -31,7 +31,7 @@ interface SendParams {
 
 interface SendOutcome {
   messageId: string
-  skipped?: 'opted_out' | 'sms_not_live'
+  skipped?: 'opted_out' | 'sms_not_live' | 'human_takeover'
   dryRun?: boolean
 }
 
@@ -140,6 +140,28 @@ export async function sendMessage(params: SendParams): Promise<SendOutcome> {
   })
   if (!phoneNumber) throw new Error(`No active phone number for tenant ${tenantId}`)
 
+  // ── Final-mile race guard (automation sends only) ─────────────────────────
+  // A human takeover or doNotAutomate flip can land AFTER the send-guard ran.
+  // Re-read the lead one last time before we commit a message row + call the
+  // provider. Manual inbox sends (no stepExecutionId) are exempt — the operator
+  // intentionally initiated the send.
+  if (stepExecutionId) {
+    const fresh = await db.query.leads.findFirst({
+      where: eq(leads.id, leadId),
+      columns: { doNotAutomate: true },
+    })
+    if (fresh?.doNotAutomate) {
+      console.warn(
+        `[messaging/send] Aborting automation send for lead ${leadId} — ` +
+        `doNotAutomate flipped to true after guard (human takeover or invalid_destination)`,
+      )
+      const blocked = await writeSkippedMessageRow({
+        tenantId, leadId, to, body, workflowStepId, stepExecutionId, skipReason: 'human_takeover',
+      })
+      return { messageId: blocked ?? '', skipped: 'human_takeover' }
+    }
+  }
+
   // ── Upsert conversation ───────────────────────────────────────────────────
   // The unique constraint on conversations.leadId makes concurrent sends safe.
   const [conversation] = await db
@@ -150,6 +172,20 @@ export async function sendMessage(params: SendParams): Promise<SendOutcome> {
       set: { updatedAt: new Date() },
     })
     .returning()
+
+  // Second mile of the race guard: if a manager stamped humanTookOverAt while
+  // we were resolving the phone number, abort. The conversations row is the
+  // canonical takeover record (set in /api/conversations/:id/take-over).
+  if (stepExecutionId && conversation.humanTookOverAt) {
+    console.warn(
+      `[messaging/send] Aborting automation send for conversation ${conversation.id} — ` +
+      `humanTookOverAt=${conversation.humanTookOverAt.toISOString()} after guard`,
+    )
+    const blocked = await writeSkippedMessageRow({
+      tenantId, leadId, to, body, workflowStepId, stepExecutionId, skipReason: 'human_takeover',
+    })
+    return { messageId: blocked ?? '', skipped: 'human_takeover' }
+  }
 
   // ── Insert message row (status=queued) ────────────────────────────────────
   // stepExecutionId has a unique index → duplicate step fires will conflict and
@@ -178,9 +214,18 @@ export async function sendMessage(params: SendParams): Promise<SendOutcome> {
   const message = inserted[0]
 
   // ── Send via provider ─────────────────────────────────────────────────────
+  // Idempotency key: prefer the workflow step execution id (stable across worker
+  // retries). Fall back to the new message row id for manual inbox sends so
+  // network-level retries are still deduped at the provider.
+  const idempotencyKey = stepExecutionId ?? message.id
   try {
     const provider = getProvider()
-    const result = await provider.send({ to, from: phoneNumber.number, body })
+    const result = await provider.send({
+      to,
+      from: phoneNumber.number,
+      body,
+      idempotencyKey,
+    })
 
     await db
       .update(messages)

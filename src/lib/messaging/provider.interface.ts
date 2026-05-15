@@ -3,6 +3,13 @@ export interface SendMessageParams {
   from: string
   body: string
   mediaUrls?: string[]
+  /**
+   * Provider-level idempotency key. When set, the provider includes it on the
+   * create-message request so retries (network errors, worker restarts) cannot
+   * produce duplicate sends. Should be stable per logical send (e.g. the
+   * workflow step execution id).
+   */
+  idempotencyKey?: string
 }
 
 export interface SendResult {

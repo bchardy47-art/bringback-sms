@@ -36,7 +36,9 @@
 
 import { and, eq, inArray } from 'drizzle-orm'
 import { db } from '@/lib/db'
-import { leads, messages, optOuts, tenants, workflowEnrollments, workflows } from '@/lib/db/schema'
+import { leads, messages, optOuts, phoneNumbers, tenants, workflowEnrollments, workflows } from '@/lib/db/schema'
+import { isInQuietHours, nextAllowedSend, type QuietHoursConfig } from './quiet-hours'
+import { checkPerNumberRateLimit } from './send-rate-limit'
 
 // ── Environment ───────────────────────────────────────────────────────────────
 
@@ -69,11 +71,18 @@ export type SendGuardReason =
   | 'quiet_hours'           // outside permitted send window (placeholder)
   | 'consent_revoked'       // lead.consentStatus = 'revoked' — hard stop (Phase 10)
   | 'missing_consent'       // lead.consentStatus = 'unknown' — soft skip (Phase 10)
+  | 'rate_limited'          // per-number send budget exceeded — defer, do not cancel
 
 export type SendGuardResult = {
   allowed: boolean
   reason: SendGuardReason
   detail?: string           // human-readable context for logging and audit rows
+  /**
+   * For `quiet_hours` blocks: the earliest UTC time at which sending is
+   * allowed again. Consumers should reschedule the step at this time instead
+   * of skipping it.
+   */
+  retryAt?: Date
 }
 
 // ── Enrollment outcome categories ─────────────────────────────────────────────
@@ -103,6 +112,7 @@ export const GUARD_SKIP_REASONS: ReadonlySet<SendGuardReason> = new Set<SendGuar
   'quiet_hours',
   'recent_human_contact',
   'missing_consent',
+  'rate_limited',
 ])
 
 // ── Input ─────────────────────────────────────────────────────────────────────
@@ -346,10 +356,44 @@ export async function runSendGuard(input: SendGuardInput): Promise<SendGuardResu
     }
   }
 
-  // ── 13. Quiet hours (placeholder) ────────────────────────────────────────
+  // ── 13. Quiet hours ──────────────────────────────────────────────────────
   //
-  // TODO: check tenant quiet-hours config (e.g. no sends before 9am or after 8pm
-  // in the tenant's local timezone). For now, always passes.
+  // Per-tenant quiet-hours window — defaults to 20:00–09:00 America/Los_Angeles
+  // when not configured (TCPA-conservative). Blocked sends return a `retryAt`
+  // hint so the executor can DEFER (reschedule) rather than SKIP the step.
+  const now = new Date()
+  const quietCfg = (tenant?.settings ?? {}).quietHours as QuietHoursConfig | undefined
+  if (isInQuietHours(now, quietCfg)) {
+    const resumeAt = nextAllowedSend(now, quietCfg) ?? undefined
+    return {
+      allowed: false,
+      reason: 'quiet_hours',
+      detail: `Quiet hours active — ${resumeAt ? `next send after ${resumeAt.toISOString()}` : 'no allowed window today'}`,
+      retryAt: resumeAt,
+    }
+  }
+
+  // ── 14. Per-number rate limit ────────────────────────────────────────────
+  // Counts recent outbound messages from this tenant's sending number against
+  // per-minute / per-hour / per-day caps. Blocks (with retryAt) when any window
+  // is full so the executor reschedules instead of skipping permanently.
+  const sendingNumber =
+    tenant?.smsSendingNumber ??
+    (await db.query.phoneNumbers.findFirst({
+      where: and(eq(phoneNumbers.tenantId, lead.tenantId), eq(phoneNumbers.isActive, true)),
+      columns: { number: true },
+    }))?.number
+  if (sendingNumber) {
+    const rl = await checkPerNumberRateLimit(sendingNumber, now)
+    if (!rl.allowed) {
+      return {
+        allowed: false,
+        reason: 'rate_limited',
+        detail: rl.detail,
+        retryAt: rl.retryAt,
+      }
+    }
+  }
 
   return { allowed: true, reason: 'ok' }
 }

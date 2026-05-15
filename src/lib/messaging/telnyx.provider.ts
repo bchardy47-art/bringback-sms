@@ -17,12 +17,19 @@ export class TelnyxProvider implements MessagingProvider {
   }
 
   async send(params: SendMessageParams): Promise<SendResult> {
+    const headers: Record<string, string> = {
+      Authorization: `Bearer ${this.apiKey}`,
+      'Content-Type': 'application/json',
+    }
+    // Telnyx honours `Idempotency-Key` to dedup retries server-side, so a
+    // network glitch between us and Telnyx never produces two outbound SMS.
+    if (params.idempotencyKey) {
+      headers['Idempotency-Key'] = params.idempotencyKey
+    }
+
     const res = await fetch('https://api.telnyx.com/v2/messages', {
       method: 'POST',
-      headers: {
-        Authorization: `Bearer ${this.apiKey}`,
-        'Content-Type': 'application/json',
-      },
+      headers,
       body: JSON.stringify({
         from: params.from,
         to: params.to,
@@ -79,13 +86,32 @@ export class TelnyxProvider implements MessagingProvider {
   // NOT a DER SPKI structure. We must prepend the SPKI header so Node.js crypto
   // can import it. The header for Ed25519 SPKI DER is the 12-byte sequence:
   //   30 2a 30 05 06 03 2b 65 70 03 21 00
+  //
+  // We also enforce a ±REPLAY_WINDOW_S timestamp window so a captured webhook
+  // cannot be replayed indefinitely.
   verifyWebhookSignature(rawBody: string, headers: Record<string, string>): boolean {
+    const REPLAY_WINDOW_S = 5 * 60 // 5 minutes
     try {
       const signature = headers['telnyx-signature-ed25519']
       const timestamp = headers['telnyx-timestamp']
       if (!signature || !timestamp) {
         console.warn(
           `[webhook/telnyx] missing headers — sig=${!!signature} ts=${!!timestamp}`,
+        )
+        return false
+      }
+
+      // Telnyx sends Unix epoch seconds as a string.
+      const tsSeconds = Number.parseInt(timestamp, 10)
+      if (!Number.isFinite(tsSeconds)) {
+        console.warn(`[webhook/telnyx] non-numeric timestamp: ${timestamp}`)
+        return false
+      }
+      const nowSeconds = Math.floor(Date.now() / 1000)
+      const drift = Math.abs(nowSeconds - tsSeconds)
+      if (drift > REPLAY_WINDOW_S) {
+        console.warn(
+          `[webhook/telnyx] timestamp outside replay window — drift=${drift}s (window=${REPLAY_WINDOW_S}s)`,
         )
         return false
       }
