@@ -17,17 +17,23 @@
  *   - Batch will not send until Phase 13 confirmation gate is passed
  */
 
-import { and, eq, inArray, or } from 'drizzle-orm'
+import { and, eq, inArray, isNotNull, or } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import {
   leads, optOuts, pilotBatches, pilotBatchLeads, pilotLeadImports,
   workflows, workflowSteps, tenants,
   FIRST_PILOT_CAP,
+  type AgeBucket,
   type PilotLeadImportStatus,
   type PilotEligibilityResult,
   type PilotPreviewMessage,
 } from '@/lib/db/schema'
 import { previewWorkflow } from '@/lib/workflows/preview'
+import {
+  classifyLeadAge,
+  extractContactDate,
+  parseContactDate,
+} from '@/lib/pilot/age-classification'
 import type { SendSmsConfig } from '@/lib/db/schema'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -39,6 +45,7 @@ export type LeadImportInput = {
   email?:            string | null
   vehicleName?:      string | null  // maps to vehicleOfInterest
   leadSource?:       string | null
+  contactDate?:      string | null  // dealership's day-1 contact date; drives age bucket assignment
   originalInquiryAt?: string | null // ISO string or parseable date string
   consentStatus?:    string | null  // explicit | implied | unknown | revoked
   consentSource?:    string | null
@@ -172,6 +179,10 @@ export function csvRowToImportInput(row: Record<string, string>): LeadImportInpu
   const get = (...keys: string[]): string | undefined =>
     keys.map(k => row[k]).find(v => v !== undefined && v !== '')
 
+  // Try all known contact-date column aliases first; fall back to originalInquiryAt
+  const contactDateParsed = extractContactDate(row)
+  const contactDate = contactDateParsed ? contactDateParsed.toISOString() : null
+
   return {
     firstName:         get('firstName', 'first_name', 'First Name', 'firstname') ?? '',
     lastName:          get('lastName', 'last_name', 'Last Name', 'lastname') ?? '',
@@ -179,6 +190,7 @@ export function csvRowToImportInput(row: Record<string, string>): LeadImportInpu
     email:             get('email', 'Email') ?? null,
     vehicleName:       get('vehicleName', 'vehicle_name', 'vehicleInterest', 'vehicle_of_interest', 'Vehicle') ?? null,
     leadSource:        get('leadSource', 'lead_source', 'source', 'Source') ?? null,
+    contactDate,
     originalInquiryAt: get('originalInquiryAt', 'original_inquiry_at', 'inquiryDate', 'inquiry_date') ?? null,
     consentStatus:     get('consentStatus', 'consent_status', 'consent') ?? null,
     consentSource:     get('consentSource', 'consent_source') ?? null,
@@ -331,8 +343,54 @@ export async function importLeads(
   const seenEmails = new Map<string, string>()   // email → importId
   const results: Array<typeof pilotLeadImports.$inferSelect> = []
 
+  // Pre-fetch all bucket workflows for this tenant (at most 4, one per bucket)
+  const bucketWorkflowRows = await db
+    .select()
+    .from(workflows)
+    .where(and(eq(workflows.tenantId, tenantId), isNotNull(workflows.ageBucket)))
+  const bucketWorkflows = new Map<AgeBucket, typeof bucketWorkflowRows[0]>(
+    bucketWorkflowRows
+      .filter(w => w.ageBucket != null)
+      .map(w => [w.ageBucket as AgeBucket, w]),
+  )
+
+  const today = new Date()
+
   for (const input of rows) {
     const validation = await validateImportRow(input, tenantId, seenPhones, seenEmails)
+
+    // ── Age classification ─────────────────────────────────────────────────────
+    // Use contactDate if present; fall back to originalInquiryAt as a proxy.
+    const rawDateStr = input.contactDate || input.originalInquiryAt || null
+    const parsedContactDate = parseContactDate(rawDateStr)
+    const ageResult = classifyLeadAge(parsedContactDate, today)
+
+    // Determine final import status — age classification can promote eligible/warning → held,
+    // but never overrides an existing blocked/excluded status.
+    let finalStatus: PilotLeadImportStatus = validation.importStatus
+    if (finalStatus !== 'blocked' && finalStatus !== 'excluded') {
+      if (ageResult.classification === 'too_fresh') {
+        finalStatus = 'held'
+      }
+      // needs_review: keep existing status but add a warning (handled below)
+    }
+
+    // Merge validation warnings with any age-classification warning
+    const allWarnings = [...validation.warnings]
+    if (ageResult.warning) allWarnings.push(ageResult.warning)
+    if (ageResult.classification === 'needs_review' && !parsedContactDate) {
+      allWarnings.push(
+        'Contact date is missing or unparseable — lead age cannot be determined. ' +
+        'Enter the date manually to assign this lead to a re-engagement workflow.',
+      )
+      // Promote eligible → warning so the operator sees it
+      if (finalStatus === 'eligible') finalStatus = 'warning'
+    }
+
+    // Resolve the bucket workflow (null if lead is held, needs_review, or no workflow configured)
+    const assignedWorkflow = ageResult.ageBucket
+      ? (bucketWorkflows.get(ageResult.ageBucket) ?? null)
+      : null
 
     const now = new Date()
     const [inserted] = await db
@@ -346,7 +404,12 @@ export async function importLeads(
         email:               input.email?.trim().toLowerCase() || null,
         vehicleOfInterest:   input.vehicleName?.trim() || null,
         leadSource:          input.leadSource?.trim() || null,
+        contactDate:         parsedContactDate,
         originalInquiryAt:   parseOptionalDate(input.originalInquiryAt),
+        leadAgeDays:         ageResult.leadAgeDays,
+        ageBucket:           ageResult.ageBucket,
+        enrollAfter:         ageResult.enrollAfter,
+        assignedWorkflowId:  assignedWorkflow?.id ?? null,
         consentStatus:       (input.consentStatus?.trim() || 'unknown'),
         consentSource:       input.consentSource?.trim() || null,
         consentCapturedAt:   parseOptionalDate(input.consentCapturedAt),
@@ -354,9 +417,9 @@ export async function importLeads(
         crmSource:           input.crmSource?.trim() || 'manual',
         externalId:          input.externalId?.trim() || null,
         notes:               input.notes?.trim() || null,
-        importStatus:        validation.importStatus,
+        importStatus:        finalStatus,
         blockedReasons:      validation.blockedReasons.length > 0 ? validation.blockedReasons : null,
-        warnings:            validation.warnings.length > 0 ? validation.warnings : null,
+        warnings:            allWarnings.length > 0 ? allWarnings : null,
         duplicateOfLeadId:   validation.duplicateOfLeadId,
         duplicateOfImportId: validation.duplicateOfImportId,
         selectedForBatch:    false,
@@ -713,19 +776,39 @@ export async function createPilotBatchFromImport(
     })
     .returning()
 
+  // Auto-generate message previews for the batch review page.
+  // Renders each lead's workflow messages so the review page is never blank.
+  // Non-fatal: if preview fails, the batch is still created and the review
+  // page shows an empty preview rather than blocking the entire flow.
+  const previewMap = new Map<string, PilotPreviewMessage[]>()
+  for (const row of eligible) {
+    const existing = (row.previewMessages as PilotPreviewMessage[] | null) ?? []
+    if (existing.length > 0) {
+      previewMap.set(row.id, existing)
+    } else {
+      try {
+        const previews = await renderImportLeadPreview(row.id, workflowId, tenantId)
+        previewMap.set(row.id, previews)
+      } catch {
+        // Non-fatal — leave preview empty, do not fail batch creation
+      }
+    }
+  }
+
   // Create pilot_batch_leads rows — no enrollments, no sends
   for (const row of eligible) {
     const leadId = leadIdMap.get(row.id)
     if (!leadId) continue
 
+    const previews = previewMap.get(row.id) ?? []
     await db
       .insert(pilotBatchLeads)
       .values({
         batchId:          batch.id,
         leadId,
         eligibilityResult: (row.eligibilityResult as PilotEligibilityResult | null) ?? null,
-        previewMessages:  (row.previewMessages as PilotPreviewMessage[] | null) ?? null,
-        approvedForSend:  false,    // stays false until Phase 13 confirmation gate
+        previewMessages:  previews.length > 0 ? previews : null,
+        approvedForSend:  false,    // stays false until live send approval
         sendStatus:       'pending',
         createdAt:        now,
         updatedAt:        now,
@@ -734,6 +817,100 @@ export async function createPilotBatchFromImport(
   }
 
   return batch.id
+}
+
+// ── Bucket-aware multi-batch creation ─────────────────────────────────────────
+
+export type BucketBatchResult = {
+  batchId:      string
+  workflowId:   string
+  workflowName: string
+  ageBucket:    AgeBucket | null
+  leadCount:    number
+}
+
+/**
+ * Auto-create one draft pilot batch per age bucket from the selected import rows.
+ *
+ * Groups selected leads by assignedWorkflowId (set during import by age-classification).
+ * Creates one pilotBatch per unique workflow. Leads without an assignedWorkflowId are skipped
+ * with a clear error if ALL selected leads are unassigned.
+ *
+ * Returns an array of batch results, one per bucket group created.
+ */
+export async function createBucketsFromImport(
+  tenantId: string,
+  importIds: string[],
+  createdBy: string,
+): Promise<BucketBatchResult[]> {
+  if (!importIds.length) throw new Error('No import IDs provided')
+
+  // Load the requested import rows
+  const importRows = await db
+    .select()
+    .from(pilotLeadImports)
+    .where(and(
+      eq(pilotLeadImports.tenantId, tenantId),
+      inArray(pilotLeadImports.id, importIds),
+    ))
+
+  // Only process rows that have an auto-assigned workflow and are in a batchable status
+  const assignable = importRows.filter(
+    r => r.assignedWorkflowId != null &&
+    ['selected', 'eligible', 'warning'].includes(r.importStatus),
+  )
+
+  if (assignable.length === 0) {
+    const unassigned = importRows.filter(r => r.assignedWorkflowId == null)
+    if (unassigned.length > 0) {
+      throw new Error(
+        `${unassigned.length} selected lead${unassigned.length === 1 ? ' has' : 's have'} no auto-assigned workflow. ` +
+        'Re-import with a contact date column so leads can be classified into age buckets, ' +
+        'or ensure bucket workflows are configured for this tenant.',
+      )
+    }
+    throw new Error('No eligible leads found in the provided import IDs.')
+  }
+
+  // Group by assignedWorkflowId
+  const groups = new Map<string, typeof assignable>()
+  for (const row of assignable) {
+    const wfId = row.assignedWorkflowId!
+    if (!groups.has(wfId)) groups.set(wfId, [])
+    groups.get(wfId)!.push(row)
+  }
+
+  // Fetch workflow names for result reporting
+  const workflowIds = Array.from(groups.keys())
+  const workflowRows = await db
+    .select({ id: workflows.id, name: workflows.name, ageBucket: workflows.ageBucket })
+    .from(workflows)
+    .where(inArray(workflows.id, workflowIds))
+  const workflowMap = new Map(workflowRows.map(w => [w.id, w]))
+
+  // Create one draft batch per bucket group
+  const results: BucketBatchResult[] = []
+  for (const [workflowId, rows] of Array.from(groups.entries())) {
+    const batchId = await createPilotBatchFromImport({
+      tenantId,
+      workflowId,
+      createdBy,
+      importIds: rows.map((r: { id: string }) => r.id),
+    })
+    const wf = workflowMap.get(workflowId)
+    results.push({
+      batchId,
+      workflowId,
+      workflowName: wf?.name ?? workflowId,
+      ageBucket:    (wf?.ageBucket as AgeBucket | null) ?? null,
+      leadCount:    rows.length,
+    })
+  }
+
+  // Sort by bucket so results come back in A→D order
+  results.sort((a, b) => (a.ageBucket ?? 'z').localeCompare(b.ageBucket ?? 'z'))
+
+  return results
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
