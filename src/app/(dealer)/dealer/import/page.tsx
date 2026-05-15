@@ -113,7 +113,15 @@ export default async function DealerImportPage({
   const eligibleCount     = allLeads.filter(r => ['eligible', 'warning', 'selected'].includes(r.importStatus)).length
   const blockedCount      = allLeads.filter(r => r.importStatus === 'blocked').length
   const heldCount         = allLeads.filter(r => r.importStatus === 'held').length
-  const needsReviewCount  = allLeads.filter(r => r.importStatus === 'needs_review').length
+  // "Needs Date" — rows the operator still owes a contact date for. importLeads
+  // never assigns importStatus='needs_review'; it promotes missing-date rows to
+  // 'warning' instead. Count by contactDate IS NULL excluding permanently-rejected
+  // rows (blocked / excluded), which match what the operator can act on.
+  const needsReviewCount  = allLeads.filter(r =>
+    r.contactDate == null &&
+    r.importStatus !== 'blocked' &&
+    r.importStatus !== 'excluded'
+  ).length
 
   const bucketCounts: Record<AgeBucket, number> = {
     a: allLeads.filter(r => r.ageBucket === 'a').length,
