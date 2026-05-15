@@ -1,5 +1,3 @@
-'use server'
-
 /**
  * Phase 12 — Go / No-Go Report
  * /admin/dlr/go-no-go

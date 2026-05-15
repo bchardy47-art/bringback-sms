@@ -1,5 +1,3 @@
-'use server'
-
 /**
  * Phase 11 — First Live Pilot Runbook
  * /admin/dlr/first-pilot

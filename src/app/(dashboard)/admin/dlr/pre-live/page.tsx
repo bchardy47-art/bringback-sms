@@ -1,5 +1,3 @@
-'use server'
-
 /**
  * Phase 10 — Pre-Live Compliance Checklist
  * /admin/dlr/pre-live

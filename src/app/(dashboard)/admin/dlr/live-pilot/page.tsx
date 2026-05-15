@@ -1,5 +1,3 @@
-'use server'
-
 /**
  * Phase 13 — Live Pilot Execution
  * /admin/dlr/live-pilot
