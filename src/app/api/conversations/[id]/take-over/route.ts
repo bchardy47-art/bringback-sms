@@ -1,12 +1,15 @@
 /**
  * POST /api/conversations/[id]/take-over
  *
- * Manager action: claim a reviving conversation for human follow-up.
+ * Manager / dealer action: permanently claim a conversation for human follow-up.
  *
- * Effects:
- *   1. Transitions lead state: responded → revived
- *   2. Pauses any active workflow enrollment for this lead
- *   3. Stamps humanTookOverAt on the conversation
+ * Effects (all atomic):
+ *   1. Stamps humanTookOverAt + takenOverBy on the conversation
+ *   2. Cancels all active enrollments for this lead (status = cancelled, stopReason = human_takeover)
+ *   3. Sets doNotAutomate = true on the lead (permanent — no auto-resume)
+ *   4. Removes pending BullMQ jobs via cancelPendingExecutions()
+ *
+ * Idempotent: if humanTookOverAt is already set, returns { ok: true } immediately.
  */
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -14,8 +17,8 @@ import { getServerSession } from 'next-auth'
 import { and, eq } from 'drizzle-orm'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { conversations, workflowEnrollments } from '@/lib/db/schema'
-import { transition } from '@/lib/lead/state-machine'
+import { conversations, workflowEnrollments, leads } from '@/lib/db/schema'
+import { cancelPendingExecutions } from '@/lib/engine/scheduler'
 
 export async function POST(
   _req: NextRequest,
@@ -26,50 +29,72 @@ export async function POST(
     return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
   }
 
-  const conv = await db.query.conversations.findFirst({
+  const conversation = await db.query.conversations.findFirst({
     where: and(
       eq(conversations.id, params.id),
       eq(conversations.tenantId, session.user.tenantId)
     ),
-    with: { lead: true },
+    with: {
+      lead: {
+        with: {
+          // Fetch ALL enrollments — we need to clean up pending executions
+          // even if the enrollment was already cancelled by the reply handler.
+          enrollments: true,
+        },
+      },
+    },
   })
 
-  if (!conv) {
+  if (!conversation) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
 
-  // Idempotent — if already taken over, return success without re-running
-  if (conv.humanTookOverAt) {
+  // Idempotent — already taken over, nothing to do
+  if (conversation.humanTookOverAt) {
     return NextResponse.json({ ok: true, alreadyTakenOver: true })
   }
 
-  const lead = conv.lead
+  const now = new Date()
+  const allEnrollments = conversation.lead.enrollments
+  const activeEnrollments = allEnrollments.filter((e) => e.status === 'active')
 
-  // 1. Transition: responded → revived (state machine validates this)
-  //    No-op if already revived (idempotent).
-  if (lead.state === 'responded') {
-    await transition(lead.id, 'revived', {
-      reason: 'Human took over conversation',
-      actor: `user:${session.user.id}`,
-    })
+  // Atomic DB changes
+  await db.transaction(async (tx) => {
+    // 1. Stamp the conversation
+    await tx
+      .update(conversations)
+      .set({
+        humanTookOverAt: now,
+        takenOverBy: session.user.id,
+        updatedAt: now,
+      })
+      .where(eq(conversations.id, conversation.id))
+
+    // 2. Cancel any still-active enrollments — one-way, no resume
+    for (const enrollment of activeEnrollments) {
+      await tx
+        .update(workflowEnrollments)
+        .set({
+          status: 'cancelled',
+          stopReason: 'human_takeover',
+          stoppedAt: now,
+        })
+        .where(eq(workflowEnrollments.id, enrollment.id))
+    }
+
+    // 3. Hard-block the lead from all future automation
+    await tx
+      .update(leads)
+      .set({ doNotAutomate: true, updatedAt: now })
+      .where(eq(leads.id, conversation.leadId))
+  })
+
+  // 4. Remove pending BullMQ jobs for ALL enrollments (not just newly-cancelled ones).
+  //    Handles the case where the reply handler already cancelled the enrollment but
+  //    left a pending step execution in the queue.
+  for (const enrollment of allEnrollments) {
+    await cancelPendingExecutions(enrollment.id)
   }
-
-  // 2. Pause any active workflow enrollment so automation stops
-  await db
-    .update(workflowEnrollments)
-    .set({ status: 'paused' })
-    .where(
-      and(
-        eq(workflowEnrollments.leadId, lead.id),
-        eq(workflowEnrollments.status, 'active')
-      )
-    )
-
-  // 3. Stamp the takeover timestamp
-  await db
-    .update(conversations)
-    .set({ humanTookOverAt: new Date(), updatedAt: new Date() })
-    .where(eq(conversations.id, conv.id))
 
   return NextResponse.json({ ok: true })
 }
