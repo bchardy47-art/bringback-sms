@@ -679,8 +679,15 @@ export const LEAD_HOLD_DAYS = 14
 /** Four age buckets used to auto-assign leads to pre-configured workflows. */
 export type AgeBucket = 'a' | 'b' | 'c' | 'd'
 
+/**
+ * Operator-facing bucket labels. These intentionally diverge from
+ * AGE_BUCKET_RANGES for bucket A: the displayed window reads as
+ * 0–29 days so the four buckets line up as clean 30-day windows in
+ * the UI. Leads under LEAD_HOLD_DAYS are still held (not bucket-eligible)
+ * by the classifier — see AGE_BUCKET_RANGES below for the true threshold.
+ */
 export const AGE_BUCKET_LABELS: Record<AgeBucket, string> = {
-  a: '14–29 days',
+  a: '0–29 days',
   b: '30–59 days',
   c: '60–89 days',
   d: '90+ days',

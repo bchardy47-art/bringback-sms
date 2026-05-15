@@ -20,8 +20,12 @@ const STATUS_STYLE: Record<string, { chip: string; label: string }> = {
   cancelled: { chip: 'bg-red-100 text-red-700',        label: 'Cancelled' },
 }
 
+// Mirrors AGE_BUCKET_LABELS from schema.ts. Kept inline because this page
+// renders a simple string lookup against workflow.ageBucket. Bucket A reads
+// as 0–29 days for visual consistency with the 30-day windows on B/C/D;
+// leads under LEAD_HOLD_DAYS are still held by the classifier.
 const BUCKET_LABEL: Record<string, string> = {
-  a: '14–29 days',
+  a: '0–29 days',
   b: '30–59 days',
   c: '60–89 days',
   d: '90+ days',
