@@ -10,45 +10,64 @@ import {
 import { runBatchPreview } from '@/lib/pilot/preview'
 import { runPreflight } from '@/lib/engine/preflight'
 
+// ── Server-action auth helpers ─────────────────────────────────────────────────
+// Every server action below is reachable from a form POST with a client-supplied
+// batchId. We must verify (a) the caller is an admin and (b) the batch belongs
+// to their tenant — otherwise a logged-in dealer could approve/start/cancel
+// another tenant's pilot batch.
+
+async function requireAdminAction() {
+  const session = await getServerSession(authOptions)
+  if (!session?.user?.tenantId) throw new Error('Unauthorized')
+  if (session.user.role !== 'admin') throw new Error('Forbidden')
+  return session
+}
+
+async function loadBatchForTenant(batchId: string, tenantId: string) {
+  const batch = await db.query.pilotBatches.findFirst({
+    where: and(eq(pilotBatches.id, batchId), eq(pilotBatches.tenantId, tenantId)),
+    with: { leads: true },
+  })
+  return batch ?? null
+}
+
 // ── Server Actions ─────────────────────────────────────────────────────────────
 
 async function runPreviewAction(formData: FormData) {
   'use server'
+  const session = await requireAdminAction()
   const batchId = formData.get('batchId') as string
+  const batch = await loadBatchForTenant(batchId, session.user.tenantId)
+  if (!batch) return
   await runBatchPreview(batchId)
   revalidatePath(`/admin/dlr/pilot/${batchId}`)
 }
 
 async function approveAction(formData: FormData) {
   'use server'
-  const session = await getServerSession(authOptions)
-  if (!session) return
+  const session = await requireAdminAction()
   const batchId = formData.get('batchId') as string
+  const batch = await loadBatchForTenant(batchId, session.user.tenantId)
+  if (!batch) return
   const now = new Date()
   await db.update(pilotBatches).set({
     status: 'approved',
     approvedBy: session.user.email ?? session.user.id,
     approvedAt: now,
     updatedAt: now,
-  }).where(eq(pilotBatches.id, batchId))
+  }).where(and(eq(pilotBatches.id, batchId), eq(pilotBatches.tenantId, session.user.tenantId)))
   revalidatePath(`/admin/dlr/pilot/${batchId}`)
 }
 
 async function startAction(formData: FormData) {
   'use server'
-  const session = await getServerSession(authOptions)
-  if (!session) return
+  const session = await requireAdminAction()
   const batchId = formData.get('batchId') as string
-
-  const batch = await db.query.pilotBatches.findFirst({
-    where: eq(pilotBatches.id, batchId),
-    with: { leads: true },
-  })
+  const batch = await loadBatchForTenant(batchId, session.user.tenantId)
   if (!batch || !['approved','paused'].includes(batch.status)) return
 
-  // Gate: preflight
   const preflight = await runPreflight(session.user.tenantId, batch.workflowId)
-  if (!preflight.allowed) return // UI shows readiness state
+  if (!preflight.allowed) return
 
   const now = new Date()
   const pendingLeads = batch.leads.filter(l => l.approvedForSend && l.sendStatus === 'pending' && !l.enrollmentId)
@@ -70,17 +89,15 @@ async function startAction(formData: FormData) {
     status: 'sending',
     startedAt: batch.startedAt ?? now,
     updatedAt: now,
-  }).where(eq(pilotBatches.id, batchId))
+  }).where(and(eq(pilotBatches.id, batchId), eq(pilotBatches.tenantId, session.user.tenantId)))
   revalidatePath(`/admin/dlr/pilot/${batchId}`)
 }
 
 async function pauseAction(formData: FormData) {
   'use server'
+  const session = await requireAdminAction()
   const batchId = formData.get('batchId') as string
-  const batch = await db.query.pilotBatches.findFirst({
-    where: eq(pilotBatches.id, batchId),
-    with: { leads: true },
-  })
+  const batch = await loadBatchForTenant(batchId, session.user.tenantId)
   if (!batch || batch.status !== 'sending') return
 
   const enrollmentIds = batch.leads.map(l => l.enrollmentId).filter(Boolean) as string[]
@@ -91,20 +108,19 @@ async function pauseAction(formData: FormData) {
         .where(and(eq(workflowEnrollments.id, eid), eq(workflowEnrollments.status, 'active')))
     }
   }
-  await db.update(pilotBatches).set({ status: 'paused', updatedAt: new Date() }).where(eq(pilotBatches.id, batchId))
+  await db.update(pilotBatches).set({ status: 'paused', updatedAt: new Date() })
+    .where(and(eq(pilotBatches.id, batchId), eq(pilotBatches.tenantId, session.user.tenantId)))
   revalidatePath(`/admin/dlr/pilot/${batchId}`)
 }
 
 async function cancelAction(formData: FormData) {
   'use server'
+  const session = await requireAdminAction()
   const batchId = formData.get('batchId') as string
   const reason = (formData.get('cancelReason') as string) || 'Manual cancellation'
   const now = new Date()
 
-  const batch = await db.query.pilotBatches.findFirst({
-    where: eq(pilotBatches.id, batchId),
-    with: { leads: true },
-  })
+  const batch = await loadBatchForTenant(batchId, session.user.tenantId)
   if (!batch) return
 
   const enrollmentIds = batch.leads.map(l => l.enrollmentId).filter(Boolean) as string[]
@@ -127,7 +143,7 @@ async function cancelAction(formData: FormData) {
     cancelledAt: now,
     cancelReason: reason,
     updatedAt: now,
-  }).where(eq(pilotBatches.id, batchId))
+  }).where(and(eq(pilotBatches.id, batchId), eq(pilotBatches.tenantId, session.user.tenantId)))
   revalidatePath(`/admin/dlr/pilot/${batchId}`)
 }
 
