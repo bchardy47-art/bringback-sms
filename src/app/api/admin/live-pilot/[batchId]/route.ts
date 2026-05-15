@@ -18,9 +18,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
+import { requireAdmin } from '@/lib/api/requireAuth'
 import { db } from '@/lib/db'
 import { pilotBatches } from '@/lib/db/schema'
 import {
@@ -37,9 +36,21 @@ import type { PilotConfirmationChecks } from '@/lib/db/schema'
 
 type RouteContext = { params: { batchId: string } }
 
-export async function GET(req: NextRequest, { params }: RouteContext) {
-  const session = await getServerSession(authOptions)
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+async function assertBatchInTenant(batchId: string, tenantId: string) {
+  const batch = await db.query.pilotBatches.findFirst({
+    where: and(eq(pilotBatches.id, batchId), eq(pilotBatches.tenantId, tenantId)),
+    columns: { id: true },
+  })
+  return !!batch
+}
+
+export async function GET(_req: NextRequest, { params }: RouteContext) {
+  const { session, error } = await requireAdmin()
+  if (error) return error
+
+  if (!(await assertBatchInTenant(params.batchId, session.user.tenantId))) {
+    return NextResponse.json({ error: 'Batch not found' }, { status: 404 })
+  }
 
   try {
     const status = await getLivePilotStatus(params.batchId)
@@ -52,8 +63,12 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
 }
 
 export async function POST(req: NextRequest, { params }: RouteContext) {
-  const session = await getServerSession(authOptions)
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const { session, error } = await requireAdmin()
+  if (error) return error
+
+  if (!(await assertBatchInTenant(params.batchId, session.user.tenantId))) {
+    return NextResponse.json({ error: 'Batch not found' }, { status: 404 })
+  }
 
   const body = await req.json().catch(() => ({})) as Record<string, unknown>
   const action = body.action as string | undefined
@@ -69,7 +84,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
       case 'confirm': {
         const phrase = body.phrase as string
         const checks = body.checks as PilotConfirmationChecks
-        const confirmedBy = (session.user as { email?: string })?.email ?? 'admin'
+        const confirmedBy = session.user.email ?? 'admin'
 
         if (!phrase || !checks) {
           return NextResponse.json({ error: 'Missing phrase or checks' }, { status: 400 })
@@ -129,7 +144,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
       }
 
       case 'confirm_continue': {
-        const confirmedBy = (session.user as { email?: string })?.email ?? 'admin'
+        const confirmedBy = session.user.email ?? 'admin'
         await confirmContinuation(batchId, confirmedBy)
         return NextResponse.json({ ok: true, message: 'Continuation confirmed — remaining sends unlocked' })
       }

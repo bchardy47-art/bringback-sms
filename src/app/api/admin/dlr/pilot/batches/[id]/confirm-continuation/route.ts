@@ -7,8 +7,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { eq } from 'drizzle-orm'
-import { requireAuth } from '@/lib/api/requireAuth'
+import { and, eq } from 'drizzle-orm'
+import { requireAdmin } from '@/lib/api/requireAuth'
 import { db } from '@/lib/db'
 import { pilotBatches } from '@/lib/db/schema'
 import { confirmContinuation } from '@/lib/pilot/first-pilot'
@@ -17,13 +17,14 @@ export async function POST(
   req: NextRequest,
   { params }: { params: { id: string } }
 ): Promise<NextResponse> {
-  const { session, error } = await requireAuth()
+  const { session, error } = await requireAdmin()
   if (error) return error
 
   const batch = await db.query.pilotBatches.findFirst({
-    where: eq(pilotBatches.id, params.id),
+    where: and(eq(pilotBatches.id, params.id), eq(pilotBatches.tenantId, session.user.tenantId)),
+    columns: { id: true },
   })
-  if (!batch || batch.tenantId !== session.user.tenantId) {
+  if (!batch) {
     return NextResponse.json({ error: 'Batch not found' }, { status: 404 })
   }
 
