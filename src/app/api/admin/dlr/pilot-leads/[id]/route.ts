@@ -1,21 +1,15 @@
 /**
- * GET  /api/admin/dlr/pilot-leads/[id]?tenantId=...
- *   — Return a single pilot lead import row.
+ * GET    /api/admin/dlr/pilot-leads/[id]    — Single pilot lead import row.
+ * PATCH  /api/admin/dlr/pilot-leads/[id]
+ *   Body: { selected: boolean }              — toggle selection
+ *   Body: { updates: UpdateImportedLeadInput } — edit + re-validate
+ * DELETE /api/admin/dlr/pilot-leads/[id]    — soft-exclude.
  *
- * PATCH /api/admin/dlr/pilot-leads/[id]
- *   Body: { tenantId, selected: boolean }
- *   — Toggle selection state (Phase 14).
- *
- *   Body: { tenantId, updates: UpdateImportedLeadInput }
- *   — Edit lead fields + re-validate (Phase 15).
- *
- * DELETE /api/admin/dlr/pilot-leads/[id]?tenantId=...
- *   — Mark as excluded (soft delete).
+ * All operations are scoped to the caller's session tenant.
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { requireAdmin } from '@/lib/api/requireAuth'
 import { excludeImportedLead, setLeadSelected } from '@/lib/pilot/lead-import'
 import { updateImportedLead } from '@/lib/pilot/lead-import-review'
 import { db } from '@/lib/db'
@@ -24,19 +18,14 @@ import { and, eq } from 'drizzle-orm'
 
 type RouteContext = { params: { id: string } }
 
-export async function GET(req: NextRequest, { params }: RouteContext) {
-  const session = await getServerSession(authOptions)
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const tenantId = req.nextUrl.searchParams.get('tenantId')
-  if (!tenantId) {
-    return NextResponse.json({ error: 'tenantId query param is required' }, { status: 400 })
-  }
+export async function GET(_req: NextRequest, { params }: RouteContext) {
+  const { session, error } = await requireAdmin()
+  if (error) return error
 
   const row = await db.query.pilotLeadImports.findFirst({
     where: and(
       eq(pilotLeadImports.id, params.id),
-      eq(pilotLeadImports.tenantId, tenantId),
+      eq(pilotLeadImports.tenantId, session.user.tenantId),
     ),
   })
 
@@ -45,18 +34,13 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
 }
 
 export async function PATCH(req: NextRequest, { params }: RouteContext) {
-  const session = await getServerSession(authOptions)
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const { session, error } = await requireAdmin()
+  if (error) return error
+  const tenantId = session.user.tenantId
 
   try {
     const body = await req.json().catch(() => ({})) as Record<string, unknown>
-    const tenantId = body.tenantId as string | undefined
 
-    if (!tenantId) {
-      return NextResponse.json({ error: 'tenantId is required' }, { status: 400 })
-    }
-
-    // Route A: field edit + re-validate
     if (body.updates && typeof body.updates === 'object') {
       const result = await updateImportedLead(
         params.id,
@@ -69,7 +53,6 @@ export async function PATCH(req: NextRequest, { params }: RouteContext) {
       return NextResponse.json(result)
     }
 
-    // Route B: toggle selection
     if (typeof body.selected === 'boolean') {
       const result = await setLeadSelected(params.id, body.selected, tenantId)
       if (!result.ok) {
@@ -83,25 +66,20 @@ export async function PATCH(req: NextRequest, { params }: RouteContext) {
       { status: 400 },
     )
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err)
-    return NextResponse.json({ error: msg }, { status: 500 })
+    console.error('[pilot-leads/:id PATCH]', err)
+    return NextResponse.json({ error: 'Internal error' }, { status: 500 })
   }
 }
 
-export async function DELETE(req: NextRequest, { params }: RouteContext) {
-  const session = await getServerSession(authOptions)
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const tenantId = req.nextUrl.searchParams.get('tenantId')
-  if (!tenantId) {
-    return NextResponse.json({ error: 'tenantId query param is required' }, { status: 400 })
-  }
+export async function DELETE(_req: NextRequest, { params }: RouteContext) {
+  const { session, error } = await requireAdmin()
+  if (error) return error
 
   try {
-    await excludeImportedLead(params.id, tenantId)
+    await excludeImportedLead(params.id, session.user.tenantId)
     return NextResponse.json({ ok: true, message: 'Lead excluded from import session' })
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err)
-    return NextResponse.json({ error: msg }, { status: 500 })
+    console.error('[pilot-leads/:id DELETE]', err)
+    return NextResponse.json({ error: 'Internal error' }, { status: 500 })
   }
 }
