@@ -1,11 +1,22 @@
 'use client'
 
-import { useState, FormEvent } from 'react'
+import { useState, FormEvent, Suspense } from 'react'
 import { signIn } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
+
+function InviteBanner() {
+  const searchParams = useSearchParams()
+  if (searchParams.get('invited') !== '1') return null
+  return (
+    <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 text-center">
+      ✓ Account created! Sign in with your new credentials.
+    </div>
+  )
+}
 
 export default function LoginPage() {
   const router = useRouter()
+
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -37,6 +48,10 @@ export default function LoginPage() {
           <h1 className="text-2xl font-semibold text-gray-900">Dead Lead Revival</h1>
           <p className="mt-1 text-sm text-gray-500">Sign in to your dealership account</p>
         </div>
+
+        <Suspense>
+          <InviteBanner />
+        </Suspense>
 
         <div className="rounded-lg border border-gray-200 bg-white px-8 py-8 shadow-sm">
           <form onSubmit={handleSubmit} className="space-y-5">
