@@ -375,16 +375,20 @@ export async function importLeads(
       // needs_review: keep existing status but add a warning (handled below)
     }
 
-    // Merge validation warnings with any age-classification warning
+    // Merge validation warnings with any age-classification warning.
+    // classifyLeadAge() already returns a needs_review warning string when
+    // contactDate is missing or unparseable — no need to push a second one
+    // that says the same thing in different words.
     const allWarnings = [...validation.warnings]
     if (ageResult.warning) allWarnings.push(ageResult.warning)
-    if (ageResult.classification === 'needs_review' && !parsedContactDate) {
-      allWarnings.push(
-        'Contact date is missing or unparseable — lead age cannot be determined. ' +
-        'Enter the date manually to assign this lead to a re-engagement workflow.',
-      )
-      // Promote eligible → warning so the operator sees it
-      if (finalStatus === 'eligible') finalStatus = 'warning'
+    // Promote eligible → warning so the operator notices missing-date rows
+    // even though the wording came from classifyLeadAge above.
+    if (
+      ageResult.classification === 'needs_review' &&
+      !parsedContactDate &&
+      finalStatus === 'eligible'
+    ) {
+      finalStatus = 'warning'
     }
 
     // Resolve the bucket workflow (null if lead is held, needs_review, or no workflow configured)
