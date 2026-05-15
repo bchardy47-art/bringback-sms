@@ -333,7 +333,7 @@ async function BatchCard({ batchId }: { batchId: string }) {
             </p>
           </div>
           <div className="px-4 py-4">
-            <ConfirmationGate batchId={batchId} onConfirmed={() => window.location.reload()} />
+            <ConfirmationGate batchId={batchId} />
           </div>
         </div>
       )}

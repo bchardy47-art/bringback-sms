@@ -17,7 +17,6 @@ import type { PilotConfirmationChecks } from '@/lib/db/schema'
 
 type Props = {
   batchId: string
-  onConfirmed: () => void
 }
 
 const CHECKBOXES: { key: keyof PilotConfirmationChecks; label: string }[] = [
@@ -39,7 +38,7 @@ const CHECKBOXES: { key: keyof PilotConfirmationChecks; label: string }[] = [
   },
 ]
 
-export function ConfirmationGate({ batchId, onConfirmed }: Props) {
+export function ConfirmationGate({ batchId }: Props) {
   const [phrase, setPhrase] = useState('')
   const [checks, setChecks] = useState<PilotConfirmationChecks>({
     tenDlcApproved:               false,
@@ -73,7 +72,14 @@ export function ConfirmationGate({ batchId, onConfirmed }: Props) {
         return
       }
       setSuccess(true)
-      onConfirmed()
+      // Full reload so the server-component tree re-renders with the
+      // newly-unlocked smoke-test gate. Previously the parent server
+      // component tried to pass an inline () => window.location.reload()
+      // as an `onConfirmed` prop, which Next.js cannot serialize across
+      // the RSC boundary (event handlers can't be passed from server
+      // components to client components). Calling reload here keeps the
+      // hard-refresh behaviour and removes the prop entirely.
+      window.location.reload()
     } catch (err) {
       setErrors([err instanceof Error ? err.message : 'Network error'])
     } finally {
