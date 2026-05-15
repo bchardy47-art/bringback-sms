@@ -58,7 +58,7 @@ export default async function LeadsPage({
   return (
     <div className="min-h-full bg-gray-50">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-8 py-5">
+      <div className="bg-white border-b border-gray-200 px-4 md:px-8 py-4 md:py-5">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-xl font-bold text-gray-900">Leads</h1>
@@ -68,7 +68,7 @@ export default async function LeadsPage({
         </div>
       </div>
 
-      <div className="px-8 py-6">
+      <div className="px-4 md:px-8 py-4 md:py-6">
         {/* State filter tabs */}
         <div className="flex items-center gap-1.5 mb-5 flex-wrap bg-white rounded-xl border border-gray-200 p-1.5 w-fit">
           <FilterLink href="/leads" active={!stateFilter} label="All" />
@@ -84,16 +84,24 @@ export default async function LeadsPage({
         </div>
 
         {/* Table */}
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <table className="w-full">
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden overflow-x-auto">
+          <table className="w-full min-w-[640px]">
             <thead>
               <tr style={{ borderBottom: '1px solid #f3f4f6', backgroundColor: '#fafafa' }}>
-                {['Lead', 'Phone', 'Vehicle', 'Salesperson', 'Status', 'Last Activity', ''].map((h) => (
+                {[
+                  { label: 'Lead', mobile: true },
+                  { label: 'Phone', mobile: false },
+                  { label: 'Vehicle', mobile: false },
+                  { label: 'Salesperson', mobile: false },
+                  { label: 'Status', mobile: true },
+                  { label: 'Last Activity', mobile: false },
+                  { label: '', mobile: true },
+                ].map(({ label, mobile }) => (
                   <th
-                    key={h}
-                    className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"
+                    key={label}
+                    className={`px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider${mobile ? '' : ' hidden md:table-cell'}`}
                   >
-                    {h}
+                    {label}
                   </th>
                 ))}
               </tr>
@@ -138,17 +146,17 @@ export default async function LeadsPage({
                     </td>
 
                     {/* Phone */}
-                    <td className="px-5 py-3.5 text-sm text-gray-600 font-mono">
+                    <td className="hidden md:table-cell px-5 py-3.5 text-sm text-gray-600 font-mono">
                       {lead.phone}
                     </td>
 
                     {/* Vehicle */}
-                    <td className="px-5 py-3.5 text-sm text-gray-500 max-w-[160px] truncate">
+                    <td className="hidden md:table-cell px-5 py-3.5 text-sm text-gray-500 max-w-[160px] truncate">
                       {lead.vehicleOfInterest ?? <span className="text-gray-300">—</span>}
                     </td>
 
                     {/* Salesperson */}
-                    <td className="px-5 py-3.5 text-sm text-gray-500">
+                    <td className="hidden md:table-cell px-5 py-3.5 text-sm text-gray-500">
                       {lead.salespersonName ?? <span className="text-gray-300">—</span>}
                     </td>
 
@@ -160,7 +168,7 @@ export default async function LeadsPage({
                     </td>
 
                     {/* Last Activity */}
-                    <td className="px-5 py-3.5 text-xs text-gray-400">
+                    <td className="hidden md:table-cell px-5 py-3.5 text-xs text-gray-400">
                       {lead.lastCrmActivityAt
                         ? new Date(lead.lastCrmActivityAt).toLocaleDateString('en-US', {
                             month: 'short',
