@@ -10,12 +10,10 @@ import { ReplyBox } from '@/components/inbox/ReplyBox'
 import { TakeOverBanner } from '@/components/inbox/TakeOverBanner'
 import {
   Phone,
-  ExternalLink,
   Car,
   Calendar,
   User,
   MessageSquare,
-  Clock,
   ArrowLeft,
 } from 'lucide-react'
 
@@ -43,13 +41,14 @@ function nameToColor(str: string): string {
   return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length]
 }
 
-export default async function ConversationPage({
+export default async function DealerConversationPage({
   params,
 }: {
   params: { conversationId: string }
 }) {
   const session = await getServerSession(authOptions)
   if (!session) redirect('/login')
+  if (session.user.role !== 'dealer') redirect('/dashboard')
 
   const conversation = await db.query.conversations.findFirst({
     where: and(
@@ -71,15 +70,18 @@ export default async function ConversationPage({
   const initials = `${lead.firstName[0] ?? ''}${lead.lastName?.[0] ?? ''}`.toUpperCase()
   const avatarColor = nameToColor(lead.firstName)
 
+  // Show take-over banner when the lead has replied OR when already taken over
+  const showTakeOverBanner = lead.state === 'responded' || !!conversation.humanTookOverAt
+
   return (
     <div className="flex h-full overflow-hidden">
       {/* Center: Message Thread */}
       <div className="flex-1 flex flex-col overflow-hidden bg-gray-50">
         {/* Thread header */}
         <div className="flex items-center gap-3 px-3 md:px-5 py-4 bg-white border-b border-gray-200 flex-shrink-0">
-          {/* Back to inbox — mobile only */}
+          {/* Back — mobile only */}
           <Link
-            href="/inbox"
+            href="/dealer/inbox"
             className="md:hidden flex-shrink-0 p-1.5 -ml-1 rounded-lg hover:bg-gray-100 text-gray-500"
             aria-label="Back to inbox"
           >
@@ -105,14 +107,14 @@ export default async function ConversationPage({
           <a
             href={`tel:${conversation.leadPhone}`}
             className="p-2 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
-            title="Call"
+            title="Call lead"
           >
             <Phone size={16} />
           </a>
         </div>
 
-        {/* Revival alert banner — shown for responded leads until takeover */}
-        {(lead.state === 'responded' || conversation.humanTookOverAt) && (
+        {/* Take-over banner */}
+        {showTakeOverBanner && (
           <TakeOverBanner
             conversationId={conversation.id}
             alreadyTakenOver={!!conversation.humanTookOverAt}
@@ -142,7 +144,7 @@ export default async function ConversationPage({
         )}
       </div>
 
-      {/* Right: Lead Details Panel (hidden on mobile) */}
+      {/* Right: Lead details panel (desktop only) */}
       <div
         className="hidden md:flex w-72 flex-shrink-0 bg-white flex-col overflow-hidden"
         style={{ borderLeft: '1px solid #f0f0f0' }}
@@ -158,11 +160,9 @@ export default async function ConversationPage({
                 {initials}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${stateStyle.color}`}>
-                    {stateStyle.label}
-                  </span>
-                </div>
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${stateStyle.color}`}>
+                  {stateStyle.label}
+                </span>
                 <h3 className="text-sm font-bold text-gray-900 mt-1">
                   {lead.firstName} {lead.lastName}
                 </h3>
@@ -171,19 +171,20 @@ export default async function ConversationPage({
             </div>
           </div>
 
-          {/* Details */}
+          {/* Lead info */}
           <div className="p-5 space-y-4 border-b border-gray-100">
             <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Lead Info</h4>
-            <DetailRow icon={<User size={14} />} label="Last Contact" value={
-              lead.lastCrmActivityAt
-                ? new Date(lead.lastCrmActivityAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-                : 'Unknown'
-            } />
+            <DetailRow
+              icon={<User size={14} />}
+              label="Last Contact"
+              value={
+                lead.lastCrmActivityAt
+                  ? new Date(lead.lastCrmActivityAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                  : 'Unknown'
+              }
+            />
             {lead.salespersonName && (
               <DetailRow icon={<User size={14} />} label="Salesperson" value={lead.salespersonName} />
-            )}
-            {lead.crmSource && (
-              <DetailRow icon={<Clock size={14} />} label="Source" value={lead.crmSource.toUpperCase()} />
             )}
             <DetailRow
               icon={<MessageSquare size={14} />}
@@ -195,6 +196,13 @@ export default async function ConversationPage({
                 icon={<Calendar size={14} />}
                 label="First Contact"
                 value={new Date(conversation.messages[0].createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+              />
+            )}
+            {conversation.humanTookOverAt && (
+              <DetailRow
+                icon={<User size={14} />}
+                label="Taken Over"
+                value={new Date(conversation.humanTookOverAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
               />
             )}
           </div>
@@ -209,20 +217,6 @@ export default async function ConversationPage({
               </div>
             </div>
           )}
-
-          {/* Quick actions */}
-          <div className="p-5">
-            <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Quick Actions</h4>
-            <div className="space-y-1">
-              <Link
-                href={`/leads/${lead.id}`}
-                className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors"
-              >
-                <ExternalLink size={15} className="text-gray-400" />
-                View Lead Profile
-              </Link>
-            </div>
-          </div>
         </div>
       </div>
     </div>

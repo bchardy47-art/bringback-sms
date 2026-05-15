@@ -9,6 +9,7 @@ type Conversation = {
   id: string
   status: string
   updatedAt: Date | string
+  humanTookOverAt?: Date | string | null
   lead: {
     id: string
     firstName: string
@@ -52,58 +53,106 @@ function timeAgo(date: Date | string): string {
   return `${Math.floor(hrs / 24)}d`
 }
 
-/** Apply the tab key filter to a conversation list */
+// ── Tab filter logic ────────────────────────────────────────────────────────
+
+type TabKey = 'needs_review' | 'automated' | 'human_owned' | 'opted_out' | 'closed'
+  | 'open' | 'awaiting_reply' | 'replied'
+
 function applyTabFilter(convs: Conversation[], tabKey: string): Conversation[] {
   switch (tabKey) {
+    // ── Dealer tabs ────────────────────────────────────────────────────────
+    case 'needs_review':
+      // Open + last message was inbound (lead replied) + NOT yet taken over
+      return convs.filter((c) => {
+        if (c.status !== 'open') return false
+        if (c.humanTookOverAt) return false
+        const last = c.messages[0]
+        return last?.direction === 'inbound'
+      })
+    case 'automated':
+      // Open + last message was outbound (automation sent) + NOT taken over
+      return convs.filter((c) => {
+        if (c.status !== 'open') return false
+        if (c.humanTookOverAt) return false
+        const last = c.messages[0]
+        return !last || last.direction === 'outbound'
+      })
+    case 'human_owned':
+      // Taken over by a human
+      return convs.filter((c) => !!c.humanTookOverAt)
+    case 'opted_out':
+      return convs.filter((c) => c.status === 'opted_out')
+    case 'closed':
+      return convs.filter((c) => c.status === 'closed')
+
+    // ── Admin/legacy tabs ──────────────────────────────────────────────────
     case 'open':
-      // All active conversations (not opted out or closed)
       return convs.filter((c) => c.status === 'open')
     case 'awaiting_reply':
-      // Open + last message was outbound (we sent last, waiting on lead)
       return convs.filter((c) => {
         if (c.status !== 'open') return false
         const last = c.messages[0]
         return !last || last.direction === 'outbound'
       })
     case 'replied':
-      // Open + last message was inbound (lead replied)
       return convs.filter((c) => {
         if (c.status !== 'open') return false
-        const last = c.messages[0]
-        return last?.direction === 'inbound'
+        return c.messages[0]?.direction === 'inbound'
       })
-    case 'opted_out':
-      return convs.filter((c) => c.status === 'opted_out')
     default:
       return convs
   }
 }
 
+// ── Dealer tab set ──────────────────────────────────────────────────────────
+
+const DEALER_TABS: Array<{ key: TabKey; label: string }> = [
+  { key: 'needs_review', label: 'Needs Review' },
+  { key: 'automated',    label: 'Automated' },
+  { key: 'human_owned',  label: 'Human-Owned' },
+  { key: 'opted_out',    label: 'Opted Out' },
+  { key: 'closed',       label: 'Closed' },
+]
+
+// ── Admin tab set ───────────────────────────────────────────────────────────
+
+const ADMIN_TABS: Array<{ key: TabKey; label: string }> = [
+  { key: 'open',           label: 'All' },
+  { key: 'awaiting_reply', label: 'Awaiting Reply' },
+  { key: 'replied',        label: 'Replied' },
+  { key: 'opted_out',      label: 'Opted Out' },
+]
+
+// ── Component ───────────────────────────────────────────────────────────────
+
 export function ConversationListSidebar({
   conversations,
+  totalOpen: _totalOpen,
+  basePath = '/inbox',
 }: {
   conversations: Conversation[]
   totalOpen: number
+  /** Base URL for tab links and conversation links. Default: /inbox */
+  basePath?: string
 }) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const activeTab = searchParams.get('status') ?? 'open'
+
+  const isDealer = basePath.startsWith('/dealer')
+  const TABS = isDealer ? DEALER_TABS : ADMIN_TABS
+  const defaultTab = isDealer ? 'needs_review' : 'open'
+  const activeTab = searchParams.get('status') ?? defaultTab
   const [search, setSearch] = useState('')
 
-  // Compute per-tab counts up front
-  const counts = {
-    open:           applyTabFilter(conversations, 'open').length,
-    awaiting_reply: applyTabFilter(conversations, 'awaiting_reply').length,
-    replied:        applyTabFilter(conversations, 'replied').length,
-    opted_out:      applyTabFilter(conversations, 'opted_out').length,
-  }
+  // Compute per-tab counts
+  const counts = Object.fromEntries(
+    TABS.map((t) => [t.key, applyTabFilter(conversations, t.key).length])
+  )
 
-  const TABS = [
-    { key: 'open',           label: 'All',            count: counts.open },
-    { key: 'awaiting_reply', label: 'Awaiting Reply',  count: counts.awaiting_reply },
-    { key: 'replied',        label: 'Replied',         count: counts.replied },
-    { key: 'opted_out',      label: 'Opted Out',       count: counts.opted_out },
-  ]
+  // Needs-review badge for header (dealer only)
+  const needsReviewCount = isDealer
+    ? applyTabFilter(conversations, 'needs_review').length
+    : applyTabFilter(conversations, 'open').length
 
   // Apply tab filter then search filter
   const tabFiltered = applyTabFilter(conversations, activeTab)
@@ -120,9 +169,9 @@ export function ConversationListSidebar({
       <div className="px-4 pt-5 pb-3 border-b border-gray-100 flex-shrink-0">
         <div className="flex items-center justify-between mb-3">
           <h1 className="text-base font-bold text-gray-900">Inbox</h1>
-          {counts.open > 0 && (
+          {needsReviewCount > 0 && (
             <span className="text-xs font-bold text-white bg-red-500 rounded-full px-2 py-0.5">
-              {counts.open}
+              {needsReviewCount}
             </span>
           )}
         </div>
@@ -143,10 +192,11 @@ export function ConversationListSidebar({
       <div className="px-3 py-2 border-b border-gray-100 flex gap-1 flex-wrap flex-shrink-0">
         {TABS.map((tab) => {
           const isActive = activeTab === tab.key
+          const count = counts[tab.key] ?? 0
           return (
             <Link
               key={tab.key}
-              href={`/inbox?status=${tab.key}`}
+              href={`${basePath}?status=${tab.key}`}
               className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-colors whitespace-nowrap ${
                 isActive
                   ? 'bg-gray-900 text-white'
@@ -154,7 +204,7 @@ export function ConversationListSidebar({
               }`}
             >
               {tab.label}
-              {tab.count > 0 && (
+              {count > 0 && (
                 <span
                   className={`text-[10px] font-bold rounded-full px-1.5 leading-[18px] ${
                     isActive
@@ -162,7 +212,7 @@ export function ConversationListSidebar({
                       : 'bg-gray-200 text-gray-600'
                   }`}
                 >
-                  {tab.count}
+                  {count}
                 </span>
               )}
             </Link>
@@ -178,24 +228,27 @@ export function ConversationListSidebar({
           </div>
         ) : (
           displayed.map((conv) => {
-            const isSelected = pathname === `/inbox/${conv.id}`
+            const convPath = `${basePath}/${conv.id}`
+            const isSelected = pathname === convPath
             const lastMsg = conv.messages[0]
             const badge = STATE_COLORS[conv.lead.state] ?? 'bg-gray-100 text-gray-600'
             const initials = `${conv.lead.firstName[0] ?? ''}${conv.lead.lastName?.[0] ?? ''}`.toUpperCase()
             const avatarColor = nameToColor(conv.lead.firstName)
             const isInbound = lastMsg?.direction === 'inbound'
-
-            const isReviving = conv.lead.state === 'responded'
+            const isHumanOwned = !!conv.humanTookOverAt
+            const needsReview = !isHumanOwned && isInbound && conv.status === 'open'
 
             return (
               <Link
                 key={conv.id}
-                href={`/inbox/${conv.id}`}
+                href={convPath}
                 className={`flex gap-3 px-4 py-3.5 border-b border-gray-50 transition-colors ${
                   isSelected
                     ? 'bg-red-50 border-l-2 border-l-red-500'
-                    : isReviving
+                    : needsReview
                     ? 'bg-amber-50 hover:bg-amber-100 border-l-2 border-l-amber-400'
+                    : isHumanOwned
+                    ? 'bg-green-50 hover:bg-green-100 border-l-2 border-l-green-400'
                     : 'hover:bg-gray-50'
                 }`}
               >
@@ -207,7 +260,7 @@ export function ConversationListSidebar({
                   >
                     {initials}
                   </div>
-                  {isInbound && (
+                  {isInbound && !isHumanOwned && (
                     <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-white rounded-full" />
                   )}
                 </div>
@@ -219,18 +272,24 @@ export function ConversationListSidebar({
                       {conv.lead.firstName} {conv.lead.lastName}
                     </span>
                     <div className="flex items-center gap-1.5 flex-shrink-0">
-                      {isReviving && (
-                        <span className="text-xs font-bold px-1.5 py-0.5 rounded-full"
+                      {needsReview && (
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
                           style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a' }}>
-                          REVIVING
+                          REVIEW
+                        </span>
+                      )}
+                      {isHumanOwned && (
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
+                          style={{ background: '#f0fdf4', color: '#15803d', border: '1px solid #bbf7d0' }}>
+                          YOU
                         </span>
                       )}
                       <span className="text-xs text-gray-400">{timeAgo(conv.updatedAt)}</span>
                     </div>
                   </div>
                   {lastMsg ? (
-                    <p className={`text-xs truncate ${isInbound ? 'text-gray-800 font-medium' : 'text-gray-500'}`}>
-                      {lastMsg.direction === 'outbound' ? 'You: ' : ''}{lastMsg.body}
+                    <p className={`text-xs truncate ${isInbound && !isHumanOwned ? 'text-gray-800 font-medium' : 'text-gray-500'}`}>
+                      {lastMsg.direction === 'outbound' ? 'DLR: ' : ''}{lastMsg.body}
                     </p>
                   ) : (
                     <p className="text-xs text-gray-400">No messages</p>
