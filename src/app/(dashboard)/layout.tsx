@@ -7,6 +7,7 @@ import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { conversations, tenants } from '@/lib/db/schema'
 import { SidebarNav } from '@/components/layout/SidebarNav'
+import { MobileBottomNav } from '@/components/layout/MobileBottomNav'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await getServerSession(authOptions)
@@ -34,9 +35,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ backgroundColor: '#f4f5f7' }}>
-      {/* ── Sidebar ── */}
+      {/* ── Sidebar (desktop only) ── */}
       <aside
-        className="w-[220px] flex-shrink-0 flex flex-col overflow-hidden"
+        className="hidden md:flex w-[220px] flex-shrink-0 flex-col overflow-hidden"
         style={{ backgroundColor: '#0f1015' }}
       >
         {/* Logo */}
@@ -152,7 +153,19 @@ export default async function DashboardLayout({ children }: { children: React.Re
       {/* ── Main column ── */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Top bar */}
-        <header className="flex-shrink-0 bg-white flex items-center gap-4 px-8 py-3" style={{ borderBottom: '1px solid #e5e7eb' }}>
+        <header className="flex-shrink-0 bg-white flex items-center gap-3 px-4 md:px-8 py-3" style={{ borderBottom: '1px solid #e5e7eb' }}>
+          {/* Mobile logo (hidden on desktop since sidebar has it) */}
+          <div className="flex md:hidden flex-shrink-0">
+            <Image
+              src="/dlr-logo.svg"
+              alt="DLR"
+              width={72}
+              height={24}
+              priority
+              style={{ width: 72, height: 'auto' }}
+            />
+          </div>
+
           {/* Search */}
           <div className="flex-1 max-w-md relative">
             <Search
@@ -162,20 +175,20 @@ export default async function DashboardLayout({ children }: { children: React.Re
             />
             <input
               type="text"
-              placeholder="Search leads, conversations, phone numbers..."
+              placeholder="Search..."
               readOnly
-              className="w-full pl-9 pr-12 py-2 text-sm rounded-lg bg-gray-50 placeholder-gray-400 text-gray-700 focus:outline-none"
+              className="w-full pl-9 pr-3 md:pr-12 py-2 text-sm rounded-lg bg-gray-50 placeholder-gray-400 text-gray-700 focus:outline-none"
               style={{ border: '1px solid #e5e7eb' }}
             />
             <kbd
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-xs rounded px-1.5 py-0.5"
+              className="hidden md:block absolute right-3 top-1/2 -translate-y-1/2 text-xs rounded px-1.5 py-0.5"
               style={{ color: '#9ca3af', backgroundColor: '#f3f4f6', border: '1px solid #e5e7eb' }}
             >
               ⌘K
             </kbd>
           </div>
 
-          <div className="flex items-center gap-3 ml-auto">
+          <div className="flex items-center gap-2 md:gap-3 ml-auto">
             {/* Bell */}
             <button
               className="relative w-9 h-9 rounded-lg flex items-center justify-center transition-colors hover:bg-gray-100"
@@ -220,8 +233,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
         </header>
 
         {/* Page content */}
-        <main className="flex-1 overflow-auto">{children}</main>
+        <main className="flex-1 overflow-auto pb-16 md:pb-0">{children}</main>
       </div>
+
+      {/* ── Mobile bottom nav ── */}
+      <MobileBottomNav inboxCount={inboxCount} />
     </div>
   )
 }
