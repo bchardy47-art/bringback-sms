@@ -1,21 +1,28 @@
 /**
- * Handoff Agent  (Phase 5)
+ * Handoff Agent  (Phase 5b — Automotive-aware)
  *
  * Creates structured human follow-up tasks when inbound replies are classified
- * as warm/hot or as complaints requiring escalation.
+ * as hot/warm or as complaints requiring escalation.
  *
- * Triggering classifications:
- *   interested          → sales task, priority: high
- *   appointment_request → sales task, priority: urgent
- *   callback_request    → sales task, priority: high
- *   question            → sales task, priority: normal
- *   angry_or_complaint  → escalation task, priority: urgent
+ * Heat scoring:
+ *   hot  → hot_appointment, hot_payment, hot_inventory
+ *   warm → warm_trade, warm_finance, needs_human_review
+ *   null → angry_or_complaint (escalation — not a sales opportunity)
+ *
+ * Triggering classifications (must match HANDOFF_CLASSIFICATIONS in classify-reply.ts):
+ *   hot_appointment  → sales task, priority: urgent
+ *   hot_payment      → sales task, priority: urgent
+ *   hot_inventory    → sales task, priority: high
+ *   warm_trade       → sales task, priority: high
+ *   warm_finance     → sales task, priority: high
+ *   needs_human_review → sales task, priority: normal
+ *   angry_or_complaint → escalation task, priority: urgent
+ *
+ * not_now and neutral_unclear intentionally excluded — no handoff.
  *
  * Dedup:
  *   Only one open/in_progress task per lead is allowed. If one already exists,
- *   createHandoffTask() returns { created: false, reason: 'duplicate_open_task' }
- *   without inserting a new row. The caller can inspect existingTaskId to surface
- *   it to the operator.
+ *   createHandoffTask() returns { created: false, reason: 'duplicate_open_task' }.
  *
  * Resolving:
  *   resolveHandoffTask() marks the task resolved and stamps lead.lastHumanContactAt
@@ -25,41 +32,65 @@
 import { and, eq, inArray } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { handoffTasks, leads } from '@/lib/db/schema'
+import { extractSignals, buildSalesSummary, type AutomotiveSignals } from '@/lib/messaging/automotive-signals'
 import type { ReplyClassification } from '@/lib/messaging/classify-reply'
+
+// ── Heat scoring ──────────────────────────────────────────────────────────────
+
+export type HeatScore = 'hot' | 'warm'
+
+const HEAT_MAP: Partial<Record<ReplyClassification, HeatScore>> = {
+  hot_appointment:   'hot',
+  hot_payment:       'hot',
+  hot_inventory:     'hot',
+  warm_trade:        'warm',
+  warm_finance:      'warm',
+  needs_human_review:'warm',
+  // angry_or_complaint: no heat score — escalation path only
+}
 
 // ── Classification metadata ────────────────────────────────────────────────────
 
-/** Classifications that require a handoff task to be created. */
+/** Classifications that require a handoff task to be created.
+ *  Keep in sync with HANDOFF_CLASSIFICATIONS in classify-reply.ts. */
 export const HANDOFF_TRIGGERING_CLASSIFICATIONS = new Set<ReplyClassification>([
-  'interested',
-  'appointment_request',
-  'callback_request',
-  'question',
-  'angry_or_complaint', // escalation — not a sales opportunity
+  'hot_appointment',
+  'hot_inventory',
+  'hot_payment',
+  'warm_trade',
+  'warm_finance',
+  'needs_human_review',
+  'angry_or_complaint',
 ])
 
 const TASK_TYPE: Partial<Record<ReplyClassification, 'sales' | 'escalation'>> = {
-  interested:          'sales',
-  appointment_request: 'sales',
-  callback_request:    'sales',
-  question:            'sales',
-  angry_or_complaint:  'escalation',
+  hot_appointment:    'sales',
+  hot_payment:        'sales',
+  hot_inventory:      'sales',
+  warm_trade:         'sales',
+  warm_finance:       'sales',
+  needs_human_review: 'sales',
+  angry_or_complaint: 'escalation',
 }
 
 const PRIORITY: Partial<Record<ReplyClassification, 'urgent' | 'high' | 'normal'>> = {
-  appointment_request: 'urgent',
-  callback_request:    'high',
-  interested:          'high',
-  question:            'normal',
-  angry_or_complaint:  'urgent',
+  hot_appointment:    'urgent',
+  hot_payment:        'urgent',
+  hot_inventory:      'high',
+  warm_trade:         'high',
+  warm_finance:       'high',
+  needs_human_review: 'normal',
+  angry_or_complaint: 'urgent',
 }
 
 const RECOMMENDED_ACTION: Partial<Record<ReplyClassification, string>> = {
-  appointment_request: 'Call or text to confirm appointment time.',
-  callback_request:    'Call the customer back as requested.',
-  interested:          'Reply and qualify vehicle interest.',
-  question:            "Answer the customer's question and continue manually.",
-  angry_or_complaint:  'Escalate to manager. Do not automate further.',
+  hot_appointment:    'Call or text to confirm appointment time.',
+  hot_payment:        'Call immediately — customer is ready to buy.',
+  hot_inventory:      'Call to confirm vehicle availability and invite for test drive.',
+  warm_trade:         'Ask about trade-in and present options.',
+  warm_finance:       'Follow up with financing options.',
+  needs_human_review: 'Review reply and respond manually.',
+  angry_or_complaint: 'Escalate to manager. Do not automate further.',
 }
 
 /**
@@ -73,16 +104,20 @@ function buildRecommendedReply(
 ): string | null {
   const v = vehicle ?? 'the vehicle'
   switch (classification) {
-    case 'appointment_request':
+    case 'hot_appointment':
       return `Hey ${firstName}, sounds great! When works best for you to come in?`
-    case 'callback_request':
-      return `Hey ${firstName}, I'll give you a call shortly. What's the best time to reach you?`
-    case 'interested':
-      return `Hey ${firstName}, happy to help! What would you like to know about the ${v}?`
-    case 'question':
-      return `Hey ${firstName}, yes, I can check that for you — are you asking about the ${v}?`
+    case 'hot_payment':
+      return `Hey ${firstName}, happy to help get you into ${v}! I'll reach out shortly to go over the numbers.`
+    case 'hot_inventory':
+      return `Hey ${firstName}, let me check availability on ${v} and get back to you right away!`
+    case 'warm_trade':
+      return `Hey ${firstName}, great news — we accept trade-ins! I'd love to help figure out what ${v} could be worth.`
+    case 'warm_finance':
+      return `Hey ${firstName}, happy to go over financing options for ${v}. I'll have someone reach out shortly.`
+    case 'needs_human_review':
+      return `Hey ${firstName}, thanks for the reply! Let me have someone follow up with you directly.`
     case 'angry_or_complaint':
-      return null  // No suggested reply — do not engage automatically
+      return null  // No suggested reply — escalation only
     default:
       return null
   }
@@ -132,10 +167,20 @@ export async function createHandoffTask(params: {
   const lead = await db.query.leads.findFirst({ where: eq(leads.id, leadId) })
   if (!lead) throw new Error(`[handoff] Lead ${leadId} not found`)
 
+  // ── Extract automotive signals from the customer message ──────────────────
+  const signals: AutomotiveSignals = extractSignals(
+    customerMessage,
+    lead.vehicleOfInterest ?? null
+  )
+
   const priority            = PRIORITY[classification]            ?? 'normal'
   const taskType            = TASK_TYPE[classification]           ?? 'sales'
   const recommendedAction   = RECOMMENDED_ACTION[classification]  ?? 'Review and respond manually.'
   const recommendedReply    = buildRecommendedReply(classification, lead.firstName, lead.vehicleOfInterest ?? null)
+  const heatScore           = HEAT_MAP[classification]            ?? null
+  const salesSummary        = taskType === 'sales'
+    ? buildSalesSummary(signals, lead.firstName, lead.vehicleOfInterest ?? null)
+    : null
 
   const [task] = await db.insert(handoffTasks).values({
     tenantId,
@@ -148,11 +193,16 @@ export async function createHandoffTask(params: {
     recommendedNextAction: recommendedAction,
     recommendedReply,
     status: 'open',
+    heatScore,
+    salesSummary,
+    automotiveSignals: signals as Record<string, unknown>,
   }).returning()
 
   console.log(
     `[handoff] Task ${task.id} created | lead=${leadId} | ` +
-    `type=${taskType} | classification=${classification} | priority=${priority}`
+    `type=${taskType} | classification=${classification} | ` +
+    `priority=${priority} | heat=${heatScore ?? 'n/a'}` +
+    (salesSummary ? ` | summary="${salesSummary}"` : '')
   )
 
   return { created: true, task }

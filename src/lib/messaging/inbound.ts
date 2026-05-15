@@ -1,12 +1,21 @@
 import { and, eq } from 'drizzle-orm'
 import { db } from '@/lib/db'
-import { conversations, leads, messages, phoneNumbers, workflowEnrollments } from '@/lib/db/schema'
+import { conversations, leads, messages, phoneNumbers, tenants, workflowEnrollments } from '@/lib/db/schema'
 import type { InboundMessage } from './provider.interface'
-import { isOptedOut, isStopMessage, isUnstopMessage, recordOptOut, removeOptOut } from './opt-out'
+import {
+  buildHelpReply,
+  isHelpMessage,
+  isOptedOut,
+  isStopMessage,
+  isUnstopMessage,
+  recordOptOut,
+  removeOptOut,
+} from './opt-out'
 import { handleReply } from './handle-reply'
 import { transition } from '@/lib/lead/state-machine'
-import { sendRevivalAlert } from '@/lib/alerts'
+import { sendRevivalAlert, sendHandoffAlert } from '@/lib/alerts'
 import { createHandoffTask, HANDOFF_TRIGGERING_CLASSIFICATIONS } from '@/lib/handoff/handoff-agent'
+import { getProvider } from './index'
 
 export async function handleInbound(msg: InboundMessage): Promise<void> {
   // ── Idempotency guard ────────────────────────────────────────────────────
@@ -80,6 +89,47 @@ export async function handleInbound(msg: InboundMessage): Promise<void> {
         providerMessageId: msg.providerMessageId,
         status: 'received',
       })
+    }
+    return
+  }
+
+  // ── HELP ─────────────────────────────────────────────────────────────────
+  // CTIA-mandated: HELP must be answered even from opted-out / unknown numbers.
+  // We log the inbound, send the auto-reply, and exit — no lead/state changes.
+  if (isHelpMessage(msg.body)) {
+    const tenant = await db.query.tenants.findFirst({ where: eq(tenants.id, tenantId) })
+    if (tenant) {
+      const replyBody = buildHelpReply(tenant)
+      try {
+        await getProvider().send({ to: msg.from, from: msg.to, body: replyBody })
+      } catch (err) {
+        console.error('[inbound] HELP auto-reply send failed:', err)
+      }
+
+      // Log both inbound HELP and outbound auto-reply on any existing conversation.
+      const conv = await db.query.conversations.findFirst({
+        where: and(eq(conversations.tenantId, tenantId), eq(conversations.leadPhone, msg.from)),
+      })
+      if (conv) {
+        await db.insert(messages).values({
+          conversationId: conv.id,
+          direction: 'inbound',
+          body: msg.body,
+          provider: 'telnyx',
+          providerMessageId: msg.providerMessageId,
+          status: 'received',
+        })
+        await db.insert(messages).values({
+          conversationId: conv.id,
+          direction: 'outbound',
+          body: replyBody,
+          provider: 'telnyx',
+          status: 'sent',
+          sentAt: new Date(),
+        })
+      }
+    } else {
+      console.warn(`[inbound] HELP from ${msg.from} on unknown tenant ${tenantId}`)
     }
     return
   }
@@ -194,18 +244,37 @@ export async function handleInbound(msg: InboundMessage): Promise<void> {
   // ── Handoff task ───────────────────────────────────────────────────────────
   // Create a structured human follow-up task for warm/hot replies and complaints.
   // createHandoffTask() is idempotent — it skips if an open task already exists.
-  // Warm classifications (needsHumanHandoff=true): interested, appointment_request,
-  //   callback_request, question
+  // Hot: hot_appointment, hot_payment, hot_inventory
+  // Warm: warm_trade, warm_finance, needs_human_review
   // Escalation: angry_or_complaint — urgent, routed to manager
   if (HANDOFF_TRIGGERING_CLASSIFICATIONS.has(replyResult.classification)) {
     try {
-      await createHandoffTask({
+      const handoffResult = await createHandoffTask({
         tenantId,
         leadId: conversation.leadId,
         conversationId: conversation.id,
         classification: replyResult.classification,
         customerMessage: msg.body,
       })
+
+      // Only alert on a freshly-created task — skip if it was a duplicate
+      if (handoffResult.created) {
+        try {
+          await sendHandoffAlert({
+            tenantId,
+            conversationId: conversation.id,
+            leadId: conversation.leadId,
+            classification: replyResult.classification,
+            priority: handoffResult.task.priority,
+            customerMessage: msg.body,
+            recommendedAction: handoffResult.task.recommendedNextAction ?? 'Review and respond manually.',
+            recommendedReply: handoffResult.task.recommendedReply ?? null,
+            salesSummary: handoffResult.task.salesSummary ?? null,
+          })
+        } catch (alertErr) {
+          console.error('[inbound] Handoff alert failed:', alertErr)
+        }
+      }
     } catch (err) {
       // Never let handoff failures block the inbound message flow
       console.error('[inbound] Handoff task creation failed:', err)
