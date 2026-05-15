@@ -15,6 +15,12 @@ import { useState, useRef } from 'react'
 
 type Props = {
   tenantId: string
+  /**
+   * Base path for the pilot-leads API. Defaults to the admin route surface.
+   * Dealer pages pass '/api/dealer/pilot-leads' so the dealer-only route
+   * shells handle the request — same lib logic, role-appropriate gate.
+   */
+  apiBase?: string
 }
 
 type ImportResult = {
@@ -60,7 +66,7 @@ const CSV_COLUMNS = [
   { name: 'notes',             required: false, note: '' },
 ]
 
-export function ImportForm({ tenantId }: Props) {
+export function ImportForm({ tenantId, apiBase = '/api/admin/dlr/pilot-leads' }: Props) {
   const [mode, setMode]               = useState<'csv' | 'manual'>('csv')
   const [loading, setLoading]         = useState(false)
   const [result, setResult]           = useState<ImportResponse | null>(null)
@@ -125,7 +131,7 @@ export function ImportForm({ tenantId }: Props) {
     setResult(null)
 
     try {
-      const res = await fetch('/api/admin/dlr/pilot-leads/import', {
+      const res = await fetch(`${apiBase}/import`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tenantId, ...payload }),

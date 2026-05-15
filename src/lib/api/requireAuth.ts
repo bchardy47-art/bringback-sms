@@ -48,3 +48,20 @@ export function requireAdmin(): Promise<AuthResult> {
 export function requireManager(): Promise<AuthResult> {
   return requireRole('manager')
 }
+
+/**
+ * Dealer-only gate. Unlike requireRole('dealer') (which would allow every
+ * role at or above dealer rank), this asserts role *equals* 'dealer'. Use
+ * on routes that mirror admin operations for the dealer's own tenant —
+ * the dealer route shells under /api/dealer/** call this so an admin
+ * accidentally hitting those shells gets a clear 403 and continues to
+ * use /api/admin/** instead.
+ */
+export async function requireDealer(): Promise<AuthResult> {
+  const result = await requireAuth()
+  if (result.error) return result
+  if (result.session.user.role !== 'dealer') {
+    return { session: null, error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) }
+  }
+  return result
+}

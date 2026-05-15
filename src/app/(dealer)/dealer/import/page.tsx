@@ -167,6 +167,11 @@ export default async function DealerImportPage({
   const actionableLeads = displayLeads.filter(r => r.importStatus !== 'blocked')
   const blockedLeads    = displayLeads.filter(r => r.importStatus === 'blocked')
 
+  // All ImportForm + LeadReviewControls components on this page route through
+  // the dealer-only API surface (requireDealer + session tenantId). The admin
+  // /api/admin/dlr/pilot-leads routes stay locked to requireAdmin.
+  const apiBase = '/api/dealer/pilot-leads'
+
   return (
     <div className="p-8 max-w-5xl mx-auto space-y-6">
 
@@ -180,7 +185,7 @@ export default async function DealerImportPage({
 
       {/* Auto-select trigger */}
       {eligibleCount > 0 && selectedCount === 0 && (
-        <AutoSelectEligible tenantId={tenantId} />
+        <AutoSelectEligible tenantId={tenantId} apiBase={apiBase} />
       )}
 
       {/* Summary */}
@@ -212,6 +217,7 @@ export default async function DealerImportPage({
                 importIds={selectedImportIds}
                 bucketPlan={bucketPlan}
                 compact
+                apiBase={apiBase}
               />
             </div>
           )}
@@ -257,7 +263,7 @@ export default async function DealerImportPage({
           </div>
         </div>
         <div className="p-5">
-          <ImportForm tenantId={tenantId} />
+          <ImportForm tenantId={tenantId} apiBase={apiBase} />
         </div>
       </div>
 
@@ -291,7 +297,7 @@ export default async function DealerImportPage({
             </div>
             <div className="flex items-center gap-3">
               <StatusFilterSelect tenantId={tenantId} statusFilter={statusFilter} />
-              <BulkClearButton tenantId={tenantId} blockedCount={blockedCount} />
+              <BulkClearButton tenantId={tenantId} blockedCount={blockedCount} apiBase={apiBase} />
               {selectedCount > 0 && (
                 <span className="px-2.5 py-1 bg-blue-100 text-blue-700 text-xs font-bold rounded-full">
                   {selectedCount} / {FIRST_PILOT_CAP} selected
@@ -341,6 +347,7 @@ export default async function DealerImportPage({
                           tenantId={tenantId}
                           isSelected={isSelected}
                           canSelect={canSelect}
+                          apiBase={apiBase}
                         />
                       </td>
                       <td className="px-4 py-3">
@@ -399,10 +406,11 @@ export default async function DealerImportPage({
                           importId={lead.id}
                           tenantId={tenantId}
                           alreadyReviewed={lead.reviewed}
+                          apiBase={apiBase}
                         />
                       </td>
                       <td className="px-4 py-3">
-                        <ExcludeButton leadId={lead.id} tenantId={tenantId} />
+                        <ExcludeButton leadId={lead.id} tenantId={tenantId} apiBase={apiBase} />
                       </td>
                     </tr>
                   )
@@ -446,7 +454,7 @@ export default async function DealerImportPage({
                           <span className="text-gray-300 text-xs italic">—</span>
                         </td>
                         <td className="px-4 py-3">
-                          <ExcludeButton leadId={lead.id} tenantId={tenantId} />
+                          <ExcludeButton leadId={lead.id} tenantId={tenantId} apiBase={apiBase} />
                         </td>
                       </tr>
                     ))}
@@ -460,7 +468,7 @@ export default async function DealerImportPage({
       )}
 
       {/* Dry-run */}
-      {allLeads.length > 0 && <DryRunReportPanel tenantId={tenantId} />}
+      {allLeads.length > 0 && <DryRunReportPanel tenantId={tenantId} apiBase={apiBase} />}
 
       {/* Step 3: Create batch */}
       {allLeads.length > 0 && (
@@ -487,6 +495,7 @@ export default async function DealerImportPage({
                   tenantId={tenantId}
                   importIds={selectedImportIds}
                   bucketPlan={bucketPlan}
+                  apiBase={apiBase}
                 />
               ) : (
                 <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">

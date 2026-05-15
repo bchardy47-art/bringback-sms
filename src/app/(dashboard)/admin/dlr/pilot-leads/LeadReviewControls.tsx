@@ -19,7 +19,7 @@ import type { PilotImportDryRunReport } from '@/lib/db/schema'
 // Fires once on mount when eligible leads exist but none are selected yet.
 // Eliminates manual checkbox work for the happy-path import flow.
 
-export function AutoSelectEligible({ tenantId }: { tenantId: string }) {
+export function AutoSelectEligible({ tenantId, apiBase = '/api/admin/dlr/pilot-leads' }: { tenantId: string; apiBase?: string }) {
   useEffect(() => {
     // One-shot guard: if this session already auto-selected for this tenant,
     // don't fire again — preserves intentional deselections after a reload.
@@ -27,7 +27,7 @@ export function AutoSelectEligible({ tenantId }: { tenantId: string }) {
     if (sessionStorage.getItem(flagKey)) return
 
     sessionStorage.setItem(flagKey, '1')
-    fetch('/api/admin/dlr/pilot-leads/select-all-eligible', {
+    fetch(`${apiBase}/select-all-eligible`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ tenantId }),
@@ -47,7 +47,7 @@ export function AutoSelectEligible({ tenantId }: { tenantId: string }) {
 
 // ── Bulk Clear ────────────────────────────────────────────────────────────────
 
-export function BulkClearButton({ tenantId, blockedCount }: { tenantId: string; blockedCount: number }) {
+export function BulkClearButton({ tenantId, blockedCount, apiBase = '/api/admin/dlr/pilot-leads' }: { tenantId: string; blockedCount: number; apiBase?: string }) {
   const [loading, setLoading] = useState(false)
   const [result, setResult]   = useState<string | null>(null)
 
@@ -58,7 +58,7 @@ export function BulkClearButton({ tenantId, blockedCount }: { tenantId: string; 
     setLoading(true)
     setResult(null)
     try {
-      const res = await fetch('/api/admin/dlr/pilot-leads/bulk-clear', {
+      const res = await fetch(`${apiBase}/bulk-clear`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tenantId }),
@@ -97,10 +97,12 @@ export function MarkReviewedButton({
   importId,
   tenantId,
   alreadyReviewed,
+  apiBase = '/api/admin/dlr/pilot-leads',
 }: {
   importId: string
   tenantId: string
   alreadyReviewed: boolean
+  apiBase?: string
 }) {
   const [done, setDone]     = useState(alreadyReviewed)
   const [loading, setLoading] = useState(false)
@@ -112,7 +114,7 @@ export function MarkReviewedButton({
   async function handle() {
     setLoading(true)
     try {
-      const res = await fetch(`/api/admin/dlr/pilot-leads/${importId}/review`, {
+      const res = await fetch(`${apiBase}/${importId}/review`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tenantId }),
@@ -143,7 +145,7 @@ const RECOMMENDATION_STYLE = {
   blocked:       { bar: 'bg-red-500',     text: 'text-red-700',     label: '✗ Blocked — resolve issues first' },
 }
 
-export function DryRunReportPanel({ tenantId }: { tenantId: string }) {
+export function DryRunReportPanel({ tenantId, apiBase = '/api/admin/dlr/pilot-leads' }: { tenantId: string; apiBase?: string }) {
   const [report, setReport]   = useState<PilotImportDryRunReport | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState<string | null>(null)
@@ -152,7 +154,7 @@ export function DryRunReportPanel({ tenantId }: { tenantId: string }) {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch(`/api/admin/dlr/pilot-leads/dry-run?tenantId=${tenantId}`)
+      const res = await fetch(`${apiBase}/dry-run?tenantId=${tenantId}`)
       const data = await res.json() as { report?: PilotImportDryRunReport; error?: string }
       if (data.report) setReport(data.report)
       else setError(data.error ?? 'Unknown error')
@@ -347,11 +349,13 @@ export function LeadCheckbox({
   tenantId,
   isSelected,
   canSelect,
+  apiBase = '/api/admin/dlr/pilot-leads',
 }: {
   leadId: string
   tenantId: string
   isSelected: boolean
   canSelect: boolean
+  apiBase?: string
 }) {
   const [loading, setLoading] = useState(false)
 
@@ -359,7 +363,7 @@ export function LeadCheckbox({
     if (loading) return
     setLoading(true)
     try {
-      await fetch(`/api/admin/dlr/pilot-leads/${leadId}`, {
+      await fetch(`${apiBase}/${leadId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tenantId, selected: !isSelected }),
@@ -390,9 +394,11 @@ export function LeadCheckbox({
 export function ExcludeButton({
   leadId,
   tenantId,
+  apiBase = '/api/admin/dlr/pilot-leads',
 }: {
   leadId: string
   tenantId: string
+  apiBase?: string
 }) {
   const [loading, setLoading] = useState(false)
 
@@ -400,7 +406,7 @@ export function ExcludeButton({
     if (!confirm('Exclude this lead from the import session?')) return
     setLoading(true)
     try {
-      await fetch(`/api/admin/dlr/pilot-leads/${leadId}?tenantId=${tenantId}`, {
+      await fetch(`${apiBase}/${leadId}?tenantId=${tenantId}`, {
         method: 'DELETE',
       })
       window.location.reload()
@@ -439,11 +445,13 @@ export function CreateBatchButton({
   importIds,
   bucketPlan,
   compact = false,
+  apiBase = '/api/admin/dlr/pilot-leads',
 }: {
   tenantId:   string
   importIds:  string[]
   bucketPlan: BucketPlanItem[]
   compact?:   boolean
+  apiBase?:   string
 }) {
   const [stage,   setStage]   = useState<'idle' | 'confirming' | 'loading'>('idle')
   const [error,   setError]   = useState<string | null>(null)
@@ -454,7 +462,7 @@ export function CreateBatchButton({
     setStage('loading')
     setError(null)
     try {
-      const res  = await fetch('/api/admin/dlr/pilot-leads/create-batch', {
+      const res  = await fetch(`${apiBase}/create-batch`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ tenantId, importIds }),
