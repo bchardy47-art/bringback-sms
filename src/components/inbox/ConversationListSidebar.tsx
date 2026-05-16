@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { Search } from 'lucide-react'
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 
 type Conversation = {
   id: string
@@ -141,8 +141,25 @@ export function ConversationListSidebar({
   const isDealer = basePath.startsWith('/dealer')
   const TABS = isDealer ? DEALER_TABS : ADMIN_TABS
   const defaultTab = isDealer ? 'needs_review' : 'open'
-  const activeTab = searchParams.get('status') ?? defaultTab
+
+  // Tab state is owned client-side after first render. The URL ?status= is
+  // read once for the initial value (so deep links / shared URLs work) and
+  // then kept in sync via history.replaceState. We deliberately avoid
+  // next/link, router.push, and router.replace for tab switches so that
+  // clicking a tab never triggers an _rsc soft-navigation fetch.
+  const [activeTab, setActiveTab] = useState<string>(
+    () => searchParams.get('status') ?? defaultTab,
+  )
   const [search, setSearch] = useState('')
+
+  const handleTabClick = useCallback((key: string) => {
+    setActiveTab(key)
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href)
+      url.searchParams.set('status', key)
+      window.history.replaceState(window.history.state, '', url.toString())
+    }
+  }, [])
 
   // Compute per-tab counts
   const counts = Object.fromEntries(
@@ -188,15 +205,18 @@ export function ConversationListSidebar({
         </div>
       </div>
 
-      {/* Filter tabs */}
+      {/* Filter tabs — pure client-side filter over the already-loaded
+          conversation list. Buttons, not Links, so clicks never trigger
+          an _rsc fetch. */}
       <div className="px-3 py-2 border-b border-gray-100 flex gap-1 flex-wrap flex-shrink-0">
         {TABS.map((tab) => {
           const isActive = activeTab === tab.key
           const count = counts[tab.key] ?? 0
           return (
-            <Link
+            <button
               key={tab.key}
-              href={`${basePath}?status=${tab.key}`}
+              type="button"
+              onClick={() => handleTabClick(tab.key)}
               className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-colors whitespace-nowrap ${
                 isActive
                   ? 'bg-gray-900 text-white'
@@ -215,7 +235,7 @@ export function ConversationListSidebar({
                   {count}
                 </span>
               )}
-            </Link>
+            </button>
           )
         })}
       </div>
