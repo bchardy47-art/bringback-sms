@@ -147,7 +147,8 @@ function Row({ children }: { children: React.ReactNode }) {
 // Defaults the Stage 2 form pre-populates from the existing intake row.
 // Stage 1 already captured dealershipName / contact / mobile / website /
 // store address — those defaults flow in here so the dealer doesn't have
-// to retype anything.
+// to retype anything. Compliance writeups are also threaded so the dealer
+// sees their prior submission on reload (not the generic default text).
 export type IntakeFormInitial = {
   dealershipName?: string | null
   businessWebsite?: string | null
@@ -158,7 +159,21 @@ export type IntakeFormInitial = {
   alertEmail?: string | null
   alertPhone?: string | null
   crmSystem?: string | null
+  leadSourceExplanation?: string | null
+  consentExplanation?: string | null
 }
+
+// Default carrier-compliance language pre-filled into the two textareas
+// in Section 3. Most dealers don't have practiced wording on hand for
+// these prompts; staring at a blank box slows completion and produces
+// uneven submissions. Dealers can edit or replace; the fields remain
+// required so a blank cleared box still trips validation. These strings
+// are the dealer-facing fallback only — the binding compliance + TCPA
+// language lives in /terms Section 5.
+const DEFAULT_LEAD_SOURCE_EXPLANATION =
+  "These leads came from customers who submitted inquiry forms on our website or third-party automotive marketplaces requesting information about specific vehicles. They provided their contact information and expressed interest in purchasing or leasing."
+const DEFAULT_CONSENT_EXPLANATION =
+  "When customers submit an inquiry form, they agree to our terms and provide consent to receive follow-up SMS communications regarding their vehicle inquiry. Opt-out instructions are included in every message, and consent records are maintained by the dealership."
 
 export function IntakeForm({
   token,
@@ -329,25 +344,25 @@ export function IntakeForm({
         <Field
           label="Lead source explanation"
           required
-          hint="How did these leads originally contact your dealership?"
+          hint="How did these leads originally contact your dealership? Pre-filled with standard language — edit if it doesn't match your store."
         >
           <Textarea
             name="leadSourceExplanation"
-            placeholder="Leads in our database submitted inquiry forms on our website or third-party sites (AutoTrader, Cars.com) requesting information about specific vehicles. They provided their contact info and expressed interest in purchasing or leasing."
             rows={5}
             required
+            defaultValue={d.leadSourceExplanation ?? DEFAULT_LEAD_SOURCE_EXPLANATION}
           />
         </Field>
         <Field
           label="Consent explanation"
           required
-          hint="How do customers agree to receive SMS from your dealership?"
+          hint="How do customers agree to receive SMS from your dealership? Pre-filled with standard language — edit if it doesn't match your store."
         >
           <Textarea
             name="consentExplanation"
-            placeholder="When customers submit an inquiry form, they agree to our terms of service which include consent to receive SMS communications regarding their vehicle inquiry. Opt-out instructions are included in every message."
             rows={5}
             required
+            defaultValue={d.consentExplanation ?? DEFAULT_CONSENT_EXPLANATION}
           />
         </Field>
         <Row>

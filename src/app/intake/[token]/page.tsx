@@ -96,15 +96,19 @@ export default async function IntakePage({
           token={params.token}
           dealershipName={intake.dealershipName ?? ''}
           initial={{
-            dealershipName:      intake.dealershipName,
-            businessWebsite:     intake.businessWebsite,
-            businessAddress:     intake.businessAddress,
-            primaryContactName:  intake.primaryContactName,
-            primaryContactEmail: intake.primaryContactEmail,
-            primaryContactPhone: intake.primaryContactPhone,
-            alertEmail:          intake.alertEmail,
-            alertPhone:          intake.alertPhone,
-            crmSystem:           intake.crmSystem,
+            dealershipName:        intake.dealershipName,
+            businessWebsite:       intake.businessWebsite,
+            businessAddress:       intake.businessAddress,
+            primaryContactName:    intake.primaryContactName,
+            primaryContactEmail:   intake.primaryContactEmail,
+            primaryContactPhone:   intake.primaryContactPhone,
+            alertEmail:            intake.alertEmail,
+            alertPhone:            intake.alertPhone,
+            crmSystem:             intake.crmSystem,
+            // If the dealer already submitted compliance text, show
+            // it on reload (don't overwrite with the prefilled defaults).
+            leadSourceExplanation: intake.leadSourceExplanation,
+            consentExplanation:    intake.consentExplanation,
           }}
         />
       </div>
