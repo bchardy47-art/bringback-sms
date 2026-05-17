@@ -1141,8 +1141,14 @@ export const dealerIntakes = pgTable('dealer_intakes', {
   // Which package the dealer chose at activation. Drives downstream billing.
   // Free-text for now to avoid a migration if pricing tiers change.
   plan:          text('plan'),
-  // 'pending' | 'paid' | 'failed' | 'skipped' | 'awaiting_stripe' — managed
-  // by the payment step (and updated by Stripe Checkout success/webhook).
+  // Payment lifecycle. Managed by the payment step + the Stripe webhook.
+  //   pending          — row created; no decision yet
+  //   awaiting_stripe  — Stripe Checkout Session created, dealer is on
+  //                      the hosted page
+  //   paid             — checkout.session.completed (initial invoice OK)
+  //   past_due         — invoice.payment_failed for a renewal
+  //   cancelled        — customer.subscription.deleted (terminal)
+  //   skipped          — dealer chose "billing later"
   paymentStatus: text('payment_status').default('pending').notNull(),
 
   // ── Legal acceptance audit trail (added Phase 22) ────────────────────────

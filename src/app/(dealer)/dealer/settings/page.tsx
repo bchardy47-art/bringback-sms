@@ -1,12 +1,13 @@
 import { getServerSession } from 'next-auth'
 import { redirect } from 'next/navigation'
-import { eq } from 'drizzle-orm'
-import { User, Shield } from 'lucide-react'
+import { and, desc, eq, isNotNull } from 'drizzle-orm'
+import { User, Shield, CreditCard } from 'lucide-react'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { users } from '@/lib/db/schema'
+import { users, dealerIntakes } from '@/lib/db/schema'
 import { DealerProfileEditForm } from '@/components/dealer/DealerProfileEditForm'
 import { ChangePasswordForm } from '@/components/settings/ChangePasswordForm'
+import { BillingPortalButton } from '@/components/settings/BillingPortalButton'
 
 export default async function DealerSettingsPage() {
   const session = await getServerSession(authOptions)
@@ -16,6 +17,17 @@ export default async function DealerSettingsPage() {
   const user = await db.query.users.findFirst({
     where: eq(users.id, session.user.id),
     columns: { name: true, email: true },
+  })
+
+  // Billing context: same lookup as the admin settings page — most-recent
+  // intake row for this tenant that has a Stripe customer attached.
+  const billingIntake = await db.query.dealerIntakes.findFirst({
+    where: and(
+      eq(dealerIntakes.tenantId, session.user.tenantId),
+      isNotNull(dealerIntakes.stripeCustomerId),
+    ),
+    orderBy: [desc(dealerIntakes.activatedAt)],
+    columns: { stripeCustomerId: true, paymentStatus: true, plan: true },
   })
 
   const name = user?.name ?? session.user.name ?? ''
@@ -41,6 +53,27 @@ export default async function DealerSettingsPage() {
             </div>
           </div>
           <DealerProfileEditForm initialName={name} email={email} />
+        </div>
+
+        {/* Billing — Stripe-hosted self-serve portal */}
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-100">
+            <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center">
+              <CreditCard size={18} className="text-emerald-500" />
+            </div>
+            <div>
+              <h2 className="text-sm font-semibold text-gray-900">Billing</h2>
+              <p className="text-xs text-gray-400">
+                {billingIntake?.plan
+                  ? `${billingIntake.plan.charAt(0).toUpperCase() + billingIntake.plan.slice(1)} plan`
+                  : 'Manage your subscription'}
+              </p>
+            </div>
+          </div>
+          <BillingPortalButton
+            hasCustomer={Boolean(billingIntake?.stripeCustomerId)}
+            paymentStatus={billingIntake?.paymentStatus ?? null}
+          />
         </div>
 
         {/* Security — change password */}

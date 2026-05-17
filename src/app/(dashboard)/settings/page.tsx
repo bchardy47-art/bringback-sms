@@ -1,12 +1,13 @@
 import { getServerSession } from 'next-auth'
 import { redirect } from 'next/navigation'
-import { eq } from 'drizzle-orm'
-import { Settings, User, Bell, Shield, Phone } from 'lucide-react'
+import { and, desc, eq, isNotNull } from 'drizzle-orm'
+import { Settings, User, Bell, Shield, Phone, CreditCard } from 'lucide-react'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { users } from '@/lib/db/schema'
+import { users, dealerIntakes } from '@/lib/db/schema'
 import { ProfileEditForm } from '@/components/settings/ProfileEditForm'
 import { ChangePasswordForm } from '@/components/settings/ChangePasswordForm'
+import { BillingPortalButton } from '@/components/settings/BillingPortalButton'
 
 export default async function SettingsPage() {
   const session = await getServerSession(authOptions)
@@ -16,6 +17,19 @@ export default async function SettingsPage() {
   const user = await db.query.users.findFirst({
     where: eq(users.id, session.user.id),
     columns: { name: true, email: true, phone: true, role: true },
+  })
+
+  // Billing context: pull the most-recent intake row for this tenant
+  // that has a Stripe customer id attached. This is how we know whether
+  // to render the billing portal button as live or as a "no billing on
+  // file" notice.
+  const billingIntake = await db.query.dealerIntakes.findFirst({
+    where: and(
+      eq(dealerIntakes.tenantId, session.user.tenantId),
+      isNotNull(dealerIntakes.stripeCustomerId),
+    ),
+    orderBy: [desc(dealerIntakes.activatedAt)],
+    columns: { stripeCustomerId: true, paymentStatus: true, plan: true },
   })
 
   const isNotifiable = user?.role === 'manager' || user?.role === 'admin'
@@ -110,6 +124,27 @@ export default async function SettingsPage() {
               Managers and admins with an <span className="font-semibold">Alert phone</span> set above will receive SMS notifications when a lead replies or needs human handoff.
             </p>
           </div>
+        </div>
+
+        {/* Billing — Stripe-hosted self-serve portal */}
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-100">
+            <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center">
+              <CreditCard size={18} className="text-emerald-500" />
+            </div>
+            <div>
+              <h2 className="text-sm font-semibold text-gray-900">Billing</h2>
+              <p className="text-xs text-gray-400">
+                {billingIntake?.plan
+                  ? `${billingIntake.plan.charAt(0).toUpperCase() + billingIntake.plan.slice(1)} plan`
+                  : 'Manage your subscription'}
+              </p>
+            </div>
+          </div>
+          <BillingPortalButton
+            hasCustomer={Boolean(billingIntake?.stripeCustomerId)}
+            paymentStatus={billingIntake?.paymentStatus ?? null}
+          />
         </div>
 
         {/* Security — change password */}
