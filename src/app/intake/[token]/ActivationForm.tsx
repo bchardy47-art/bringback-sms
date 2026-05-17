@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { Check } from 'lucide-react'
 import { TERMS_VERSION } from '@/lib/legal'
 
 // Stage 1 — Activation / Close.
@@ -24,10 +25,31 @@ const CRM_OPTIONS = [
 
 type Plan = 'pilot' | 'standard' | 'pro'
 
-const PLANS: { id: Plan; name: string; tagline: string }[] = [
-  { id: 'pilot',    name: 'Pilot',    tagline: 'First 100 leads, prove ROI' },
-  { id: 'standard', name: 'Standard', tagline: 'Up to 1,000 leads / month' },
-  { id: 'pro',      name: 'Pro',      tagline: 'Unlimited leads, priority support' },
+// Plan-card content. Outcome-led: bullets describe who the tier is for,
+// the cap line carries the hard-number constraint at lower visual weight.
+// Pro's "cap" line is intentionally a pricing posture, not a lead count —
+// large stores negotiate volume directly after activation.
+type PlanCard = { id: Plan; name: string; bullets: string[]; cap: string }
+
+const PLANS: PlanCard[] = [
+  {
+    id: 'pilot',
+    name: 'Pilot',
+    bullets: ['Best for first store launch', 'Prove ROI fast'],
+    cap: 'Up to 250 leads / month',
+  },
+  {
+    id: 'standard',
+    name: 'Standard',
+    bullets: ['For consistent monthly reactivation', 'Built for active rooftops'],
+    cap: 'Up to 1,000 leads / month',
+  },
+  {
+    id: 'pro',
+    name: 'Pro',
+    bullets: ['For large stores and dealer groups', 'Priority support + custom volume'],
+    cap: 'Custom pricing',
+  },
 ]
 
 const inputClass =
@@ -82,10 +104,13 @@ export function ActivationForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
-      {/* Plan picker */}
+      {/* Plan picker — three outcome-led cards. Cap (lead count or
+          "Custom pricing") is rendered at lower visual weight than the
+          outcome bullets so the page reads as "pick the level that
+          matches your store", not "pick a lead-quota tier". */}
       <div className="bg-white rounded-xl border border-gray-200 p-5">
-        <p className="text-sm font-semibold text-gray-800 mb-3">Plan</p>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+        <p className="text-sm font-semibold text-gray-800 mb-3">Choose your plan</p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {PLANS.map((p) => {
             const active = plan === p.id
             return (
@@ -94,14 +119,28 @@ export function ActivationForm({
                 type="button"
                 onClick={() => setPlan(p.id)}
                 aria-pressed={active}
-                className={`text-left px-3 py-2.5 rounded-lg border transition-colors ${
+                className={`text-left p-4 rounded-xl border transition-colors flex flex-col ${
                   active
                     ? 'border-red-500 ring-2 ring-red-500/30 bg-red-50'
-                    : 'border-gray-200 hover:border-gray-300'
+                    : 'border-gray-200 hover:border-gray-300 bg-white'
                 }`}
               >
-                <span className="block text-sm font-semibold text-gray-900">{p.name}</span>
-                <span className="block text-xs text-gray-500 mt-0.5">{p.tagline}</span>
+                <span className="block text-base font-bold text-gray-900">{p.name}</span>
+                <ul className="mt-2 space-y-1.5 flex-1">
+                  {p.bullets.map((b) => (
+                    <li key={b} className="flex items-start gap-2">
+                      <Check
+                        size={13}
+                        strokeWidth={2.5}
+                        className={`mt-0.5 flex-shrink-0 ${active ? 'text-red-500' : 'text-gray-400'}`}
+                      />
+                      <span className="text-xs leading-snug text-gray-700">{b}</span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-3 pt-3 border-t border-gray-100 text-[11px] uppercase tracking-wide font-medium text-gray-500">
+                  {p.cap}
+                </p>
               </button>
             )
           })}
