@@ -90,6 +90,14 @@ export async function POST(
         plan,
       },
       subscription_data: {
+        // Card goes on file at activation; the first charge waits until
+        // the 10DLC campaign is live with carriers (typically 7-10
+        // business days). 14 days covers the usual approval window with
+        // a few days of slack. If approval drags, an operator can extend
+        // the trial in the Stripe dashboard with one click; if approval
+        // is faster than the trial, the operator ends the trial early to
+        // start billing the day sending begins.
+        trial_period_days: 14,
         metadata: {
           intakeId: intake.id,
           token: intake.token,

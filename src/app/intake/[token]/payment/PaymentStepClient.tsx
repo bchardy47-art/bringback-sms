@@ -97,9 +97,19 @@ export function PaymentStepClient({
           </div>
         )}
 
-        <p className="text-sm text-gray-600 mb-5">
-          Activation is complete. Add a payment method to start your subscription, or
-          continue to setup and we'll arrange billing with you directly.
+        <p className="text-sm text-gray-600 mb-2">
+          Activation is complete. Add your payment method to reserve your plan —{' '}
+          <strong className="font-semibold text-gray-800">
+            card goes on file now; the first charge starts when your campaign is approved
+            and live with the carriers
+          </strong>{' '}
+          (typically 7–10 business days). Or continue to setup and we&apos;ll arrange
+          billing with you directly.
+        </p>
+        <p className="text-xs text-gray-500 mb-5">
+          Note: Stripe&apos;s checkout page labels this wait as a &ldquo;14-day trial.&rdquo;
+          That&apos;s how Stripe describes the billing-delay window — it&apos;s the same
+          thing, not a separate offer.
         </p>
 
         <div className="space-y-2">

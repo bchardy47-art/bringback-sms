@@ -91,10 +91,11 @@ export default async function PaymentSuccessPage({
                 <path d="M5 13l4 4L19 7" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </div>
-            <h1 className="text-xl font-bold text-gray-900 mb-2">Payment confirmed</h1>
+            <h1 className="text-xl font-bold text-gray-900 mb-2">Card on file</h1>
             <p className="text-sm text-gray-500">
-              Your subscription is active. Continue to setup to finish the carrier-required
-              details.
+              Your subscription is reserved and your card is on file. Your first charge
+              will start when your campaign is approved and live with the carriers.
+              Continue to setup to finish the carrier-required details.
             </p>
             <Link
               href={`/intake/${params.token}`}

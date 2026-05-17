@@ -25,30 +25,39 @@ const CRM_OPTIONS = [
 
 type Plan = 'pilot' | 'standard' | 'pro'
 
-// Plan-card content. Outcome-led: bullets describe who the tier is for,
-// the cap line carries the hard-number constraint at lower visual weight.
-// Pro's "cap" line is intentionally a pricing posture, not a lead count —
-// large stores negotiate volume directly after activation.
-type PlanCard = { id: Plan; name: string; bullets: string[]; cap: string }
+// Plan-card content. Outcome-led: price up top, bullets describe who the
+// tier is for, the cap line carries the volume constraint at lower
+// visual weight. Pro's price is a "starting at" so the dealer sees a real
+// number — custom volume is a sales-call conversation after activation.
+type PlanCard = {
+  id: Plan
+  name: string
+  price: string
+  bullets: string[]
+  cap: string
+}
 
 const PLANS: PlanCard[] = [
   {
     id: 'pilot',
     name: 'Pilot',
+    price: '$199 / mo',
     bullets: ['Best for first store launch', 'Prove ROI fast'],
     cap: 'Up to 250 leads / month',
   },
   {
     id: 'standard',
     name: 'Standard',
+    price: '$499 / mo',
     bullets: ['For consistent monthly reactivation', 'Built for active rooftops'],
     cap: 'Up to 1,000 leads / month',
   },
   {
     id: 'pro',
     name: 'Pro',
+    price: 'From $999 / mo',
     bullets: ['For large stores and dealer groups', 'Priority support + custom volume'],
-    cap: 'Custom pricing',
+    cap: 'Custom volume',
   },
 ]
 
@@ -104,13 +113,12 @@ export function ActivationForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
-      {/* Plan picker — three outcome-led cards. Cap (lead count or
-          "Custom pricing") is rendered at lower visual weight than the
-          outcome bullets so the page reads as "pick the level that
-          matches your store", not "pick a lead-quota tier". */}
+      {/* Plan picker — three outcome-led cards. Price up top, cap (volume
+          line) at lower visual weight so the page reads as "pick the
+          level that matches your store", not "pick a lead-quota tier". */}
       <div className="bg-white rounded-xl border border-gray-200 p-5">
         <p className="text-sm font-semibold text-gray-800 mb-3">Choose your plan</p>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3" id="plan-picker">
           {PLANS.map((p) => {
             const active = plan === p.id
             return (
@@ -126,7 +134,14 @@ export function ActivationForm({
                 }`}
               >
                 <span className="block text-base font-bold text-gray-900">{p.name}</span>
-                <ul className="mt-2 space-y-1.5 flex-1">
+                <span
+                  className={`block mt-0.5 text-sm font-semibold ${
+                    active ? 'text-red-600' : 'text-gray-900'
+                  }`}
+                >
+                  {p.price}
+                </span>
+                <ul className="mt-2.5 space-y-1.5 flex-1">
                   {p.bullets.map((b) => (
                     <li key={b} className="flex items-start gap-2">
                       <Check
@@ -145,6 +160,13 @@ export function ActivationForm({
             )
           })}
         </div>
+        <p className="mt-3 text-xs text-gray-500">
+          Card on file at activation.{' '}
+          <strong className="font-semibold">
+            First charge starts when your campaign is approved and live with the carriers
+          </strong>{' '}
+          (typically 7–10 business days).
+        </p>
       </div>
 
       {/* Identity */}
