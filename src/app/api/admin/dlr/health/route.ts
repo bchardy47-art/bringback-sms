@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/api/requireAuth'
+import { requireAdmin } from '@/lib/api/requireAuth'
 import { getAutomationHealth } from '@/lib/admin/dlr-queries'
 
 export async function GET(): Promise<NextResponse> {
-  const { session, error } = await requireAuth()
+  const { session, error } = await requireAdmin()
   if (error) return error
 
   const health = await getAutomationHealth(session.user.tenantId)

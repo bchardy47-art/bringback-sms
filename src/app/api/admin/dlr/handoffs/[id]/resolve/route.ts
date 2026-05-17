@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/api/requireAuth'
+import { requireAdmin } from '@/lib/api/requireAuth'
 import { resolveHandoffTask } from '@/lib/handoff/handoff-agent'
 import { db } from '@/lib/db'
 import { handoffTasks } from '@/lib/db/schema'
@@ -9,7 +9,7 @@ export async function POST(
   req: NextRequest,
   { params }: { params: { id: string } }
 ): Promise<NextResponse> {
-  const { session, error } = await requireAuth()
+  const { session, error } = await requireAdmin()
   if (error) return error
 
   const taskId = params.id

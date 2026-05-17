@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/api/requireAuth'
+import { requireAdmin } from '@/lib/api/requireAuth'
 import { pauseTenantAutomation } from '@/lib/admin/dlr-queries'
 
 export async function POST(
   _req: NextRequest,
   { params }: { params: { id: string } }
 ): Promise<NextResponse> {
-  const { session, error } = await requireAuth()
+  const { session, error } = await requireAdmin()
   if (error) return error
 
   // Tenants can only pause their own tenant

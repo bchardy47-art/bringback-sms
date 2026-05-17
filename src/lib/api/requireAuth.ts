@@ -65,3 +65,16 @@ export async function requireDealer(): Promise<AuthResult> {
   }
   return result
 }
+
+/**
+ * Server-action variant of requireAdmin. Server actions don't return a
+ * NextResponse — they throw or return data — so this helper throws on
+ * auth failure instead of returning an `error` Response. Use at the top
+ * of every admin server action body.
+ */
+export async function requireAdminAction(): Promise<AuthSession> {
+  const result = await requireAuth()
+  if (result.error) throw new Error('Unauthorized')
+  if (result.session.user.role !== 'admin') throw new Error('Forbidden')
+  return result.session
+}

@@ -21,7 +21,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { and, eq } from 'drizzle-orm'
-import { requireAuth } from '@/lib/api/requireAuth'
+import { requireAdmin } from '@/lib/api/requireAuth'
 import { db } from '@/lib/db'
 import { pilotBatchLeads, pilotBatches, workflowEnrollments } from '@/lib/db/schema'
 import { runPreflight } from '@/lib/engine/preflight'
@@ -30,7 +30,7 @@ export async function POST(
   _req: NextRequest,
   { params }: { params: { id: string } }
 ): Promise<NextResponse> {
-  const { session, error } = await requireAuth()
+  const { session, error } = await requireAdmin()
   if (error) return error
 
   const batch = await db.query.pilotBatches.findFirst({

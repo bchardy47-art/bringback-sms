@@ -4,15 +4,16 @@ import { randomBytes } from 'crypto'
 import bcrypt from 'bcryptjs'
 import { eq, and, gt, count } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { requireAdminAction } from '@/lib/api/requireAuth'
 import { db } from '@/lib/db'
 import { dealerIntakes, tenants, users, workflows, pilotLeadImports, pilotBatches } from '@/lib/db/schema'
 
+// Internal-team console actions: every entry point must be admin-only.
+// Previously this used a session-only check (`requireSession`) which let
+// a dealer's valid session through. requireAdminAction throws unless
+// role === 'admin'.
 async function requireSession() {
-  const session = await getServerSession(authOptions)
-  if (!session) throw new Error('Unauthorized')
-  return session
+  return await requireAdminAction()
 }
 
 function generateSlug(name: string): string {
@@ -167,6 +168,7 @@ export async function saveAdminNotes(intakeId: string, notes: string) {
 // ── Fetch extras needed for checklist ────────────────────────────────────────
 
 export async function getChecklistExtras(tenantId: string | null) {
+  await requireAdminAction()
   if (!tenantId) return { workflowApproved: false, pilotImportsExist: false, pilotCompleted: false }
 
   const [wf, pi, pb] = await Promise.all([

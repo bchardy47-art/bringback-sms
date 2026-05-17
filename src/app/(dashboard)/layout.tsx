@@ -8,10 +8,12 @@ import { db } from '@/lib/db'
 import { conversations, tenants } from '@/lib/db/schema'
 import { SidebarNav } from '@/components/layout/SidebarNav'
 import { MobileBottomNav } from '@/components/layout/MobileBottomNav'
+import { AccountMenu } from '@/components/layout/AccountMenu'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await getServerSession(authOptions)
   if (!session) redirect('/login')
+  if (session.user.role === 'dealer') redirect('/dealer/dashboard')
 
   const initials = session.user.name
     ? session.user.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
@@ -57,7 +59,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
         {/* Navigation */}
         <div className="flex-1 overflow-y-auto">
-          <SidebarNav inboxCount={inboxCount} />
+          <SidebarNav inboxCount={inboxCount} role={session.user.role} />
         </div>
 
         {/* Dealership card */}
@@ -88,16 +90,6 @@ export default async function DashboardLayout({ children }: { children: React.Re
             <p className="text-xs mt-0.5 truncate" style={{ color: 'rgba(255,255,255,0.4)' }}>
               Dead Lead Revival
             </p>
-            <button
-              className="mt-3 w-full py-2 text-xs font-semibold rounded-xl transition-colors text-center"
-              style={{
-                backgroundColor: 'rgba(255,255,255,0.08)',
-                color: 'rgba(255,255,255,0.7)',
-                border: '1px solid rgba(255,255,255,0.1)',
-              }}
-            >
-              View Dealership Profile
-            </button>
           </div>
         </div>
 
@@ -128,25 +120,6 @@ export default async function DashboardLayout({ children }: { children: React.Re
               {session.user.role ?? 'Agent'}
             </p>
           </div>
-
-          {/* Sign out as a chevron/menu trigger */}
-          <form action="/api/auth/signout" method="post">
-            <button
-              type="submit"
-              className="flex items-center justify-center w-6 h-6 rounded-md transition-colors hover:bg-white/10"
-              title="Sign out"
-            >
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                <path
-                  d="M5 3.5L8 7L5 10.5"
-                  stroke="rgba(255,255,255,0.3)"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </button>
-          </form>
         </div>
       </aside>
 
@@ -205,30 +178,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
               )}
             </button>
 
-            {/* Avatar */}
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <div
-                  className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold"
-                  style={{ backgroundColor: '#1f2937' }}
-                >
-                  {initials}
-                </div>
-                <span
-                  className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white"
-                  style={{ backgroundColor: '#22c55e' }}
-                />
-              </div>
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                <path
-                  d="M3 4.5L6 7.5L9 4.5"
-                  stroke="#9ca3af"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </div>
+            <AccountMenu
+              name={session.user.name ?? 'Account'}
+              email={session.user.email ?? ''}
+              initials={initials}
+              settingsHref="/settings"
+            />
           </div>
         </header>
 

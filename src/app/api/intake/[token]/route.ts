@@ -36,21 +36,22 @@ export async function POST(
 
     const body = await req.json()
 
-    // Validate required fields
+    // Required fields for Stage 2.
+    //
+    // We dropped the Stage 1 echoes (dealership name, contact name/email,
+    // mobile, website, address) because those are already in the row from
+    // activation — re-requiring them just blocks the dealer at "Save".
+    // Alert email, CRM, and timezone were relaxed: alert email can reuse
+    // primary contact email, CRM was optional in Stage 1, timezone can be
+    // defaulted from address.
+    //
+    // What remains required is the irreducible 10DLC carrier set:
+    //   legal name, EIN, lead-source writeup, consent writeup.
     const required: [string, string][] = [
-      [body.dealershipName,     'Dealership name'],
-      [body.businessLegalName,  'Legal business name'],
-      [body.ein,                'EIN / Tax ID'],
-      [body.businessWebsite,    'Business website'],
-      [body.businessAddress,    'Business address'],
-      [body.primaryContactName, 'Primary contact name'],
-      [body.primaryContactEmail,'Primary contact email'],
-      [body.alertEmail,         'Alert email'],
-      [body.alertPhone,         'Manager mobile'],
-      [body.crmSystem,          'CRM system'],
-      [body.timezone,           'Timezone'],
+      [body.businessLegalName,     'Legal business name'],
+      [body.ein,                   'EIN / Tax ID'],
       [body.leadSourceExplanation, 'Lead source explanation'],
-      [body.consentExplanation, 'Consent explanation'],
+      [body.consentExplanation,    'Consent explanation'],
     ]
 
     for (const [val, label] of required) {
@@ -59,18 +60,19 @@ export async function POST(
       }
     }
 
-    // Compute initial launch status
-    // If all info is present we mark info_complete so admin sees it's ready to progress
+    // Launch status only advances; never regresses.
+    //   info_complete = ready to submit to TCR (sample messages provided).
+    //   Otherwise leave the status alone — Stage 1 already set it to
+    //   'activated' and we don't want to drop back to 'submitted'.
     const infoComplete =
       str(body.sampleMessage1) !== undefined &&
       str(body.sampleMessage2) !== undefined
-
-    const launchStatus = infoComplete ? 'info_complete' : 'submitted'
+    const launchStatusOverride = infoComplete ? 'info_complete' : intake.launchStatus
 
     await db
       .update(dealerIntakes)
       .set({
-        launchStatus,
+        launchStatus: launchStatusOverride,
         dealershipName:         str(body.dealershipName),
         businessLegalName:      str(body.businessLegalName),
         ein:                    str(body.ein),
@@ -95,8 +97,10 @@ export async function POST(
         sampleMessage1:       str(body.sampleMessage1),
         sampleMessage2:       str(body.sampleMessage2),
         approvedSenderName:   str(body.approvedSenderName),
-        templateReviewAgreed: bool(body.templateReviewAgreed),
-        complianceAgreed:     bool(body.complianceAgreed),
+        // Acknowledgments only flip forward — never regress true to false
+        // if the dealer happened to uncheck them in Stage 2.
+        templateReviewAgreed: bool(body.templateReviewAgreed) || intake.templateReviewAgreed,
+        complianceAgreed:     bool(body.complianceAgreed)     || intake.complianceAgreed,
         submittedAt:          new Date(),
         updatedAt:            new Date(),
       })

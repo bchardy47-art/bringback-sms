@@ -6,6 +6,7 @@ import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { tenants } from '@/lib/db/schema'
 import { DealerNav } from '@/components/dealer/DealerNav'
+import { AccountMenu } from '@/components/layout/AccountMenu'
 
 export default async function DealerLayout({ children }: { children: React.ReactNode }) {
   const session = await getServerSession(authOptions)
@@ -102,24 +103,6 @@ export default async function DealerLayout({ children }: { children: React.React
               Dealer
             </p>
           </div>
-
-          <form action="/api/auth/signout" method="post">
-            <button
-              type="submit"
-              className="flex items-center justify-center w-6 h-6 rounded-md transition-colors hover:bg-white/10"
-              title="Sign out"
-            >
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                <path
-                  d="M5 3.5L8 7L5 10.5"
-                  stroke="rgba(255,255,255,0.3)"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </button>
-          </form>
         </div>
       </aside>
 
@@ -147,14 +130,14 @@ export default async function DealerLayout({ children }: { children: React.React
           {/* Dealership name (top bar, desktop) */}
           <span className="hidden md:block text-sm font-semibold text-gray-700">{tenantName}</span>
 
-          {/* Avatar + sign out */}
-          <div className="flex items-center gap-2 ml-auto md:ml-0">
-            <div
-              className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold"
-              style={{ backgroundColor: '#1f2937' }}
-            >
-              {initials}
-            </div>
+          {/* Account menu */}
+          <div className="flex items-center ml-auto md:ml-0">
+            <AccountMenu
+              name={session.user.name ?? 'Account'}
+              email={session.user.email ?? ''}
+              initials={initials}
+              settingsHref="/dealer/settings"
+            />
           </div>
         </header>
 

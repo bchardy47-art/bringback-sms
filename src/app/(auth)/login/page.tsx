@@ -14,6 +14,31 @@ function InviteBanner() {
   )
 }
 
+// Only same-origin relative paths are honored as post-login destinations.
+// Rejects protocol-relative URLs ("//evil.com"), absolute URLs, and anything
+// that isn't a path under this app — guards against open redirect.
+function safeCallbackUrl(raw: string | null): string | null {
+  if (!raw) return null
+  if (!raw.startsWith('/')) return null
+  if (raw.startsWith('//')) return null
+  return raw
+}
+
+// A callbackUrl is only honored if the post-login shell will actually accept
+// the user's role. Otherwise the middleware would just bounce them back to
+// their own shell, producing a visible flash. Pick the right home up front.
+function destinationForRole(role: string, callback: string | null): string {
+  const dealerHome = '/dealer/dashboard'
+  const teamHome = '/dashboard'
+  if (role === 'dealer') {
+    if (callback && callback.startsWith('/dealer/')) return callback
+    return dealerHome
+  }
+  // admin / manager / agent → team shell
+  if (callback && !callback.startsWith('/dealer/')) return callback
+  return teamHome
+}
+
 export default function LoginPage() {
   const router = useRouter()
 
@@ -37,7 +62,23 @@ export default function LoginPage() {
       setError('Invalid email or password.')
       setSubmitting(false)
     } else {
-      router.replace('/dashboard')
+      const params = new URLSearchParams(window.location.search)
+      const callbackUrl = safeCallbackUrl(params.get('callbackUrl'))
+
+      // Read the freshly-issued session to learn the role, then send the
+      // user straight to the shell that matches them. Avoids the
+      // /dashboard → middleware → /dealer/dashboard flash for dealers.
+      let role = ''
+      try {
+        const sessionRes = await fetch('/api/auth/session', { cache: 'no-store' })
+        if (sessionRes.ok) {
+          const data = await sessionRes.json()
+          role = data?.user?.role ?? ''
+        }
+      } catch {
+        // fall through — destinationForRole defaults to /dashboard
+      }
+      router.replace(destinationForRole(role, callbackUrl))
     }
   }
 

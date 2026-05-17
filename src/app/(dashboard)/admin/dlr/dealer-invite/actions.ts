@@ -1,8 +1,7 @@
 'use server'
 
 import { randomBytes } from 'crypto'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { requireAdminAction } from '@/lib/api/requireAuth'
 import { db } from '@/lib/db'
 import { dealerInvites } from '@/lib/db/schema'
 
@@ -11,10 +10,7 @@ import { dealerInvites } from '@/lib/db/schema'
  * The link is valid for 7 days.
  */
 export async function generateDealerInvite(tenantId: string, email?: string) {
-  const session = await getServerSession(authOptions)
-  if (!session) throw new Error('Unauthorized')
-  if (session.user.role !== 'admin') throw new Error('Admin role required')
-
+  await requireAdminAction()
   if (!tenantId) throw new Error('tenantId is required')
 
   const token     = randomBytes(32).toString('hex')

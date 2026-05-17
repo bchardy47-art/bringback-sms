@@ -12,7 +12,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { and, desc, eq, inArray } from 'drizzle-orm'
-import { requireAuth } from '@/lib/api/requireAuth'
+import { requireAdmin } from '@/lib/api/requireAuth'
 import { db } from '@/lib/db'
 import { leads, pilotBatchLeads, pilotBatches, workflows, HARD_PILOT_CAP } from '@/lib/db/schema'
 import { runPreflight } from '@/lib/engine/preflight'
@@ -20,7 +20,7 @@ import { runPreflight } from '@/lib/engine/preflight'
 // ── POST ───────────────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  const { session, error } = await requireAuth()
+  const { session, error } = await requireAdmin()
   if (error) return error
 
   const body = await req.json().catch(() => null) as {
@@ -107,7 +107,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 // ── GET ────────────────────────────────────────────────────────────────────────
 
 export async function GET(_req: NextRequest): Promise<NextResponse> {
-  const { session, error } = await requireAuth()
+  const { session, error } = await requireAdmin()
   if (error) return error
 
   const batches = await db.query.pilotBatches.findMany({

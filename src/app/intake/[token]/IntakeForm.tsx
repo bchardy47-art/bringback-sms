@@ -86,7 +86,32 @@ function Row({ children }: { children: React.ReactNode }) {
   return <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">{children}</div>
 }
 
-export function IntakeForm({ token, dealershipName }: { token: string; dealershipName: string }) {
+// Defaults the Stage 2 form pre-populates from the existing intake row.
+// Stage 1 already captured dealershipName / contact / mobile / website /
+// store address — those defaults flow in here so the dealer doesn't have
+// to retype anything.
+export type IntakeFormInitial = {
+  dealershipName?: string | null
+  businessWebsite?: string | null
+  businessAddress?: string | null
+  primaryContactName?: string | null
+  primaryContactEmail?: string | null
+  primaryContactPhone?: string | null
+  alertEmail?: string | null
+  alertPhone?: string | null
+  crmSystem?: string | null
+}
+
+export function IntakeForm({
+  token,
+  dealershipName,
+  initial,
+}: {
+  token: string
+  dealershipName: string
+  initial?: IntakeFormInitial
+}) {
+  const d = initial ?? {}
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [done, setDone] = useState(false)
@@ -145,14 +170,16 @@ export function IntakeForm({ token, dealershipName }: { token: string; dealershi
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {/* Section 1: Business identity */}
+      {/* Section 1: Business identity.
+          Only legal name + EIN are truly required (carrier 10DLC).
+          Dealership name, website, address arrive pre-filled from Stage 1. */}
       <Section
         title="Business Information"
-        description="Used for your 10DLC registration with wireless carriers."
+        description="Carrier 10DLC registration. Legal name and EIN are the carrier-required fields."
       >
         <Row>
-          <Field label="Dealership / Rooftop Name" required hint="The name customers know you by (e.g. 'Smith Honda')">
-            <Input name="dealershipName" placeholder="Smith Honda" required defaultValue={dealershipName} />
+          <Field label="Dealership / Rooftop Name" hint="Pre-filled from activation. Edit if needed.">
+            <Input name="dealershipName" placeholder="Smith Honda" defaultValue={dealershipName} />
           </Field>
           <Field label="Legal Business Name" required hint="IRS-registered legal entity name">
             <Input name="businessLegalName" placeholder="Smith Automotive Group LLC" required />
@@ -162,56 +189,64 @@ export function IntakeForm({ token, dealershipName }: { token: string; dealershi
           <Field label="EIN / Tax ID" required hint="9-digit federal tax ID (XX-XXXXXXX)">
             <Input name="ein" placeholder="12-3456789" required />
           </Field>
-          <Field label="Business Website" required>
-            <Input name="businessWebsite" placeholder="https://smithhonda.com" required />
+          <Field label="Business Website" hint="Pre-filled from activation.">
+            <Input name="businessWebsite" placeholder="https://smithhonda.com" defaultValue={d.businessWebsite ?? ''} />
           </Field>
         </Row>
-        <Field label="Full Business Address" required hint="Street, City, State, ZIP">
-          <Textarea name="businessAddress" placeholder="123 Auto Row Blvd, Springfield, IL 62701" rows={2} required />
+        <Field label="Full Business Address" hint="Pre-filled from activation. Edit if needed.">
+          <textarea
+            name="businessAddress"
+            placeholder="123 Auto Row Blvd, Springfield, IL 62701"
+            rows={2}
+            defaultValue={d.businessAddress ?? ''}
+            className={`${inputClass} resize-y`}
+          />
         </Field>
       </Section>
 
-      {/* Section 2: Contacts */}
+      {/* Section 2: Contacts. All pre-filled from Stage 1 — optional in
+          Stage 2 since the dealer already provided this at close. */}
       <Section
         title="Contacts"
-        description="Who we communicate with and where revival alerts are sent."
+        description="Pre-filled from activation. Add more contacts if you'd like — none are required at this stage."
       >
         <Row>
-          <Field label="Primary Contact Name" required>
-            <Input name="primaryContactName" placeholder="Jane Smith" required />
+          <Field label="Primary Contact Name">
+            <Input name="primaryContactName" placeholder="Jane Smith" defaultValue={d.primaryContactName ?? ''} />
           </Field>
-          <Field label="Primary Contact Email" required>
-            <Input name="primaryContactEmail" type="email" placeholder="jane@smithhonda.com" required />
+          <Field label="Primary Contact Email">
+            <Input name="primaryContactEmail" type="email" placeholder="jane@smithhonda.com" defaultValue={d.primaryContactEmail ?? ''} />
           </Field>
         </Row>
         <Row>
           <Field label="Primary Contact Phone">
-            <Input name="primaryContactPhone" type="tel" placeholder="(555) 123-4567" />
+            <Input name="primaryContactPhone" type="tel" placeholder="(555) 123-4567" defaultValue={d.primaryContactPhone ?? ''} />
           </Field>
           <Field label="Sales Manager Name">
             <Input name="salesManagerName" placeholder="Mike Johnson" />
           </Field>
         </Row>
         <Row>
-          <Field label="Alert Email" required hint="Receives an email when a dead lead responds">
-            <Input name="alertEmail" type="email" placeholder="alerts@smithhonda.com" required />
+          <Field label="Alert Email" hint="Optional — leave blank to reuse your primary contact email.">
+            <Input name="alertEmail" type="email" placeholder="alerts@smithhonda.com" defaultValue={d.alertEmail ?? ''} />
           </Field>
-          <Field label="Manager Mobile" required hint="Gets an SMS the moment a lead replies">
-            <Input name="alertPhone" type="tel" placeholder="(555) 987-6543" required />
+          <Field label="Manager Mobile" hint="Pre-filled from activation. Gets an SMS when a lead replies.">
+            <Input name="alertPhone" type="tel" placeholder="(555) 987-6543" defaultValue={d.alertPhone ?? ''} />
           </Field>
         </Row>
       </Section>
 
-      {/* Section 3: Operations */}
-      <Section title="Operations">
+      {/* Section 3: Operations. All optional — CRM was already collected
+          (optionally) in Stage 1; timezone can be inferred from address. */}
+      <Section title="Operations" description="All optional. We can fill these in together if you skip them.">
         <Row>
           <Field label="Main Store Phone">
             <Input name="storePhone" type="tel" placeholder="(555) 111-2222" />
           </Field>
-          <Field label="CRM System" required>
+          <Field label="CRM System" hint="Pre-filled from activation if you set it.">
             <select
               name="crmSystem"
-              required
+              defaultValue={d.crmSystem ?? ''}
               className={inputClass}
             >
               <option value="">Select CRM...</option>
@@ -220,8 +255,8 @@ export function IntakeForm({ token, dealershipName }: { token: string; dealershi
           </Field>
         </Row>
         <Row>
-          <Field label="Timezone" required>
-            <select name="timezone" required className={inputClass}>
+          <Field label="Timezone">
+            <select name="timezone" className={inputClass}>
               <option value="">Select timezone...</option>
               {TIMEZONES.map(tz => (
                 <option key={tz} value={tz}>
@@ -331,9 +366,10 @@ export function IntakeForm({ token, dealershipName }: { token: string; dealershi
             </span>
           </label>
           <label className="flex items-start gap-3 cursor-pointer">
-            <input type="checkbox" name="complianceAgreed" value="true" className="mt-1 accent-red-600" required />
+            <input type="checkbox" name="complianceAgreed" value="true" defaultChecked className="mt-1 accent-red-600" />
             <span className="text-sm text-gray-700">
               I understand that all outreach will include opt-out language and will be TCPA-compliant.
+              <span className="block text-xs text-gray-400 mt-0.5">Already acknowledged at activation — left checked for reference.</span>
             </span>
           </label>
         </div>
@@ -351,11 +387,11 @@ export function IntakeForm({ token, dealershipName }: { token: string; dealershi
         className="w-full py-3.5 rounded-xl text-sm font-bold text-white transition-colors disabled:opacity-60"
         style={{ backgroundColor: '#dc2626' }}
       >
-        {submitting ? 'Submitting…' : 'Submit Onboarding Information →'}
+        {submitting ? 'Submitting…' : 'Save setup details →'}
       </button>
 
       <p className="text-xs text-gray-400 text-center pb-6">
-        Your information is used only to set up your DLR account and comply with carrier registration requirements.
+        You can save what you have and finish the rest later — your account is already activated.
       </p>
     </form>
   )

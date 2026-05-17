@@ -1,11 +1,11 @@
 export const metadata = {
   title: 'SMS Terms — DLR by BCHardy LLC',
-  description: 'SMS messaging terms and consent policy for DLR, operated by BCHardy LLC',
+  description: 'SMS messaging terms and consent policy for the DLR platform operated by BCHardy LLC',
   robots: 'index, follow',
 }
 
 export default function SmsTermsPage() {
-  const effectiveDate = 'April 28, 2026'
+  const effectiveDate = 'May 16, 2026'
 
   return (
     <main style={{ maxWidth: 760, margin: '0 auto', padding: '48px 24px', fontFamily: 'system-ui, sans-serif', color: '#111', lineHeight: 1.7 }}>
@@ -13,59 +13,92 @@ export default function SmsTermsPage() {
       <p style={{ color: '#555', marginTop: 0 }}>Effective date: {effectiveDate}</p>
 
       <p>
-        BCHardy LLC operates DLR, an SMS follow-up platform for automotive dealerships.
-        These SMS Terms describe how text messages are sent through the Service, how consent
-        is collected, and how recipients can opt out.
+        DLR ("Service") is a software platform operated by BCHardy LLC ("BCHardy") that
+        helps automotive dealerships ("dealerships") send SMS messages to their own prior
+        leads. These SMS Terms describe how messages are sent through the Service and how
+        recipients can opt out.
       </p>
 
-      <h2 style={{ fontSize: 20, fontWeight: 600, marginTop: 32 }}>1. Who Sends These Messages</h2>
+      <h2 style={{ fontSize: 20, fontWeight: 600, marginTop: 32 }}>1. Who the Sender Is</h2>
       <p>
-        SMS messages are sent by BCHardy LLC on behalf of automotive dealership clients through
-        the DLR platform. Messages originate from a 10DLC-registered long code number assigned
-        to the dealership.
+        <strong>The dealership is the sender of record for messages sent to its leads.</strong>{' '}
+        Messages originate from a 10DLC-registered long-code number assigned to the
+        dealership's brand. BCHardy provides the underlying platform and messaging
+        infrastructure but is not the source of consent and does not author message content
+        on behalf of the dealership.
       </p>
 
-      <h2 style={{ fontSize: 20, fontWeight: 600, marginTop: 32 }}>2. Types of Messages Sent</h2>
+      <h2 style={{ fontSize: 20, fontWeight: 600, marginTop: 32 }}>2. Consent</h2>
       <p>
-        The Service sends automated follow-up SMS messages to individuals who have previously
-        submitted a vehicle inquiry to a participating dealership and have not yet been contacted
-        or responded. Messages may include: a greeting by first name, the dealership's name,
-        a reference to the vehicle inquired about, and an invitation to respond or visit.
+        <strong>The dealership is solely responsible for ensuring that each recipient has
+        provided lawful consent to receive SMS messages.</strong> Consent is typically
+        collected when a customer submits a web inquiry form that includes SMS opt-in
+        language, calls the dealership and provides a phone number for follow-up, or
+        otherwise affirmatively agrees to be contacted. The dealership must retain
+        documentation of consent and is responsible for the lawfulness, accuracy, and
+        provenance of any contact data uploaded into the Service — regardless of whether
+        the data came from a CRM export, a third-party aggregator, a web form, or manual
+        entry.
       </p>
       <p>
-        Message frequency varies. Typically no more than 3 messages are sent per lead per
-        campaign, spaced several days apart.
+        DLR is a <strong>tool</strong> the dealership uses to send messages. The Service
+        does not certify, audit, or guarantee the consent status of any contact uploaded by
+        the dealership.
       </p>
 
-      <h2 style={{ fontSize: 20, fontWeight: 600, marginTop: 32 }}>3. Consent</h2>
+      <h2 style={{ fontSize: 20, fontWeight: 600, marginTop: 32 }}>3. Types of Messages Sent</h2>
       <p>
-        Messages are sent only to individuals who have provided consent to receive SMS
-        communications from the dealership — either by submitting a web inquiry form that
-        includes SMS opt-in language, or by calling the dealership and providing their phone
-        number for follow-up contact. Consent records, including the source and date/time of
-        consent, are retained in the system.
+        Outbound messages are automated follow-ups to prior leads, typically referencing the
+        vehicle the lead inquired about and inviting a response. Message frequency varies by
+        campaign; typically no more than three messages per lead per campaign, spaced
+        several days apart. Conversations may continue if the recipient replies.
       </p>
 
       <h2 style={{ fontSize: 20, fontWeight: 600, marginTop: 32 }}>4. How to Opt Out</h2>
       <p>
-        Reply <strong>STOP</strong> to any message to immediately unsubscribe. You will receive
-        a one-time confirmation message and no further messages will be sent. You may also reply
-        <strong> HELP</strong> for assistance.
+        Reply <strong>STOP</strong> to any message to immediately unsubscribe from further
+        messages from that dealership. You will receive a one-time confirmation. Reply
+        <strong> HELP</strong> for assistance. Opt-out requests are honored automatically
+        and recorded.
       </p>
 
       <h2 style={{ fontSize: 20, fontWeight: 600, marginTop: 32 }}>5. Message and Data Rates</h2>
       <p>
-        Message and data rates may apply depending on your mobile carrier plan. BCHardy LLC is
-        not responsible for charges imposed by your carrier.
+        Message and data rates may apply depending on your mobile carrier plan. Neither the
+        dealership nor BCHardy is responsible for charges imposed by your wireless carrier.
       </p>
 
-      <h2 style={{ fontSize: 20, fontWeight: 600, marginTop: 32 }}>6. Contact</h2>
+      <h2 style={{ fontSize: 20, fontWeight: 600, marginTop: 32 }}>6. Carrier Filtering and Deliverability</h2>
       <p>
-        For questions about SMS messaging or to request removal from all messaging:<br />
+        SMS delivery in the United States depends on third-party wireless carriers,
+        intermediary aggregators, and 10DLC registration. <strong>Carrier filtering,
+        throughput limits, and delivery outcomes are not within BCHardy's control and are
+        not guaranteed.</strong> Messages may be delayed, throttled, blocked, or filtered by
+        carriers for reasons including registration status, content patterns, sending
+        velocity, and recipient carrier policy. BCHardy is not liable for non-delivery or
+        delivery delays caused by carriers or aggregators.
+      </p>
+
+      <h2 style={{ fontSize: 20, fontWeight: 600, marginTop: 32 }}>7. Privacy</h2>
+      <p>
+        See our <a href="/privacy" style={{ color: '#0070f3' }}>Privacy Policy</a> for how
+        personal information is collected and used in connection with the Service.
+      </p>
+
+      <h2 style={{ fontSize: 20, fontWeight: 600, marginTop: 32 }}>8. Contact</h2>
+      <p>
+        For questions about SMS messaging or to request removal from all messaging by a
+        specific dealership:<br />
         <strong>BCHardy LLC</strong><br />
         1346 West Fort Rock Drive<br />
         Saratoga Springs, UT 84045<br />
         <a href="mailto:bc.hardy47@gmail.com" style={{ color: '#0070f3' }}>bc.hardy47@gmail.com</a>
+      </p>
+
+      <p style={{ marginTop: 32 }}>
+        Related policies:{' '}
+        <a href="/terms" style={{ color: '#0070f3' }}>Terms of Service</a> ·{' '}
+        <a href="/privacy" style={{ color: '#0070f3' }}>Privacy Policy</a>
       </p>
 
       <p style={{ marginTop: 48, fontSize: 13, color: '#888' }}>

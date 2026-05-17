@@ -9,10 +9,13 @@ import {
   Zap,
   BarChart3,
   Settings,
+  Shield,
   type LucideIcon,
 } from 'lucide-react'
 
-const NAV_ITEMS: { href: string; label: string; icon: LucideIcon }[] = [
+type NavItem = { href: string; label: string; icon: LucideIcon }
+
+const TEAM_NAV_ITEMS: NavItem[] = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/leads', label: 'Leads', icon: Users },
   { href: '/inbox', label: 'Inbox', icon: MessageSquare },
@@ -21,16 +24,21 @@ const NAV_ITEMS: { href: string; label: string; icon: LucideIcon }[] = [
   { href: '/settings', label: 'Settings', icon: Settings },
 ]
 
+const ADMIN_NAV_ITEM: NavItem = { href: '/admin/dlr', label: 'Admin', icon: Shield }
+
 interface SidebarNavProps {
   inboxCount?: number
+  role?: string
 }
 
-export function SidebarNav({ inboxCount = 0 }: SidebarNavProps) {
+export function SidebarNav({ inboxCount = 0, role }: SidebarNavProps) {
   const pathname = usePathname()
+  const items: NavItem[] =
+    role === 'admin' ? [...TEAM_NAV_ITEMS, ADMIN_NAV_ITEM] : TEAM_NAV_ITEMS
 
   return (
     <nav className="px-3 py-5 space-y-0.5">
-      {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
+      {items.map(({ href, label, icon: Icon }) => {
         const isActive = pathname === href || (href !== '/dashboard' && pathname.startsWith(href + '/'))
         const hasBadge = href === '/inbox' && inboxCount > 0
 

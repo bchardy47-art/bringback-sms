@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs'
 import { eq } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { users } from '@/lib/db/schema'
+import type { UserRole } from '@/types/next-auth'
 
 export const authOptions: NextAuthOptions = {
   session: { strategy: 'jwt' },
@@ -41,7 +42,7 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.id = user.id
         token.tenantId = (user as { tenantId: string }).tenantId
-        token.role = (user as { role: string }).role
+        token.role = (user as { role: UserRole }).role
       }
       return token
     },

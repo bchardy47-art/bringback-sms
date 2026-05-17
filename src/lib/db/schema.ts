@@ -1133,6 +1133,34 @@ export const dealerIntakes = pgTable('dealer_intakes', {
   templateReviewAgreed: boolean('template_review_agreed').default(false).notNull(),
   complianceAgreed:     boolean('compliance_agreed').default(false).notNull(),
 
+  // ── Stage 1 (activation/close) — added Phase 21 ──────────────────────────
+  // Set when the dealer completes the short activation form. Stage 2 (the
+  // long onboarding form) becomes available afterwards but no longer
+  // blocks closing the deal.
+  activatedAt:   timestamp('activated_at', { withTimezone: true }),
+  // Which package the dealer chose at activation. Drives downstream billing.
+  // Free-text for now to avoid a migration if pricing tiers change.
+  plan:          text('plan'),
+  // 'pending' | 'paid' | 'failed' | 'skipped' | 'awaiting_stripe' — managed
+  // by the payment step (and updated by Stripe Checkout success/webhook).
+  paymentStatus: text('payment_status').default('pending').notNull(),
+
+  // ── Legal acceptance audit trail (added Phase 22) ────────────────────────
+  // When the dealer accepted the Terms of Service at activation, and which
+  // version they accepted. The version string lives in /app/terms/page.tsx
+  // (TERMS_VERSION) so amendments bump it and the next acceptance is
+  // recorded as a new version.
+  termsAcceptedAt: timestamp('terms_accepted_at', { withTimezone: true }),
+  termsVersion:    text('terms_version'),
+
+  // ── Stripe linkage (added Phase 22) ──────────────────────────────────────
+  // BCHardy LLC is merchant of record. These ids reference objects in our
+  // Stripe account. Subscription id is set after a successful Checkout
+  // Session; customer id outlives the subscription so we can recharge.
+  stripeCustomerId:        text('stripe_customer_id'),
+  stripeSubscriptionId:    text('stripe_subscription_id'),
+  stripeCheckoutSessionId: text('stripe_checkout_session_id'),
+
   // ── Admin ─────────────────────────────────────────────────────────────────
   adminNotes:    text('admin_notes'),
   submittedAt:   timestamp('submitted_at', { withTimezone: true }),

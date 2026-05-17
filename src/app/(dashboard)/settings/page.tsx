@@ -6,6 +6,7 @@ import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { users } from '@/lib/db/schema'
 import { ProfileEditForm } from '@/components/settings/ProfileEditForm'
+import { ChangePasswordForm } from '@/components/settings/ChangePasswordForm'
 
 export default async function SettingsPage() {
   const session = await getServerSession(authOptions)
@@ -111,14 +112,19 @@ export default async function SettingsPage() {
           </div>
         </div>
 
-        {/* Security */}
-        <SettingsSection
-          icon={<Shield size={18} className="text-violet-500" />}
-          title="Security"
-          description="Coming soon — two-factor auth and API keys"
-          items={[]}
-          comingSoon
-        />
+        {/* Security — change password */}
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-100">
+            <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center">
+              <Shield size={18} className="text-violet-500" />
+            </div>
+            <div>
+              <h2 className="text-sm font-semibold text-gray-900">Security</h2>
+              <p className="text-xs text-gray-400">Change your password</p>
+            </div>
+          </div>
+          <ChangePasswordForm />
+        </div>
       </div>
     </div>
   )
