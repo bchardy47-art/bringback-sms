@@ -97,6 +97,10 @@ export async function POST(
         sampleMessage1:       str(body.sampleMessage1),
         sampleMessage2:       str(body.sampleMessage2),
         approvedSenderName:   str(body.approvedSenderName),
+        // Optional free-text dealer notes (set when "Use recommended
+        // starter messaging" is unchecked). Stored verbatim so ops can
+        // read intent before campaign submission.
+        dealerMessagingNotes: str(body.dealerMessagingNotes),
         // Acknowledgments only flip forward — never regress true to false
         // if the dealer happened to uncheck them in Stage 2.
         templateReviewAgreed: bool(body.templateReviewAgreed) || intake.templateReviewAgreed,

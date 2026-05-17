@@ -1169,6 +1169,12 @@ export const dealerIntakes = pgTable('dealer_intakes', {
   stripeSubscriptionId:    text('stripe_subscription_id'),
   stripeCheckoutSessionId: text('stripe_checkout_session_id'),
 
+  // Free-text notes the dealer submits in Stage 2 if they uncheck
+  // "Use recommended starter messaging". Surfaced on the admin intake
+  // detail page so ops can read them before campaign submission. Null
+  // when the dealer accepts the recommended defaults (the common path).
+  dealerMessagingNotes: text('dealer_messaging_notes'),
+
   // ── Admin ─────────────────────────────────────────────────────────────────
   adminNotes:    text('admin_notes'),
   submittedAt:   timestamp('submitted_at', { withTimezone: true }),

@@ -2,6 +2,29 @@
 
 import { useState } from 'react'
 
+// Approval-focused Stage 2 setup form.
+//
+// What this page collects, in four sections:
+//   1. Business verification     -- legal name, EIN, dealership name,
+//                                    website, full business address
+//                                    (required for carrier registration)
+//   2. Primary contact           -- name, email, phone, CRM system
+//   3. Messaging compliance      -- lead source, consent, monthly volume,
+//                                    approved sender name, TCPA ack
+//   4. Optional launch prefs     -- starter-messaging toggle (+ optional
+//                                    notes if unchecked), plus a small
+//                                    bundle of fully-optional ops fields
+//                                    (sales manager, store phone, tz,
+//                                    business hours)
+//
+// What was removed from this page vs. the prior form (still on the row
+// in the DB if Stage 1 set them; can be edited via admin tools):
+//   - alertEmail / alertPhone   -- Stage 1 captured contact email + mobile
+//   - sampleMessage1/2          -- replaced by the "use recommended"
+//                                  pattern in section 4
+//   - templateReviewAgreed      -- subsumed by complianceAgreed (TCPA)
+//   - preferredWorkflowTypes    -- defaults applied; no per-dealer pick
+
 const TIMEZONES = [
   'America/New_York',
   'America/Chicago',
@@ -21,8 +44,16 @@ const CRM_OPTIONS = [
   'Other',
 ]
 
-function Field({ label, required, hint, children }: {
-  label: string; required?: boolean; hint?: string; children: React.ReactNode
+function Field({
+  label,
+  required,
+  hint,
+  children,
+}: {
+  label: string
+  required?: boolean
+  hint?: string
+  children: React.ReactNode
 }) {
   return (
     <div>
@@ -39,8 +70,18 @@ function Field({ label, required, hint, children }: {
 const inputClass =
   'w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent'
 
-function Input({ name, placeholder, type = 'text', required, defaultValue }: {
-  name: string; placeholder?: string; type?: string; required?: boolean; defaultValue?: string
+function Input({
+  name,
+  placeholder,
+  type = 'text',
+  required,
+  defaultValue,
+}: {
+  name: string
+  placeholder?: string
+  type?: string
+  required?: boolean
+  defaultValue?: string
 }) {
   return (
     <input
@@ -54,8 +95,18 @@ function Input({ name, placeholder, type = 'text', required, defaultValue }: {
   )
 }
 
-function Textarea({ name, placeholder, rows = 4, required }: {
-  name: string; placeholder?: string; rows?: number; required?: boolean
+function Textarea({
+  name,
+  placeholder,
+  rows = 4,
+  required,
+  defaultValue,
+}: {
+  name: string
+  placeholder?: string
+  rows?: number
+  required?: boolean
+  defaultValue?: string
 }) {
   return (
     <textarea
@@ -63,13 +114,20 @@ function Textarea({ name, placeholder, rows = 4, required }: {
       placeholder={placeholder}
       rows={rows}
       required={required}
+      defaultValue={defaultValue}
       className={`${inputClass} resize-y`}
     />
   )
 }
 
-function Section({ title, description, children }: {
-  title: string; description?: string; children: React.ReactNode
+function Section({
+  title,
+  description,
+  children,
+}: {
+  title: string
+  description?: string
+  children: React.ReactNode
 }) {
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-5">
@@ -115,13 +173,9 @@ export function IntakeForm({
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [done, setDone] = useState(false)
-  const [workflowTypes, setWorkflowTypes] = useState<string[]>([])
-
-  function toggleWorkflow(val: string) {
-    setWorkflowTypes(prev =>
-      prev.includes(val) ? prev.filter(v => v !== val) : [...prev, val]
-    )
-  }
+  // Default-on. When unchecked, a notes textarea reveals so the dealer
+  // can convey customizations for ops to review pre-launch.
+  const [useRecommendedMessaging, setUseRecommendedMessaging] = useState(true)
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -130,8 +184,14 @@ export function IntakeForm({
 
     const form = new FormData(e.currentTarget)
     const data: Record<string, unknown> = {}
-    Array.from(form.entries()).forEach(([k, v]) => { data[k] = v })
-    data.preferredWorkflowTypes = workflowTypes
+    Array.from(form.entries()).forEach(([k, v]) => {
+      data[k] = v
+    })
+    // If the dealer kept the recommended-messaging default checked,
+    // there's no notes textarea -- drop any stale value just in case.
+    if (useRecommendedMessaging) {
+      delete data.dealerMessagingNotes
+    }
 
     try {
       const res = await fetch(`/api/intake/${token}`, {
@@ -156,13 +216,19 @@ export function IntakeForm({
       <div className="bg-white rounded-2xl border border-gray-200 p-10 text-center">
         <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-5">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
-            <path d="M5 13l4 4L19 7" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+            <path
+              d="M5 13l4 4L19 7"
+              stroke="#16a34a"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
           </svg>
         </div>
         <h2 className="text-xl font-bold text-gray-900 mb-2">Submitted — thank you!</h2>
         <p className="text-sm text-gray-500 max-w-sm mx-auto">
-          We&apos;ve received your dealership information. Our team will reach out shortly to
-          complete your DLR setup.
+          We&apos;ve received your dealership information. Our team will reach out shortly
+          to register your campaign with carriers and walk you through your kickoff.
         </p>
       </div>
     )
@@ -170,30 +236,33 @@ export function IntakeForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {/* Section 1: Business identity.
-          Only legal name + EIN are truly required (carrier 10DLC).
-          Dealership name, website, address arrive pre-filled from Stage 1. */}
+      {/* ── 1. Business verification ──────────────────────────────────── */}
       <Section
-        title="Business Information"
-        description="Carrier 10DLC registration. Legal name and EIN are the carrier-required fields."
+        title="Business verification"
+        description="What carriers require to approve your campaign. Stage 1 fields are pre-filled — edit only if needed."
       >
         <Row>
-          <Field label="Dealership / Rooftop Name" hint="Pre-filled from activation. Edit if needed.">
-            <Input name="dealershipName" placeholder="Smith Honda" defaultValue={dealershipName} />
-          </Field>
           <Field label="Legal Business Name" required hint="IRS-registered legal entity name">
             <Input name="businessLegalName" placeholder="Smith Automotive Group LLC" required />
           </Field>
-        </Row>
-        <Row>
           <Field label="EIN / Tax ID" required hint="9-digit federal tax ID (XX-XXXXXXX)">
             <Input name="ein" placeholder="12-3456789" required />
           </Field>
-          <Field label="Business Website" hint="Pre-filled from activation.">
-            <Input name="businessWebsite" placeholder="https://smithhonda.com" defaultValue={d.businessWebsite ?? ''} />
+        </Row>
+        <Row>
+          <Field label="Dealership / Rooftop Name">
+            <Input name="dealershipName" placeholder="Smith Honda" defaultValue={dealershipName} />
+          </Field>
+          <Field label="Business Website">
+            <Input
+              name="businessWebsite"
+              type="url"
+              placeholder="https://smithhonda.com"
+              defaultValue={d.businessWebsite ?? ''}
+            />
           </Field>
         </Row>
-        <Field label="Full Business Address" hint="Pre-filled from activation. Edit if needed.">
+        <Field label="Full Business Address">
           <textarea
             name="businessAddress"
             placeholder="123 Auto Row Blvd, Springfield, IL 62701"
@@ -204,80 +273,61 @@ export function IntakeForm({
         </Field>
       </Section>
 
-      {/* Section 2: Contacts. All pre-filled from Stage 1 — optional in
-          Stage 2 since the dealer already provided this at close. */}
+      {/* ── 2. Primary contact ─────────────────────────────────────────── */}
       <Section
-        title="Contacts"
-        description="Pre-filled from activation. Add more contacts if you'd like — none are required at this stage."
+        title="Primary contact"
+        description="Who we talk to about this account. Pre-filled from activation."
       >
         <Row>
-          <Field label="Primary Contact Name">
-            <Input name="primaryContactName" placeholder="Jane Smith" defaultValue={d.primaryContactName ?? ''} />
+          <Field label="Name">
+            <Input
+              name="primaryContactName"
+              placeholder="Jane Smith"
+              defaultValue={d.primaryContactName ?? ''}
+            />
           </Field>
-          <Field label="Primary Contact Email">
-            <Input name="primaryContactEmail" type="email" placeholder="jane@smithhonda.com" defaultValue={d.primaryContactEmail ?? ''} />
+          <Field label="Email">
+            <Input
+              name="primaryContactEmail"
+              type="email"
+              placeholder="jane@smithhonda.com"
+              defaultValue={d.primaryContactEmail ?? ''}
+            />
           </Field>
         </Row>
         <Row>
-          <Field label="Primary Contact Phone">
-            <Input name="primaryContactPhone" type="tel" placeholder="(555) 123-4567" defaultValue={d.primaryContactPhone ?? ''} />
+          <Field label="Phone">
+            <Input
+              name="primaryContactPhone"
+              type="tel"
+              placeholder="(555) 123-4567"
+              defaultValue={d.primaryContactPhone ?? ''}
+            />
           </Field>
-          <Field label="Sales Manager Name">
-            <Input name="salesManagerName" placeholder="Mike Johnson" />
-          </Field>
-        </Row>
-        <Row>
-          <Field label="Alert Email" hint="Optional — leave blank to reuse your primary contact email.">
-            <Input name="alertEmail" type="email" placeholder="alerts@smithhonda.com" defaultValue={d.alertEmail ?? ''} />
-          </Field>
-          <Field label="Manager Mobile" hint="Pre-filled from activation. Gets an SMS when a lead replies.">
-            <Input name="alertPhone" type="tel" placeholder="(555) 987-6543" defaultValue={d.alertPhone ?? ''} />
-          </Field>
-        </Row>
-      </Section>
-
-      {/* Section 3: Operations. All optional — CRM was already collected
-          (optionally) in Stage 1; timezone can be inferred from address. */}
-      <Section title="Operations" description="All optional. We can fill these in together if you skip them.">
-        <Row>
-          <Field label="Main Store Phone">
-            <Input name="storePhone" type="tel" placeholder="(555) 111-2222" />
-          </Field>
-          <Field label="CRM System" hint="Pre-filled from activation if you set it.">
+          <Field label="CRM System">
             <select
               name="crmSystem"
               defaultValue={d.crmSystem ?? ''}
               className={inputClass}
             >
-              <option value="">Select CRM...</option>
-              {CRM_OPTIONS.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
-          </Field>
-        </Row>
-        <Row>
-          <Field label="Timezone">
-            <select name="timezone" className={inputClass}>
-              <option value="">Select timezone...</option>
-              {TIMEZONES.map(tz => (
-                <option key={tz} value={tz}>
-                  {tz.replace('America/', '').replace(/_/g, ' ')}
+              <option value="">Select CRM…</option>
+              {CRM_OPTIONS.map((c) => (
+                <option key={c} value={c}>
+                  {c}
                 </option>
               ))}
             </select>
           </Field>
-          <Field label="Business Hours" hint="e.g. Mon–Fri 9am–8pm, Sat 9am–5pm">
-            <Input name="businessHours" placeholder="Mon–Fri 9am–8pm, Sat 9am–5pm" />
-          </Field>
         </Row>
       </Section>
 
-      {/* Section 4: Compliance */}
+      {/* ── 3. Messaging compliance ──────────────────────────────────── */}
       <Section
-        title="Compliance"
-        description="These answers are submitted verbatim to carrier registration (10DLC). Be specific."
+        title="Messaging compliance"
+        description="Submitted verbatim to carrier registration (10DLC). Be specific — these are the answers carriers read."
       >
         <Field
-          label="Lead Source Explanation"
+          label="Lead source explanation"
           required
           hint="How did these leads originally contact your dealership?"
         >
@@ -289,7 +339,7 @@ export function IntakeForm({
           />
         </Field>
         <Field
-          label="Consent Explanation"
+          label="Consent explanation"
           required
           hint="How do customers agree to receive SMS from your dealership?"
         >
@@ -300,79 +350,98 @@ export function IntakeForm({
             required
           />
         </Field>
-        <Field label="Estimated Monthly SMS Volume" hint="Approximate number of outbound messages per month">
-          <Input name="expectedMonthlyVolume" type="number" placeholder="500" />
-        </Field>
+        <Row>
+          <Field
+            label="Estimated monthly SMS volume"
+            hint="Approximate outbound messages per month"
+          >
+            <Input name="expectedMonthlyVolume" type="number" placeholder="500" />
+          </Field>
+          <Field
+            label="Approved sender name"
+            hint="What appears in texts (e.g. 'Brian at Smith Honda')"
+          >
+            <Input name="approvedSenderName" placeholder="Brian at Smith Honda" />
+          </Field>
+        </Row>
+        <label className="flex items-start gap-3 cursor-pointer pt-1">
+          <input
+            type="checkbox"
+            name="complianceAgreed"
+            value="true"
+            defaultChecked
+            className="mt-1 accent-red-600"
+          />
+          <span className="text-sm text-gray-700">
+            All outreach will include opt-out language and will be TCPA-compliant.
+            <span className="block text-xs text-gray-400 mt-0.5">
+              Acknowledged at activation — confirmed here for the carrier record.
+            </span>
+          </span>
+        </label>
       </Section>
 
-      {/* Section 5: Campaign setup */}
+      {/* ── 4. Optional launch preferences ───────────────────────────── */}
       <Section
-        title="Campaign Setup"
-        description="How you want your revival outreach structured."
+        title="Launch preferences"
+        description="Optional. Sensible defaults apply if you skip this section — we'll calibrate on your kickoff call."
       >
-        <Field label="Lead Types to Target">
-          <div className="space-y-2">
-            {[
-              { value: 'stale', label: 'Stale leads', desc: 'Went quiet after initial contact' },
-              { value: 'orphaned', label: 'Orphaned leads', desc: 'No longer assigned to a salesperson' },
-            ].map(({ value, label, desc }) => (
-              <label
-                key={value}
-                className="flex items-start gap-3 p-3 rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-50"
-              >
-                <input
-                  type="checkbox"
-                  checked={workflowTypes.includes(value)}
-                  onChange={() => toggleWorkflow(value)}
-                  className="mt-0.5 accent-red-600"
-                />
-                <div>
-                  <p className="text-sm font-semibold text-gray-800">{label}</p>
-                  <p className="text-xs text-gray-500">{desc}</p>
-                </div>
-              </label>
-            ))}
-          </div>
-        </Field>
-        <Field
-          label="Sample Message 1"
-          hint="A message you'd send to a stale lead. We'll refine the copy together."
-        >
-          <Textarea
-            name="sampleMessage1"
-            placeholder="Hi [Name], this is [Agent] from Smith Honda. You reached out about the [Vehicle] a while back — still interested? We have some new incentives. Reply STOP to opt out."
-            rows={4}
+        {/* Recommended-messaging toggle. Default on -- this is the path
+            most dealers take. When unchecked we reveal a single notes
+            textarea so they can convey custom intent without forcing
+            them to author messages. */}
+        <label className="flex items-start gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={useRecommendedMessaging}
+            onChange={(e) => setUseRecommendedMessaging(e.target.checked)}
+            className="mt-1 accent-red-600"
           />
-        </Field>
-        <Field label="Sample Message 2" hint="A follow-up or alternate message">
-          <Textarea
-            name="sampleMessage2"
-            placeholder="Hey [Name] — just checking in from Smith Honda. The [Vehicle] you were looking at is still available and we have a great offer this month. Want to come in? Reply STOP to opt out."
-            rows={4}
-          />
-        </Field>
-      </Section>
+          <span className="text-sm text-gray-700">
+            <span className="font-semibold">Use our recommended starter messaging.</span>
+            <span className="block text-xs text-gray-500 mt-0.5">
+              Calibrated automotive re-engagement copy tuned per age window. We&apos;ll
+              review the exact wording with you before any sends.
+            </span>
+          </span>
+        </label>
 
-      {/* Section 6: Agreements */}
-      <Section title="Agreements">
-        <Field label="Approved Sender Name" hint="The name that appears in texts (e.g. 'Brian at Smith Honda')">
-          <Input name="approvedSenderName" placeholder="Brian at Smith Honda" />
-        </Field>
-        <div className="space-y-3">
-          <label className="flex items-start gap-3 cursor-pointer">
-            <input type="checkbox" name="templateReviewAgreed" value="true" className="mt-1 accent-red-600" required />
-            <span className="text-sm text-gray-700">
-              I agree to review and approve all message templates before any texts are sent to our customers.
-            </span>
-          </label>
-          <label className="flex items-start gap-3 cursor-pointer">
-            <input type="checkbox" name="complianceAgreed" value="true" defaultChecked className="mt-1 accent-red-600" />
-            <span className="text-sm text-gray-700">
-              I understand that all outreach will include opt-out language and will be TCPA-compliant.
-              <span className="block text-xs text-gray-400 mt-0.5">Already acknowledged at activation — left checked for reference.</span>
-            </span>
-          </label>
-        </div>
+        {!useRecommendedMessaging && (
+          <Field
+            label="Messaging notes"
+            hint="What would you like to do differently? (Optional — we&apos;ll discuss on your kickoff call.)"
+          >
+            <Textarea
+              name="dealerMessagingNotes"
+              placeholder="e.g. Use a casual tone. Avoid pricing mentions. Always reference the model. Don't use exclamation points."
+              rows={3}
+            />
+          </Field>
+        )}
+
+        <Row>
+          <Field label="Sales manager name">
+            <Input name="salesManagerName" placeholder="Mike Johnson" />
+          </Field>
+          <Field label="Main store phone">
+            <Input name="storePhone" type="tel" placeholder="(555) 111-2222" />
+          </Field>
+        </Row>
+        <Row>
+          <Field label="Timezone" hint="We can infer from your address if you skip this.">
+            <select name="timezone" className={inputClass}>
+              <option value="">Select timezone…</option>
+              {TIMEZONES.map((tz) => (
+                <option key={tz} value={tz}>
+                  {tz.replace('America/', '').replace(/_/g, ' ')}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Business hours" hint="e.g. Mon–Fri 9am–8pm, Sat 9am–5pm">
+            <Input name="businessHours" placeholder="Mon–Fri 9am–8pm, Sat 9am–5pm" />
+          </Field>
+        </Row>
       </Section>
 
       {error && (
