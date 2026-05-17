@@ -269,10 +269,12 @@ export function IntakeForm({
             <Input name="dealershipName" placeholder="Smith Honda" defaultValue={dealershipName} />
           </Field>
           <Field label="Business Website">
+            {/* type="text" so bare domains aren't browser-rejected;
+                server normalizes via normalizeWebsite() before storage. */}
             <Input
               name="businessWebsite"
-              type="url"
-              placeholder="https://smithhonda.com"
+              type="text"
+              placeholder="smithhonda.com"
               defaultValue={d.businessWebsite ?? ''}
             />
           </Field>

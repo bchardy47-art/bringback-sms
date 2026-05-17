@@ -235,14 +235,24 @@ export function ActivationForm({
             <label htmlFor="website" className="block text-sm font-semibold text-gray-800 mb-1">
               Website <span className="text-red-500">*</span>
             </label>
+            {/* type="text" (not "url") so the browser doesn't block
+                bare-domain inputs. Server normalizes the value — see
+                /lib/normalize-website.ts and the activate route. */}
             <input
               id="website"
               name="website"
-              type="url"
-              placeholder="https://smithhonda.com"
+              type="text"
+              inputMode="url"
+              autoCapitalize="off"
+              autoCorrect="off"
+              spellCheck={false}
+              placeholder="smithhonda.com"
               required
               className={inputClass}
             />
+            <p className="text-xs text-gray-400 mt-1">
+              Bare domains are fine — we&apos;ll add <span className="font-mono">https://</span> if missing.
+            </p>
           </div>
         </div>
 

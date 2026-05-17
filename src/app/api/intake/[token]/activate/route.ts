@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '@/lib/db'
 import { dealerIntakes } from '@/lib/db/schema'
+import { websiteSchema } from '@/lib/normalize-website'
 
 // Stage 1 — Activation/Close endpoint.
 //   Minimum payload to lock the deal: identity, contact, terms, plan.
@@ -22,7 +23,9 @@ const ActivationSchema = z.object({
     .min(7, 'Mobile is required')
     .max(40)
     .regex(/^[\d\s()+\-.]+$/, 'Mobile contains invalid characters'),
-  website:        z.string().trim().url('Website must be a full URL').max(500),
+  // Permissive: accepts yourdealership.com, www.yourdealership.com,
+  // or full https URLs. Normalizes to https://... before storage.
+  website:        websiteSchema,
   storeAddress:   z.string().trim().min(5, 'Store address is required').max(500),
   crmSystem:      z.string().trim().max(100).optional().nullable(),
   plan:           z.enum(['pilot', 'standard', 'pro']),

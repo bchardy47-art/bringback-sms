@@ -2,10 +2,19 @@ import { NextRequest, NextResponse } from 'next/server'
 import { eq } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { dealerIntakes } from '@/lib/db/schema'
+import { normalizeWebsite } from '@/lib/normalize-website'
 
 function str(v: unknown): string | undefined {
   if (typeof v === 'string' && v.trim().length > 0) return v.trim()
   return undefined
+}
+
+// If the field has a value, run it through the same normalizer the
+// activate route uses (prepends https:// when no scheme is present)
+// so Stage 1 and Stage 2 produce consistent stored values.
+function website(v: unknown): string | undefined {
+  const s = str(v)
+  return s ? normalizeWebsite(s) : undefined
 }
 
 function num(v: unknown): number | undefined {
@@ -97,7 +106,7 @@ export async function POST(
         dealershipName:         str(body.dealershipName),
         businessLegalName:      str(body.businessLegalName),
         ein:                    str(body.ein),
-        businessWebsite:        str(body.businessWebsite),
+        businessWebsite:        website(body.businessWebsite),
         businessAddress:        str(body.businessAddress),
         primaryContactName:     str(body.primaryContactName),
         primaryContactEmail:    str(body.primaryContactEmail),
