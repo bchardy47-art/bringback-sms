@@ -174,11 +174,21 @@ export default async function ConversationPage({
           {/* Details */}
           <div className="p-5 space-y-4 border-b border-gray-100">
             <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Lead Info</h4>
-            <DetailRow icon={<User size={14} />} label="Last Contact" value={
-              lead.lastCrmActivityAt
-                ? new Date(lead.lastCrmActivityAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+            <DetailRow icon={<User size={14} />} label="Last Contact" value={(() => {
+              // Pick the freshest real timestamp we have: most recent
+              // message in the conversation beats CRM activity (truer
+              // "last contact"), CRM activity beats the original inquiry
+              // date, and "Unknown" is only the last resort.
+              const lastMessage = conversation.messages[conversation.messages.length - 1]
+              const ts =
+                lastMessage?.createdAt ??
+                lead.lastCrmActivityAt ??
+                lead.originalInquiryAt ??
+                null
+              return ts
+                ? new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
                 : 'Unknown'
-            } />
+            })()} />
             {lead.salespersonName && (
               <DetailRow icon={<User size={14} />} label="Salesperson" value={lead.salespersonName} />
             )}

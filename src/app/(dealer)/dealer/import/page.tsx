@@ -231,8 +231,12 @@ export default async function DealerImportPage({
               { label: 'Needs Date', value: needsReviewCount, color: needsReviewCount > 0 ? 'text-orange-600' : 'text-gray-300' },
               { label: 'Blocked',    value: blockedCount,    color: blockedCount > 0 ? 'text-red-600' : 'text-gray-300' },
               {
-                label: `Selected / ${FIRST_PILOT_CAP}`,
-                value: `${selectedCount} / ${FIRST_PILOT_CAP}`,
+                // Plain-English counter: "3 of 5 selected". The prior
+                // version put a fraction in both the label and the value
+                // ("Selected / 5" + "10 / 5") which read as three numbers
+                // separated by two slashes.
+                label: 'Selected',
+                value: `${selectedCount} of ${FIRST_PILOT_CAP}`,
                 color: selectedCount >= FIRST_PILOT_CAP ? 'text-blue-700' : selectedCount > 0 ? 'text-blue-600' : 'text-gray-300',
               },
             ].map(s => (
@@ -300,7 +304,7 @@ export default async function DealerImportPage({
               <BulkClearButton tenantId={tenantId} blockedCount={blockedCount} apiBase={apiBase} />
               {selectedCount > 0 && (
                 <span className="px-2.5 py-1 bg-blue-100 text-blue-700 text-xs font-bold rounded-full">
-                  {selectedCount} / {FIRST_PILOT_CAP} selected
+                  {selectedCount} of {FIRST_PILOT_CAP} selected
                 </span>
               )}
             </div>

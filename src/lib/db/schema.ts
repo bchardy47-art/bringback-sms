@@ -680,14 +680,16 @@ export const LEAD_HOLD_DAYS = 14
 export type AgeBucket = 'a' | 'b' | 'c' | 'd'
 
 /**
- * Operator-facing bucket labels. These intentionally diverge from
- * AGE_BUCKET_RANGES for bucket A: the displayed window reads as
- * 0–29 days so the four buckets line up as clean 30-day windows in
- * the UI. Leads under LEAD_HOLD_DAYS are still held (not bucket-eligible)
- * by the classifier — see AGE_BUCKET_RANGES below for the true threshold.
+ * Dealer-facing bucket labels. These match AGE_BUCKET_RANGES exactly and
+ * the workflow names ("14–29 Day Re-engagement", etc.), so a dealer
+ * reading the batch page sees a single consistent age window. Leads
+ * under LEAD_HOLD_DAYS (14) are held — the "Held" stat-card explains
+ * that separately. Prior versions displayed bucket A as "0–29 days" for
+ * visual symmetry across four 30-day windows, but dealers read that as
+ * "leads younger than 14 days quietly disappeared" — so the truth wins.
  */
 export const AGE_BUCKET_LABELS: Record<AgeBucket, string> = {
-  a: '0–29 days',
+  a: '14–29 days',
   b: '30–59 days',
   c: '60–89 days',
   d: '90+ days',

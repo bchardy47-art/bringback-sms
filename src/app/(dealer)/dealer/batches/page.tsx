@@ -21,11 +21,12 @@ const STATUS_STYLE: Record<string, { chip: string; label: string }> = {
 }
 
 // Mirrors AGE_BUCKET_LABELS from schema.ts. Kept inline because this page
-// renders a simple string lookup against workflow.ageBucket. Bucket A reads
-// as 0–29 days for visual consistency with the 30-day windows on B/C/D;
-// leads under LEAD_HOLD_DAYS are still held by the classifier.
+// renders a simple string lookup against workflow.ageBucket. Aligned to
+// the actual classifier range so it matches the workflow name shown to
+// the dealer ("14–29 Day Re-engagement", etc.) — no more "where did the
+// 0–13 day leads go?" confusion.
 const BUCKET_LABEL: Record<string, string> = {
-  a: '0–29 days',
+  a: '14–29 days',
   b: '30–59 days',
   c: '60–89 days',
   d: '90+ days',

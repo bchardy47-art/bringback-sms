@@ -8,7 +8,12 @@ import type { UserRole } from '@/types/next-auth'
 
 export const authOptions: NextAuthOptions = {
   session: { strategy: 'jwt' },
-  pages: { signIn: '/login' },
+  // signOut points at our own in-app interstitial so a direct GET to
+  // /api/auth/signout (manual URL, bookmark, browser back-button) renders
+  // a branded "signing you out…" card instead of NextAuth's bare default
+  // confirm form. The AccountMenu's signOut() call already bypasses this
+  // by doing a JSON POST directly — this just catches the edge cases.
+  pages: { signIn: '/login', signOut: '/logout' },
   providers: [
     CredentialsProvider({
       name: 'credentials',

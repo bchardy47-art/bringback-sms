@@ -19,11 +19,11 @@ import { authOptions } from '@/lib/auth'
 import Link from 'next/link'
 
 // Mirrors AGE_BUCKET_LABELS from schema.ts. Kept inline because this page
-// renders a simple string lookup against workflow.ageBucket. Bucket A reads
-// as 0–29 days for visual consistency with the 30-day windows on B/C/D;
-// leads under LEAD_HOLD_DAYS are still held by the classifier.
+// renders a simple string lookup against workflow.ageBucket. Aligned to
+// the actual classifier range so it matches the workflow name dealers
+// see in the linked batch ("14–29 Day Re-engagement", etc.).
 const BUCKET_LABEL: Record<string, string> = {
-  a: '0–29 days',
+  a: '14–29 days',
   b: '30–59 days',
   c: '60–89 days',
   d: '90+ days',
