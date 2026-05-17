@@ -65,14 +65,21 @@ remote_resend.sh
 # tsx invocations and not part of the deployable code; keep them local only.
 /*.mts
 
-# Ad-hoc captured output (pm2 dumps, build error pastes, vps log captures)
+# Ad-hoc captured output (pm2 dumps, build error pastes, vps log captures,
+# HTTP Archive captures from browser-side debugging).
 build_error.txt
 pm2_check.txt
 vps_logs.txt
 tenant_list.txt
+*.har
 
-# Ad-hoc test fixture CSVs committed alongside operator scripts
+# Ad-hoc test fixture CSVs used by operator/smoke scripts. Kept locally
+# under scripts/ or at the repo root, never tracked.
 test_leads.csv
 test_leads_live.csv
 test_pilot_leads.csv
 test_pilot_leads_v2.csv
+test_age_buckets.csv
+test_lead_validation.csv
+scripts/live-smoke-test.csv
+scripts/test-leads-smoke.csv
