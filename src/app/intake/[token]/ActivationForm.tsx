@@ -253,9 +253,11 @@ export function ActivationForm({
         </div>
       </div>
 
-      {/* Consent — single checkbox covering ToS (which incorporates Privacy
-          and SMS Terms by reference). This is the standard SaaS pattern;
-          adding three checkboxes would re-introduce friction. */}
+      {/* Acceptance — single checkbox, but the label surfaces the binding
+          dealer warranties at the moment of click so consent is informed.
+          The full warranties live in /terms Section 5 and indemnity in
+          Section 11; this is the in-product summary. Recorded with
+          terms_version + terms_accepted_at on submit. */}
       <div className="bg-white rounded-xl border border-gray-200 p-5">
         <label className="flex items-start gap-3 cursor-pointer">
           <input
@@ -266,21 +268,46 @@ export function ActivationForm({
             className="mt-1 accent-red-600"
           />
           <span className="text-sm text-gray-700 leading-relaxed">
-            I agree to the{' '}
+            By checking this box and clicking <strong>Activate account</strong>, on
+            behalf of my dealership I agree to the{' '}
             <a href="/terms" target="_blank" className="text-red-600 underline">
               Terms of Service
             </a>{' '}
-            (which cover subscription billing through DLR / BCHardy LLC). I have read
+            (including the dealer warranties and indemnification in Sections 5 and 11),
             the{' '}
             <a href="/privacy" target="_blank" className="text-red-600 underline">
               Privacy Policy
-            </a>{' '}
-            and{' '}
+            </a>
+            , and the{' '}
             <a href="/sms-terms" target="_blank" className="text-red-600 underline">
               SMS Terms
             </a>
-            , and I consent to text-message communications from DLR at the number above.
-            Msg &amp; data rates may apply. Reply STOP to opt out.
+            . I represent and warrant that:
+            <span className="block mt-2 pl-3 border-l-2 border-gray-200 text-xs text-gray-600 space-y-1">
+              <span className="block">• I am authorized to bind my dealership.</span>
+              <span className="block">
+                • All lead and contact data we upload to DLR was lawfully obtained, and
+                each individual we contact has provided the consent required by law and
+                carrier policy.
+              </span>
+              <span className="block">
+                • My dealership is the sender of record for our outreach. DLR is the
+                software we use to send it.
+              </span>
+              <span className="block">
+                • We will honor every opt-out, STOP, and do-not-contact request —
+                including those collected outside DLR — and will not re-contact opted-out
+                individuals.
+              </span>
+              <span className="block">
+                • My dealership indemnifies BCHardy LLC for claims arising from our data,
+                our consent records, or our use of the Service.
+              </span>
+            </span>
+            <span className="block mt-3">
+              I also consent to text-message communications from DLR at the mobile number
+              above. Msg &amp; data rates may apply. Reply STOP to opt out.
+            </span>
           </span>
         </label>
       </div>

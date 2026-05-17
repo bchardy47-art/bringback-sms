@@ -5,7 +5,7 @@ export const metadata = {
 }
 
 export default function PrivacyPage() {
-  const effectiveDate = 'May 16, 2026'
+  const effectiveDate = 'May 17, 2026'
 
   return (
     <main style={{ maxWidth: 760, margin: '0 auto', padding: '48px 24px', fontFamily: 'system-ui, sans-serif', color: '#111', lineHeight: 1.7 }}>
@@ -17,6 +17,22 @@ export default function PrivacyPage() {
         automotive dealerships. This Privacy Policy explains what personal information we
         collect, how we use it, and the third parties we share it with in order to deliver
         the Service.
+      </p>
+
+      <h2 style={{ fontSize: 20, fontWeight: 600, marginTop: 32 }}>0. Roles — Dealer as Controller</h2>
+      <p>
+        For personal information about the dealership&apos;s leads and customers
+        ("lead data"), <strong>the dealership is the data controller</strong> — it
+        decides which individuals are contacted, on what basis, and using what consent.
+        <strong> BCHardy is a service provider / processor</strong> acting on the
+        dealership&apos;s instructions to deliver the Service. The dealership owns its
+        lead data, its customer relationships, and the consent records that authorize
+        outreach. BCHardy does not use lead data for its own marketing.
+      </p>
+      <p>
+        For information about the dealership itself — business identity, account
+        credentials, billing — BCHardy is the controller for the purposes of operating
+        and billing for the Service.
       </p>
 
       <h2 style={{ fontSize: 20, fontWeight: 600, marginTop: 32 }}>1. Information We Collect</h2>

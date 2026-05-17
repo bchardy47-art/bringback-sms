@@ -8,4 +8,4 @@
 // changes so the next dealer acceptance is recorded as a new version.
 // dealer_intakes.terms_version stores whatever string was current at
 // the moment of the dealer's click on "Activate account".
-export const TERMS_VERSION = '2026-05-16'
+export const TERMS_VERSION = '2026-05-17'
