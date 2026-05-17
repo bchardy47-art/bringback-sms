@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 
 const PLAN_LABEL: Record<string, string> = {
   pilot: 'Pilot',
@@ -9,6 +8,15 @@ const PLAN_LABEL: Record<string, string> = {
   pro: 'Pro',
 }
 
+// Self-serve payment step. Only one forward path: Stripe Checkout.
+//
+// The prior "Continue to setup — billing later" button was removed
+// because it let any dealer mark payment_status='skipped' and slip into
+// Stage 2 without billing on file. Out-of-band billing is still
+// supported, but only via an admin setting payment_status='manual_billing'
+// on the row directly (SQL or future admin action), not via a
+// dealer-facing button. See the state-machine comment in
+// /intake/[token]/page.tsx.
 export function PaymentStepClient({
   token,
   plan,
@@ -18,39 +26,16 @@ export function PaymentStepClient({
   plan: string
   paymentStatus: string
 }) {
-  const router = useRouter()
-  const [busy, setBusy] = useState<'stripe' | 'skip' | null>(null)
+  const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-
-  // Mark payment as deferred and continue to Stage 2. Used by the
-  // "Continue to setup — I'll handle billing with our rep" path.
-  async function skipForNow() {
-    setBusy('skip')
-    setError('')
-    try {
-      const res = await fetch(`/api/intake/${token}/payment`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'skip' }),
-      })
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}))
-        throw new Error(body.error ?? 'Could not save. Please try again.')
-      }
-      router.replace(`/intake/${token}`)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong.')
-      setBusy(null)
-    }
-  }
 
   // Real Stripe Checkout. POSTs to our checkout endpoint, which creates
   // a Checkout Session on our Stripe account and returns the hosted URL.
-  // If Stripe keys aren't configured yet, the endpoint returns 503 with a
-  // user-friendly message; we surface it as an inline error rather than
-  // a generic failure so the dealer can still hit "billing later".
+  // If Stripe keys aren't configured yet, the endpoint returns 503 with
+  // a user-friendly message; we surface it as an inline error.
   async function startCheckout() {
-    setBusy('stripe')
+    if (busy) return
+    setBusy(true)
     setError('')
     try {
       const res = await fetch(`/api/intake/${token}/checkout`, {
@@ -64,12 +49,12 @@ export function PaymentStepClient({
       if (!body?.url) {
         throw new Error('Stripe did not return a checkout URL.')
       }
-      // Top-level navigation to Stripe's hosted Checkout. We don't use
-      // router.replace because the destination is off-origin.
+      // Top-level navigation to Stripe's hosted Checkout. Don't use
+      // router.replace — destination is off-origin.
       window.location.href = body.url as string
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong.')
-      setBusy(null)
+      setBusy(false)
     }
   }
 
@@ -93,7 +78,7 @@ export function PaymentStepClient({
 
         {paymentStatus === 'paid' && (
           <div className="rounded-lg bg-emerald-50 border border-emerald-200 px-4 py-3 mb-4">
-            <p className="text-sm text-emerald-800">Payment already on file — you're all set.</p>
+            <p className="text-sm text-emerald-800">Payment already on file — you&apos;re all set.</p>
           </div>
         )}
 
@@ -103,8 +88,7 @@ export function PaymentStepClient({
             card goes on file now; the first charge starts when your campaign is approved
             and live with the carriers
           </strong>{' '}
-          (typically 7–10 business days). Or continue to setup and we&apos;ll arrange
-          billing with you directly.
+          (typically 7–10 business days).
         </p>
         <p className="text-xs text-gray-500 mb-5">
           Note: Stripe&apos;s checkout page labels this wait as a &ldquo;14-day trial.&rdquo;
@@ -112,25 +96,15 @@ export function PaymentStepClient({
           thing, not a separate offer.
         </p>
 
-        <div className="space-y-2">
-          <button
-            type="button"
-            onClick={startCheckout}
-            disabled={busy !== null}
-            className="w-full py-3 rounded-xl text-sm font-bold text-white transition-colors disabled:opacity-60"
-            style={{ backgroundColor: '#dc2626' }}
-          >
-            {busy === 'stripe' ? 'Opening checkout…' : 'Add payment method →'}
-          </button>
-          <button
-            type="button"
-            onClick={skipForNow}
-            disabled={busy !== null}
-            className="w-full py-3 rounded-xl text-sm font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors disabled:opacity-60"
-          >
-            {busy === 'skip' ? 'Continuing…' : 'Continue to setup — billing later'}
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={startCheckout}
+          disabled={busy}
+          className="w-full py-3 rounded-xl text-sm font-bold text-white transition-colors disabled:opacity-60"
+          style={{ backgroundColor: '#dc2626' }}
+        >
+          {busy ? 'Opening checkout…' : 'Add payment method →'}
+        </button>
 
         {error && (
           <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 mt-4">
@@ -140,7 +114,12 @@ export function PaymentStepClient({
       </div>
 
       <p className="text-xs text-gray-400 text-center px-4">
-        Secure payment processing will be handled by Stripe. We never store card numbers.
+        Need a custom billing arrangement? Reach out to support — we&apos;ll set you up
+        manually. Otherwise, complete payment to continue your setup.
+      </p>
+
+      <p className="text-xs text-gray-400 text-center px-4">
+        Secure payment processing handled by Stripe. We never store card numbers.
       </p>
     </div>
   )

@@ -1143,14 +1143,27 @@ export const dealerIntakes = pgTable('dealer_intakes', {
   // Which package the dealer chose at activation. Drives downstream billing.
   // Free-text for now to avoid a migration if pricing tiers change.
   plan:          text('plan'),
-  // Payment lifecycle. Managed by the payment step + the Stripe webhook.
+  // Payment lifecycle. Managed by the payment step + the Stripe webhook
+  // + (rarely) an admin overriding to manual_billing.
   //   pending          — row created; no decision yet
   //   awaiting_stripe  — Stripe Checkout Session created, dealer is on
   //                      the hosted page
-  //   paid             — checkout.session.completed (initial invoice OK)
+  //   paid             — checkout.session.completed (initial invoice OK,
+  //                      includes the 14-day trialing window)
   //   past_due         — invoice.payment_failed for a renewal
   //   cancelled        — customer.subscription.deleted (terminal)
-  //   skipped          — dealer chose "billing later"
+  //   skipped          — legacy: dealer self-skipped via the old "billing
+  //                      later" button (button removed; new rows can no
+  //                      longer reach this state, existing rows are
+  //                      treated as billing-incomplete by the gate)
+  //   manual_billing   — admin-flagged out-of-band billing arrangement;
+  //                      satisfies the Stage 2 billing gate without a
+  //                      Stripe subscription. Set by an admin directly
+  //                      on the row (SQL or future admin action).
+  //
+  // Stage 2 access in /intake/[token]/page.tsx + /api/intake/[token]
+  // POST allows only 'paid' and 'manual_billing'. Everything else
+  // routes the dealer back to the payment step.
   paymentStatus: text('payment_status').default('pending').notNull(),
 
   // ── Legal acceptance audit trail (added Phase 22) ────────────────────────

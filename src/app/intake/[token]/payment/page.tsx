@@ -29,6 +29,13 @@ export default async function PaymentPage({
   // If they already completed the full onboarding, show the all-done page.
   if (intake.submittedAt) redirect(`/intake/${params.token}`)
 
+  // If billing is already complete (Stripe paid or admin-flagged manual
+  // billing), the dealer doesn't belong on the payment step — push them
+  // forward to Stage 2 instead of letting them re-open Checkout.
+  if (intake.paymentStatus === 'paid' || intake.paymentStatus === 'manual_billing') {
+    redirect(`/intake/${params.token}`)
+  }
+
   const cancelled = searchParams.cancelled === '1'
 
   return (

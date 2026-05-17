@@ -34,6 +34,27 @@ export async function POST(
       return NextResponse.json({ error: 'This intake has already been submitted.' }, { status: 409 })
     }
 
+    // Billing gate. Stage 2 is the "finished onboarding" mutation
+    // (it sets submittedAt) — refuse to finalize unless billing is
+    // properly in place. 'paid' = real Stripe subscription (including
+    // the trialing billing-delay window). 'manual_billing' = admin
+    // flagged out-of-band billing for this intake. Anything else
+    // (pending, awaiting_stripe, skipped, past_due, cancelled) means
+    // the dealer hasn't put a card on file or had it admin-approved.
+    //
+    // This is a defense-in-depth gate: the page state machine in
+    // /intake/[token]/page.tsx also redirects unfinished-billing
+    // dealers away from Stage 2, but a direct API hit needs to fail
+    // here too.
+    const billingComplete =
+      intake.paymentStatus === 'paid' || intake.paymentStatus === 'manual_billing'
+    if (!billingComplete) {
+      return NextResponse.json(
+        { error: 'Payment is required before completing setup.' },
+        { status: 409 },
+      )
+    }
+
     const body = await req.json()
 
     // Required fields for Stage 2.

@@ -6,12 +6,18 @@ import { ActivationForm } from './ActivationForm'
 import { IntakeForm } from './IntakeForm'
 
 // Intake state machine.
-//   submittedAt set        → all done, show success
-//   activatedAt set        → Stage 1 done; payment may or may not be done.
-//                            If paymentStatus is still 'pending', send the
-//                            dealer back to /payment. Otherwise show the
-//                            long-form Stage 2 onboarding.
-//   neither set            → show Stage 1 (activation/close)
+//   submittedAt set                   → all done, show success
+//   !activatedAt                      → show Stage 1 (activation/close)
+//   billing not complete              → bounce to /payment
+//                                       (any payment_status other than
+//                                       'paid' or 'manual_billing' counts
+//                                       as not-complete)
+//   else                              → show Stage 2 (full onboarding)
+//
+// Self-serve dealers reach 'paid' by completing Stripe Checkout.
+// Admins can set 'manual_billing' on a row (SQL or future admin action)
+// to allow a known dealer to finish setup without going through Checkout
+// — this is the supported, controlled out-of-band billing path.
 
 export default async function IntakePage({
   params,
@@ -68,8 +74,15 @@ export default async function IntakePage({
     )
   }
 
-  // Activated but payment not addressed yet → bounce to payment step.
-  if (intake.paymentStatus === 'pending') {
+  // Stage 2 access requires a completed billing state. Any value other
+  // than 'paid' (real Stripe subscription, including the trialing
+  // billing-delay window) or 'manual_billing' (admin-flagged out-of-band
+  // arrangement) sends the dealer back to /payment. This catches
+  // 'pending', 'awaiting_stripe', 'skipped' (legacy rows), 'past_due',
+  // and 'cancelled'.
+  const billingComplete =
+    intake.paymentStatus === 'paid' || intake.paymentStatus === 'manual_billing'
+  if (!billingComplete) {
     redirect(`/intake/${params.token}/payment`)
   }
 
