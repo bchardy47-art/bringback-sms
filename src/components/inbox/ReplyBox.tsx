@@ -36,10 +36,17 @@ export function ReplyBox({ conversationId }: { conversationId: string }) {
     textareaRef.current?.focus()
   }
 
-  function handleKeyDown(e: React.KeyboardEvent) {
-    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-      handleSubmit(e as unknown as FormEvent)
-    }
+  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key !== 'Enter') return
+    // Shift+Enter: let the textarea insert a newline.
+    if (e.shiftKey) return
+    // IME composition (Japanese/Chinese/Korean input, voice dictation): the
+    // Enter that confirms a candidate must not also submit the form.
+    if (e.nativeEvent.isComposing || e.keyCode === 229) return
+    // Re-check sending + non-empty here so a stuck send + a stale ref'd
+    // closure can't double-submit.
+    if (sending || !body.trim()) return
+    handleSubmit(e as unknown as FormEvent)
   }
 
   return (
@@ -50,7 +57,7 @@ export function ReplyBox({ conversationId }: { conversationId: string }) {
           value={body}
           onChange={(e) => setBody(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Type a message… (⌘↵ to send)"
+          placeholder="Type a message… (↵ to send, ⇧↵ for newline)"
           rows={2}
           maxLength={1600}
           className="flex-1 resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
