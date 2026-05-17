@@ -35,12 +35,27 @@ export async function POST(
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 422 })
   }
 
-  const outcome = await sendMessage({
-    tenantId: session.user.tenantId,
-    leadId: conversation.leadId,
-    to: conversation.leadPhone,
-    body: parsed.data.body,
-  })
+  let outcome
+  try {
+    outcome = await sendMessage({
+      tenantId: session.user.tenantId,
+      leadId: conversation.leadId,
+      to: conversation.leadPhone,
+      body: parsed.data.body,
+    })
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    // Tenant has no row in phone_numbers. The composer should surface a
+    // remediation message rather than a generic 500.
+    if (msg.startsWith('No active phone number for tenant')) {
+      return NextResponse.json(
+        { error: 'This account has no SMS number assigned. Contact ops to provision one before sending.' },
+        { status: 409 },
+      )
+    }
+    console.error('[api/conversations/messages] send failed:', err)
+    return NextResponse.json({ error: 'Failed to send message. Please try again.' }, { status: 500 })
+  }
 
   if (outcome.skipped === 'opted_out') {
     return NextResponse.json({ error: 'Lead has opted out' }, { status: 409 })

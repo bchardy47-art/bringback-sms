@@ -17,17 +17,34 @@ export function ReplyBox({ conversationId }: { conversationId: string }) {
     setSending(true)
     setError(null)
 
-    const res = await fetch(`/api/conversations/${conversationId}/messages`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ body: body.trim() }),
-    })
+    let res: Response
+    try {
+      res = await fetch(`/api/conversations/${conversationId}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ body: body.trim() }),
+      })
+    } catch {
+      setSending(false)
+      setError('Network error. Check your connection and try again.')
+      return
+    }
 
     setSending(false)
 
     if (!res.ok) {
-      const data = await res.json()
-      setError(data.error ?? 'Failed to send.')
+      // Tolerate non-JSON error responses (e.g. Next.js renders HTML on
+      // unhandled 500s). Before this guard, res.json() threw and the
+      // exception was swallowed — the user saw nothing and the body
+      // sat in the textarea, looking like a no-op.
+      let serverError: string | undefined
+      try {
+        const data = await res.json()
+        if (typeof data?.error === 'string') serverError = data.error
+      } catch {
+        // fall through to the status-based fallback below
+      }
+      setError(serverError ?? `Send failed (HTTP ${res.status}). Please try again.`)
       return
     }
 
