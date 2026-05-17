@@ -65,10 +65,23 @@ export function computeChecklist(
     has(intake.leadSourceExplanation) &&
     has(intake.consentExplanation)
 
-  const sampleMessagesDone =
-    has(intake.sampleMessage1) && has(intake.sampleMessage2)
+  // Messaging-plan readiness, updated for the post-Phase-22 onboarding
+  // model. The dealer no longer writes two sample messages on Stage 2 —
+  // they pick one of:
+  //   1. keep the recommended starter messaging (implicit when Stage 2
+  //      is submitted with no customizations recorded)
+  //   2. provide free-text dealerMessagingNotes
+  //   3. admin pastes approved copy into sampleMessage1/2 directly
+  // Any of those satisfies the step. Sample messages submitted to the
+  // carriers come from the workflow-template library downstream, not
+  // from this row — see src/lib/pilot/sample-messages.ts.
+  const messagingPlanReady =
+    has(intake.dealerMessagingNotes) ||
+    has(intake.sampleMessage1) ||
+    has(intake.sampleMessage2) ||
+    intake.submittedAt !== null
 
-  const infoReady = businessIdentityDone && contactsDone && complianceDone && sampleMessagesDone
+  const infoReady = businessIdentityDone && contactsDone && complianceDone && messagingPlanReady
 
   return [
     {
@@ -111,17 +124,11 @@ export function computeChecklist(
         : 'pending',
     },
     {
-      key: 'sample_messages',
-      label: 'Sample messages ready',
+      key: 'messaging_plan',
+      label: 'Messaging plan ready',
       description:
-        'Two approved sample messages required for TCR campaign registration.',
-      status: sampleMessagesDone
-        ? 'done'
-        : has(intake.sampleMessage1)
-        ? 'pending'
-        : intake.submittedAt
-        ? 'missing'
-        : 'pending',
+        'Dealer kept the recommended starter messaging, provided custom notes, or admin added approved copy.',
+      status: messagingPlanReady ? 'done' : 'pending',
     },
     {
       key: '10dlc_submitted',

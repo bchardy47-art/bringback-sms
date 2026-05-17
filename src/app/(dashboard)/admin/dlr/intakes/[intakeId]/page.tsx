@@ -134,26 +134,58 @@ export default async function IntakeDetailPage({
             <SidebarRow label="Monthly Vol." value={intake.expectedMonthlyVolume?.toString()} />
           </SidebarSection>
 
-          {(intake.sampleMessage1 || intake.sampleMessage2) && (
-            <SidebarSection title="Sample Messages">
-              {intake.sampleMessage1 && (
-                <div>
-                  <p className="text-xs text-gray-400 mb-1">Message 1</p>
-                  <p className="text-xs text-gray-700 leading-relaxed bg-gray-50 rounded p-2">
-                    {intake.sampleMessage1}
-                  </p>
-                </div>
-              )}
-              {intake.sampleMessage2 && (
-                <div>
-                  <p className="text-xs text-gray-400 mb-1">Message 2</p>
-                  <p className="text-xs text-gray-700 leading-relaxed bg-gray-50 rounded p-2">
-                    {intake.sampleMessage2}
-                  </p>
-                </div>
-              )}
-            </SidebarSection>
-          )}
+          {/* Messaging plan — what the dealer chose in Stage 2.
+              Three possible states, only one of which renders custom
+              copy. Carrier-submission sample messages themselves come
+              from the workflow-template library downstream, not from
+              this row. */}
+          <SidebarSection title="Messaging plan">
+            {intake.dealerMessagingNotes ? (
+              <div>
+                <p className="text-xs text-gray-400 mb-1">Dealer notes</p>
+                <p className="text-xs text-gray-700 leading-relaxed bg-gray-50 rounded p-2 whitespace-pre-wrap">
+                  {intake.dealerMessagingNotes}
+                </p>
+                <p className="text-[11px] text-gray-400 mt-1">
+                  Dealer opted out of recommended messaging and provided these
+                  customizations on Stage 2.
+                </p>
+              </div>
+            ) : (intake.sampleMessage1 || intake.sampleMessage2) ? (
+              <>
+                <p className="text-[11px] text-gray-400 uppercase tracking-wide">
+                  Approved sample copy
+                </p>
+                {intake.sampleMessage1 && (
+                  <div>
+                    <p className="text-xs text-gray-400 mb-1">Message 1</p>
+                    <p className="text-xs text-gray-700 leading-relaxed bg-gray-50 rounded p-2">
+                      {intake.sampleMessage1}
+                    </p>
+                  </div>
+                )}
+                {intake.sampleMessage2 && (
+                  <div>
+                    <p className="text-xs text-gray-400 mb-1">Message 2</p>
+                    <p className="text-xs text-gray-700 leading-relaxed bg-gray-50 rounded p-2">
+                      {intake.sampleMessage2}
+                    </p>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div>
+                <p className="text-xs text-gray-700">
+                  Using recommended starter messaging
+                </p>
+                <p className="text-[11px] text-gray-400 mt-1">
+                  {intake.submittedAt
+                    ? 'Dealer kept the default messaging at Stage 2 submit.'
+                    : 'No customizations recorded yet — Stage 2 not submitted.'}
+                </p>
+              </div>
+            )}
+          </SidebarSection>
 
           {(intake.leadSourceExplanation || intake.consentExplanation) && (
             <SidebarSection title="Compliance Copy">
