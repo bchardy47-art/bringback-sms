@@ -434,29 +434,60 @@ export function IntakeForm({
           </Field>
         )}
 
-        <Row>
-          <Field label="Sales manager name">
-            <Input name="salesManagerName" placeholder="Mike Johnson" />
-          </Field>
-          <Field label="Main store phone">
-            <Input name="storePhone" type="tel" placeholder="(555) 111-2222" />
-          </Field>
-        </Row>
-        <Row>
-          <Field label="Timezone" hint="We can infer from your address if you skip this.">
-            <select name="timezone" className={inputClass}>
-              <option value="">Select timezone…</option>
-              {TIMEZONES.map((tz) => (
-                <option key={tz} value={tz}>
-                  {tz.replace('America/', '').replace(/_/g, ' ')}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Business hours" hint="e.g. Mon–Fri 9am–8pm, Sat 9am–5pm">
-            <Input name="businessHours" placeholder="Mon–Fri 9am–8pm, Sat 9am–5pm" />
-          </Field>
-        </Row>
+        {/* Optional ops fields tucked behind a native <details> disclosure
+            so the default Launch-preferences view is essentially just
+            the recommended-messaging toggle. Native element keeps this
+            keyboard-accessible and adds zero React state. Tailwind's
+            group-open: modifier rotates the chevron when the dealer
+            expands. Form values inside still submit normally whether
+            the disclosure is open or closed -- they're real DOM inputs
+            either way. */}
+        <details className="group">
+          <summary className="cursor-pointer list-none flex items-center gap-2 text-sm font-semibold text-gray-700 select-none py-1">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              aria-hidden="true"
+              className="text-gray-400 transition-transform group-open:rotate-90"
+            >
+              <path
+                d="M9 6l6 6-6 6"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            Add optional launch details
+          </summary>
+          <div className="mt-4 space-y-4">
+            <Row>
+              <Field label="Sales manager name">
+                <Input name="salesManagerName" placeholder="Mike Johnson" />
+              </Field>
+              <Field label="Main store phone">
+                <Input name="storePhone" type="tel" placeholder="(555) 111-2222" />
+              </Field>
+            </Row>
+            <Row>
+              <Field label="Timezone" hint="We can infer from your address if you skip this.">
+                <select name="timezone" className={inputClass}>
+                  <option value="">Select timezone…</option>
+                  {TIMEZONES.map((tz) => (
+                    <option key={tz} value={tz}>
+                      {tz.replace('America/', '').replace(/_/g, ' ')}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Business hours" hint="e.g. Mon–Fri 9am–8pm, Sat 9am–5pm">
+                <Input name="businessHours" placeholder="Mon–Fri 9am–8pm, Sat 9am–5pm" />
+              </Field>
+            </Row>
+          </div>
+        </details>
       </Section>
 
       {error && (
