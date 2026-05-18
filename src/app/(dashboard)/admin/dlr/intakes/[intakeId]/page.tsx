@@ -15,6 +15,13 @@ import {
   type OperatorStep,
   type StepStatus,
 } from '@/lib/intake/operator-status'
+import {
+  auditIntake,
+  buildPacketSections,
+  buildFullPacket,
+  buildCampaignNarrative,
+  buildSampleMessagesBlock,
+} from '@/lib/intake/tendlc-copilot'
 import { getChecklistExtras } from './actions'
 import {
   ChecklistPanel,
@@ -22,35 +29,13 @@ import {
   CopyButton,
   CopySummaryButton,
   ExternalLinkButton,
-  TenDlcSubmitActions,
+  TenDlcCopilotPanel,
 } from './IntakeDetailClient'
 
 // Format a single value-or-em-dash line for a copy block.
 function packetLine(label: string, value: string | number | null | undefined): string {
   const v = value == null || value === '' ? '—' : String(value)
   return `${label}: ${v}`
-}
-
-function buildCompliancePacket(intake: typeof dealerIntakes.$inferSelect): string {
-  const lines = [
-    packetLine('Legal Name', intake.businessLegalName),
-    packetLine('EIN', intake.ein),
-    packetLine('Website', intake.businessWebsite),
-    packetLine('Address', intake.businessAddress),
-    packetLine('Approved Sender Name', intake.dealershipName),
-    packetLine('Expected Monthly Volume', intake.expectedMonthlyVolume),
-    '',
-    packetLine('Primary Contact Name', intake.primaryContactName),
-    packetLine('Primary Contact Email', intake.primaryContactEmail),
-    packetLine('Primary Contact Phone', intake.alertPhone ?? intake.storePhone),
-    '',
-    '— Lead Source Explanation —',
-    intake.leadSourceExplanation ?? '—',
-    '',
-    '— Consent Explanation —',
-    intake.consentExplanation ?? '—',
-  ]
-  return lines.join('\n')
 }
 
 function buildContactBlock(intake: typeof dealerIntakes.$inferSelect): string {
@@ -176,7 +161,16 @@ export default async function IntakeDetailPage({
   const tenDlcStep = checklist.find(c => c.key === '10dlc_submitted')
   const tenDlcPending = tenDlcStep?.status === 'pending'
 
-  const compliancePacket = buildCompliancePacket(intake)
+  // 10DLC Submission Copilot — pure audit + packet derived at request time.
+  // Surfaced when 10DLC hasn't been submitted yet; replaces the older
+  // TenDlcSubmitActions block. Read-only; the only mutation is the existing
+  // mark10dlcPending server action triggered from inside the panel.
+  const tendlcAudit    = auditIntake(intake, tenant)
+  const tendlcSections = buildPacketSections(intake, tenant)
+  const tendlcFull     = buildFullPacket(tendlcSections)
+  const tendlcNarrative = buildCampaignNarrative(tendlcSections)
+  const tendlcSamples   = buildSampleMessagesBlock(tendlcSections)
+
   const contactBlock     = buildContactBlock(intake)
 
   const submittedAt = intake.submittedAt
@@ -315,11 +309,15 @@ export default async function IntakeDetailPage({
             </div>
           </section>
 
-          {/* ── 10DLC submit block (still surfaced when relevant) ─────────── */}
+          {/* ── 10DLC Submission Copilot (only when not yet submitted) ───── */}
           {tenDlcPending && (
-            <TenDlcSubmitActions
+            <TenDlcCopilotPanel
               intakeId={intake.id}
-              compliancePacket={compliancePacket}
+              audit={tendlcAudit}
+              sections={tendlcSections}
+              fullPacket={tendlcFull}
+              campaignNarrative={tendlcNarrative}
+              sampleMessagesBlock={tendlcSamples}
               initialReference={intake.tenDlcReference}
             />
           )}
