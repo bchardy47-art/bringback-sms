@@ -83,7 +83,7 @@ export default async function DealerBatchReviewPage({ params }: RouteContext) {
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Batch Review</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Campaign Review</h1>
           <p className="mt-1 text-sm text-gray-500">
             Review each lead&apos;s messages before approving. Nothing is sent until you approve
             and we complete live-send activation together.

@@ -32,6 +32,35 @@ const BUCKET_LABEL: Record<string, string> = {
   d: '90+ days',
 }
 
+// Dealer-facing campaign buckets. The dealer never sees the internal
+// "14–29 days" / "30–59 days" boundaries — they see rounded campaign
+// names that map 1:1 to the internal ageBucket values. Presentation-only:
+// the underlying workflows still classify on the exact boundaries.
+type CampaignBucketKey = 'a' | 'b' | 'c' | 'd'
+
+const CAMPAIGN_BUCKETS: Array<{
+  key:         CampaignBucketKey
+  label:       string
+  description: string
+  recommended: boolean
+}> = [
+  { key: 'a', label: '14–30 Day Follow-Up', description: 'Recently quiet leads — a short re-engagement window.',  recommended: false },
+  { key: 'b', label: '31–60 Day Follow-Up', description: 'Cooling leads — a gentle nudge back to the dealership.', recommended: false },
+  { key: 'c', label: '61–90 Day Revival',   description: 'Aging leads — the sweet spot for a first pilot.',        recommended: true  },
+  { key: 'd', label: '91+ Day Revival',     description: 'Long-cold leads — last-chance outreach.',                recommended: false },
+]
+
+// Dealer-facing status word for a featured batch in a campaign card.
+const DEALER_STATUS_LABEL: Record<string, string> = {
+  draft:     'Ready to review',
+  approved:  'Approved',
+  sending:   'Sending',
+  active:    'Sending',
+  paused:    'Paused',
+  completed: 'Completed',
+  cancelled: 'Cancelled',
+}
+
 export default async function DealerBatchesPage() {
   const session = await getServerSession(authOptions)
   if (!session) redirect('/login')
@@ -56,14 +85,20 @@ export default async function DealerBatchesPage() {
     : []
   const workflowMap = new Map(workflowRows.map(w => [w.id, w]))
 
-  // Action-first layout: drafts that the dealer must approve get their own
-  // section at the top with a prominent CTA. Everything else (approved,
-  // active, completed, cancelled) is pushed below into a compact list so
-  // older history doesn't drown out the work that needs doing.
-  // 'draft' is the only status the per-batch DealerBatchChecklist exposes
-  // controls for — including 'previewed' here would mislead the dealer.
-  const reviewBatches = batches.filter(b => b.status === 'draft')
-  const otherBatches  = batches.filter(b => b.status !== 'draft')
+  // Group batches by their workflow's internal ageBucket (a/b/c/d). The
+  // dealer never sees the raw bucket — each is presented as a campaign card
+  // with a friendly label. Within a bucket, prefer the most-recent draft as
+  // the featured batch (that's what needs review); otherwise the most-recent
+  // non-draft. The query already orders by createdAt desc.
+  const batchesByBucket: Record<CampaignBucketKey, typeof batches> = {
+    a: [], b: [], c: [], d: [],
+  }
+  for (const b of batches) {
+    const bucket = b.workflowId ? workflowMap.get(b.workflowId)?.ageBucket : null
+    if (bucket === 'a' || bucket === 'b' || bucket === 'c' || bucket === 'd') {
+      batchesByBucket[bucket].push(b)
+    }
+  }
 
   return (
     <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-5 md:space-y-6">
@@ -71,9 +106,10 @@ export default async function DealerBatchesPage() {
       {/* Header — secondary 'Upload more leads' link, not a big black button */}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="text-xl md:text-2xl font-bold text-gray-900">Your Batches</h1>
+          <h1 className="text-xl md:text-2xl font-bold text-gray-900">Recommended Campaigns</h1>
           <p className="mt-1 text-sm text-gray-500">
-            Review message previews and approve pilot batches before anything is sent.
+            DLR groups your uploaded leads into ready-to-review campaigns.
+            Review the message previews before anything is sent.
           </p>
         </div>
         <a
@@ -87,9 +123,9 @@ export default async function DealerBatchesPage() {
       {/* Empty state */}
       {batches.length === 0 && (
         <div className="rounded-xl border-2 border-dashed border-gray-200 py-12 px-6 text-center">
-          <p className="text-base font-semibold text-gray-700 mb-1">No batches yet</p>
+          <p className="text-base font-semibold text-gray-700 mb-1">No campaigns yet</p>
           <p className="text-sm text-gray-500 max-w-sm mx-auto mb-5">
-            Upload leads from the dealer dashboard to create your first pilot batch.
+            Upload leads from the dealer dashboard and DLR will prepare ready-to-review campaigns.
           </p>
           <a
             href="/dealer/import"
@@ -100,73 +136,102 @@ export default async function DealerBatchesPage() {
         </div>
       )}
 
-      {/* Needs your review */}
-      {reviewBatches.length > 0 && (
-        <section>
-          <h2 className="text-sm font-semibold text-gray-900">
-            Needs your review ({reviewBatches.length})
-          </h2>
-          <p className="text-xs text-gray-500 mt-0.5 mb-3">
-            No messages are sent until you review the previews and approve each batch.
-          </p>
-          <ul className="space-y-3">
-            {reviewBatches.map(batch => {
-              const wf     = batch.workflowId ? workflowMap.get(batch.workflowId) : null
-              const bucket = wf?.ageBucket ?? null
+      {/* Campaign bucket cards (always 4) */}
+      {batches.length > 0 && (
+        <section className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+          {CAMPAIGN_BUCKETS.map(bucket => {
+            const bucketBatches = batchesByBucket[bucket.key]
+            const draftBatch    = bucketBatches.find(b => b.status === 'draft') ?? null
+            const otherBatch    = bucketBatches.find(b => b.status !== 'draft') ?? null
+            const featured      = draftBatch ?? otherBatch ?? null
 
-              return (
-                <li
-                  key={batch.id}
-                  className="bg-white border-2 border-blue-200 rounded-xl p-4 shadow-sm"
-                >
-                  <div className="flex items-center gap-1.5 flex-wrap mb-1">
-                    <p className="text-sm font-semibold text-gray-900">
-                      {wf?.name ?? 'Unknown workflow'}
-                    </p>
-                    <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-gray-100 text-gray-600">
-                      Draft
-                    </span>
-                    {batch.isFirstPilot && (
-                      <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-700">
-                        First Pilot
+            const statusLabel =
+              !featured                       ? 'No leads yet' :
+              DEALER_STATUS_LABEL[featured.status] ?? featured.status
+
+            const ctaLabel =
+              draftBatch ? 'Review Campaign →' :
+              otherBatch ? 'View Campaign →'   :
+              null
+
+            const totalLeads = bucketBatches.reduce((n, b) => n + b.leads.length, 0)
+
+            return (
+              <article
+                key={bucket.key}
+                className={`bg-white rounded-xl p-4 shadow-sm flex flex-col gap-3 ${
+                  draftBatch       ? 'border-2 border-blue-200' :
+                  bucket.recommended ? 'border-2 border-purple-200' :
+                  'border border-gray-200'
+                }`}
+              >
+                <div>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <h3 className="text-sm font-semibold text-gray-900">{bucket.label}</h3>
+                    {bucket.recommended && (
+                      <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-700 whitespace-nowrap">
+                        Recommended first pilot
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-gray-500 mb-3">
-                    {bucket ? `${BUCKET_LABEL[bucket]} · ` : ''}
-                    {batch.leads.length} lead{batch.leads.length !== 1 ? 's' : ''}
+                  <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                    {bucket.description}
                   </p>
+                </div>
+
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-gray-500">
+                    {totalLeads > 0
+                      ? `${totalLeads} lead${totalLeads === 1 ? '' : 's'}`
+                      : 'No leads selected'}
+                  </span>
+                  <span className={`font-semibold ${
+                    draftBatch ? 'text-blue-700' :
+                    otherBatch ? 'text-gray-700' :
+                                 'text-gray-400'
+                  }`}>
+                    {statusLabel}
+                  </span>
+                </div>
+
+                {featured && ctaLabel ? (
                   <a
-                    href={`/dealer/batches/${batch.id}`}
-                    className="block w-full text-center px-4 py-2.5 text-sm font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                    href={`/dealer/batches/${featured.id}`}
+                    className={`block w-full text-center px-4 py-2 text-sm font-bold rounded-lg transition-colors ${
+                      draftBatch
+                        ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                        : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                    }`}
                   >
-                    Review Batch →
+                    {ctaLabel}
                   </a>
-                </li>
-              )
-            })}
-          </ul>
+                ) : (
+                  <div className="w-full text-center px-4 py-2 text-sm font-medium rounded-lg bg-gray-50 text-gray-400 border border-dashed border-gray-200">
+                    Upload leads to start
+                  </div>
+                )}
+              </article>
+            )
+          })}
         </section>
       )}
 
-      {/* All batches (everything not in 'draft') */}
-      {otherBatches.length > 0 && (
+      {/* Campaign history — every batch, compact list, demoted below the cards */}
+      {batches.length > 0 && (
         <section className="bg-white border border-gray-200 rounded-xl overflow-hidden">
           <div className="bg-gray-50 px-4 md:px-5 py-2.5 border-b border-gray-200">
             <p className="text-sm font-semibold text-gray-900">
-              All Batches ({otherBatches.length})
+              Campaign history ({batches.length})
             </p>
           </div>
           <ul className="divide-y divide-gray-100">
-            {otherBatches.map(batch => {
+            {batches.map(batch => {
               const wf     = batch.workflowId ? workflowMap.get(batch.workflowId) : null
               const bucket = wf?.ageBucket ?? null
               const style  = STATUS_STYLE[batch.status] ?? { chip: 'bg-gray-100 text-gray-600', label: batch.status }
 
-              // Status-aware report-link label. Reports are only useful once the
-              // batch has data (sending/paused/completed). Approved batches
-              // haven't generated anything yet, and cancelled batches have no
-              // meaningful outcome to summarise.
+              // Status-aware report-link label. Reports are only useful once
+              // the batch has data — draft/previewed/approved haven't sent yet.
               const reportLabel =
                 batch.status === 'completed' ? 'View Results' :
                 batch.status === 'sending' || batch.status === 'paused' ? 'View Status' :
