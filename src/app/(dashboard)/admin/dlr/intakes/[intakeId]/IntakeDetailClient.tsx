@@ -14,7 +14,7 @@ import {
 // Telnyx portal entry points. The campaigns view is where TCR campaign
 // submission lives; ops typically navigate from there to brand/campaign
 // detail. Hard-coded because they don't vary per tenant.
-const TELNYX_10DLC_URL = 'https://portal.telnyx.com/#/app/messaging/10dlc/campaigns'
+const TELNYX_10DLC_URL = 'https://portal.telnyx.com/#/messaging-10dlc/campaigns/new'
 
 // ── Generic copy-to-clipboard button ──────────────────────────────────────────
 
