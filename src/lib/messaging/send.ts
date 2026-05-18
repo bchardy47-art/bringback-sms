@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm'
 import { db } from '@/lib/db'
-import { conversations, leads, messages, phoneNumbers } from '@/lib/db/schema'
+import { conversations, leads, messages, phoneNumbers, tenants } from '@/lib/db/schema'
 import { getProvider } from './index'
 import { isOptedOut } from './opt-out'
 
@@ -35,6 +35,28 @@ interface SendOutcome {
   dryRun?: boolean
 }
 
+// ── Sending-number resolver ───────────────────────────────────────────────────
+//
+// Two storage locations coexist for a tenant's outbound number:
+//   1. tenants.sms_sending_number  — denormalized, set by admin/intake flows
+//   2. phone_numbers (row)         — also used for inbound routing
+//
+// preflight.ts already prefers (1) with (2) as fallback. This resolver matches
+// that order so the manual-inbox send path agrees with the readiness check.
+// Returns null only when both are missing.
+
+async function resolveSendingNumber(tenantId: string): Promise<string | null> {
+  const tenant = await db.query.tenants.findFirst({
+    where: eq(tenants.id, tenantId),
+    columns: { smsSendingNumber: true },
+  })
+  if (tenant?.smsSendingNumber) return tenant.smsSendingNumber
+  const phone = await db.query.phoneNumbers.findFirst({
+    where: eq(phoneNumbers.tenantId, tenantId),
+  })
+  return phone?.number ?? null
+}
+
 // ── Skipped-send record helper ────────────────────────────────────────────────
 //
 // Creates a message row (status=queued, skipReason set) so the audit trail
@@ -51,14 +73,12 @@ async function writeSkippedMessageRow(p: {
   skipReason: string
 }): Promise<string | null> {
   try {
-    const phoneNumber = await db.query.phoneNumbers.findFirst({
-      where: eq(phoneNumbers.tenantId, p.tenantId),
-    })
-    if (!phoneNumber) return null
+    const sendingNumber = await resolveSendingNumber(p.tenantId)
+    if (!sendingNumber) return null
 
     const [conversation] = await db
       .insert(conversations)
-      .values({ tenantId: p.tenantId, leadId: p.leadId, tenantPhone: phoneNumber.number, leadPhone: p.to })
+      .values({ tenantId: p.tenantId, leadId: p.leadId, tenantPhone: sendingNumber, leadPhone: p.to })
       .onConflictDoUpdate({ target: conversations.leadId, set: { updatedAt: new Date() } })
       .returning()
 
@@ -135,10 +155,8 @@ export async function sendMessage(params: SendParams): Promise<SendOutcome> {
   }
 
   // ── Get the active phone number for this tenant ───────────────────────────
-  const phoneNumber = await db.query.phoneNumbers.findFirst({
-    where: eq(phoneNumbers.tenantId, tenantId),
-  })
-  if (!phoneNumber) throw new Error(`No active phone number for tenant ${tenantId}`)
+  const sendingNumber = await resolveSendingNumber(tenantId)
+  if (!sendingNumber) throw new Error(`No active phone number for tenant ${tenantId}`)
 
   // ── Final-mile race guard (automation sends only) ─────────────────────────
   // A human takeover or doNotAutomate flip can land AFTER the send-guard ran.
@@ -166,7 +184,7 @@ export async function sendMessage(params: SendParams): Promise<SendOutcome> {
   // The unique constraint on conversations.leadId makes concurrent sends safe.
   const [conversation] = await db
     .insert(conversations)
-    .values({ tenantId, leadId, tenantPhone: phoneNumber.number, leadPhone: to })
+    .values({ tenantId, leadId, tenantPhone: sendingNumber, leadPhone: to })
     .onConflictDoUpdate({
       target: conversations.leadId,
       set: { updatedAt: new Date() },
@@ -222,7 +240,7 @@ export async function sendMessage(params: SendParams): Promise<SendOutcome> {
     const provider = getProvider()
     const result = await provider.send({
       to,
-      from: phoneNumber.number,
+      from: sendingNumber,
       body,
       idempotencyKey,
     })
