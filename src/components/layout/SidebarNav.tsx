@@ -33,8 +33,14 @@ interface SidebarNavProps {
 
 export function SidebarNav({ inboxCount = 0, role }: SidebarNavProps) {
   const pathname = usePathname()
+  // Admins land in /admin/dlr (middleware redirects /dashboard → /admin/dlr
+  // for them). Hide the dealer-style /dashboard item from the admin sidebar
+  // so it doesn't dangle as a dead/redirecting link; the "Admin" entry below
+  // already provides the right destination.
   const items: NavItem[] =
-    role === 'admin' ? [...TEAM_NAV_ITEMS, ADMIN_NAV_ITEM] : TEAM_NAV_ITEMS
+    role === 'admin'
+      ? [...TEAM_NAV_ITEMS.filter(i => i.href !== '/dashboard'), ADMIN_NAV_ITEM]
+      : TEAM_NAV_ITEMS
 
   return (
     <nav className="px-3 py-5 space-y-0.5">
