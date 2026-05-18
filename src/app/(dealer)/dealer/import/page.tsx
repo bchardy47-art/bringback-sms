@@ -174,7 +174,7 @@ export default async function DealerImportPage({
   const apiBase = '/api/dealer/pilot-leads'
 
   return (
-    <div className="p-8 max-w-5xl mx-auto space-y-6">
+    <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-6">
 
       {/* Header */}
       <div>
@@ -225,8 +225,10 @@ export default async function DealerImportPage({
             </div>
           )}
 
-          {/* Stat cards */}
-          <div className="grid grid-cols-6 gap-2">
+          {/* Stat cards. Mobile-first: 2 columns at base, 3 at sm,
+              6 at lg. Previously this was fixed grid-cols-6 which squeezed
+              each card to ~50px on iPhone. */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
             {[
               { label: 'Imported',   value: allLeads.length, color: 'text-gray-900' },
               { label: 'Ready',      value: eligibleCount,   color: 'text-emerald-600' },
@@ -234,12 +236,14 @@ export default async function DealerImportPage({
               { label: 'Needs Date', value: needsReviewCount, color: needsReviewCount > 0 ? 'text-orange-600' : 'text-gray-300' },
               { label: 'Blocked',    value: blockedCount,    color: blockedCount > 0 ? 'text-red-600' : 'text-gray-300' },
               {
-                // Plain-English counter: "3 of 5 selected". The prior
-                // version put a fraction in both the label and the value
-                // ("Selected / 5" + "10 / 5") which read as three numbers
-                // separated by two slashes.
-                label: 'Selected',
-                value: `${selectedCount} of ${FIRST_PILOT_CAP}`,
+                // Big number = count selected. Label carries the cap so
+                // we never render a confusing "10 of 5" or three numbers
+                // separated by slashes. Cap is enforced on the click
+                // handler — count should be ≤ FIRST_PILOT_CAP in normal
+                // operation. Legacy rows can sit above the cap and the
+                // label still reads truthfully.
+                label: `Selected (max ${FIRST_PILOT_CAP})`,
+                value: selectedCount,
                 color: selectedCount >= FIRST_PILOT_CAP ? 'text-blue-700' : selectedCount > 0 ? 'text-blue-600' : 'text-gray-300',
               },
             ].map(s => (

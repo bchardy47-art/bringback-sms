@@ -85,7 +85,7 @@ export default async function DealerDashboardPage() {
   ]
 
   return (
-    <div className="p-8 max-w-4xl mx-auto space-y-8">
+    <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-6 md:space-y-8">
 
       {/* Welcome header */}
       <div>

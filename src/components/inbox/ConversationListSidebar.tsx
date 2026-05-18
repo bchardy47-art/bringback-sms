@@ -244,7 +244,12 @@ export function ConversationListSidebar({
       <div className="flex-1 overflow-y-auto scrollbar-thin">
         {displayed.length === 0 ? (
           <div className="px-4 py-8 text-center">
-            <p className="text-xs text-gray-400">No conversations</p>
+            <p className="text-sm font-medium text-gray-700">
+              No conversations need review right now.
+            </p>
+            <p className="text-xs text-gray-400 mt-1">
+              Customer replies that need attention will appear here.
+            </p>
           </div>
         ) : (
           displayed.map((conv) => {
