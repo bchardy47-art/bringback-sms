@@ -7,6 +7,7 @@ import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { conversations, tenants } from '@/lib/db/schema'
 import { SidebarNav } from '@/components/layout/SidebarNav'
+import { SidebarTenantLabel } from '@/components/layout/SidebarTenantLabel'
 import { MobileBottomNav } from '@/components/layout/MobileBottomNav'
 import { AccountMenu } from '@/components/layout/AccountMenu'
 
@@ -84,12 +85,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
             />
           </div>
 
-          {/* Info */}
+          {/* Info — swaps to "DLR Platform Admin" when role === 'admin' and we're under /admin/** */}
           <div className="px-3 pt-3 pb-3">
-            <p className="text-white text-sm font-bold truncate leading-tight">{tenantName}</p>
-            <p className="text-xs mt-0.5 truncate" style={{ color: 'rgba(255,255,255,0.4)' }}>
-              Dead Lead Revival
-            </p>
+            <SidebarTenantLabel tenantName={tenantName} role={session.user.role} />
           </div>
         </div>
 
