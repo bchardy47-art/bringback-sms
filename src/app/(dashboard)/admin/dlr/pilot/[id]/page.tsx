@@ -211,6 +211,17 @@ export default async function PilotBatchDetailPage({
             <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold ${STATUS_COLOR[batch.status] ?? 'bg-gray-100'}`}>
               {batch.status}
             </span>
+            {/* Report link — only meaningful once data exists for the report to summarise. */}
+            {(batch.status === 'completed' ||
+              batch.status === 'sending'  ||
+              batch.status === 'paused') && (
+              <a
+                href={`/admin/dlr/pilot/batches/${batch.id}/report`}
+                className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors"
+              >
+                {batch.status === 'completed' ? 'View Results' : 'View Status'} →
+              </a>
+            )}
           </div>
           <p className="text-xs text-gray-400 mt-0.5 font-mono">{batch.id}</p>
           {batch.approvedBy && (

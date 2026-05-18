@@ -81,7 +81,7 @@ export default async function DealerBatchReviewPage({ params }: RouteContext) {
     <div className="p-8 max-w-5xl mx-auto space-y-8">
 
       {/* Header */}
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Batch Review</h1>
           <p className="mt-1 text-sm text-gray-500">
@@ -89,12 +89,25 @@ export default async function DealerBatchReviewPage({ params }: RouteContext) {
             and we complete live-send activation together.
           </p>
         </div>
-        <a
-          href="/dealer/batches"
-          className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-xs font-medium text-gray-600"
-        >
-          ← All Batches
-        </a>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {/* Report link — appears once the batch has data to summarise. */}
+          {(batch.status === 'completed' ||
+            batch.status === 'sending'  ||
+            batch.status === 'paused') && (
+            <a
+              href={`/dealer/campaigns/${params.batchId}/report`}
+              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold"
+            >
+              {batch.status === 'completed' ? 'View Results' : 'View Status'} →
+            </a>
+          )}
+          <a
+            href="/dealer/batches"
+            className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-xs font-medium text-gray-600"
+          >
+            ← All Batches
+          </a>
+        </div>
       </div>
 
       {/* Already approved banner */}

@@ -121,6 +121,15 @@ export default async function DealerBatchesPage() {
               const bucket = wf?.ageBucket ?? null
               const style  = STATUS_STYLE[batch.status] ?? { chip: 'bg-gray-100 text-gray-600', label: batch.status }
 
+              // Status-aware report-link label. Reports are only useful once the
+              // batch has data (sending/paused/completed). Draft/previewed/
+              // approved batches haven't generated anything to report on, and
+              // cancelled batches have no meaningful outcome to summarise.
+              const reportLabel =
+                batch.status === 'completed' ? 'View Results' :
+                batch.status === 'sending' || batch.status === 'paused' ? 'View Status' :
+                null
+
               return (
                 <div key={batch.id} className="px-5 py-4 flex items-center justify-between gap-4">
                   <div className="min-w-0 flex-1">
@@ -150,16 +159,26 @@ export default async function DealerBatchesPage() {
                       </p>
                     )}
                   </div>
-                  <a
-                    href={`/dealer/batches/${batch.id}`}
-                    className={`flex-shrink-0 px-4 py-2 text-xs font-bold rounded-lg transition-colors ${
-                      batch.status === 'draft'
-                        ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                        : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-                    }`}
-                  >
-                    {batch.status === 'draft' ? 'Review →' : 'View →'}
-                  </a>
+                  <div className="flex-shrink-0 flex flex-col items-end gap-1.5">
+                    <a
+                      href={`/dealer/batches/${batch.id}`}
+                      className={`px-4 py-2 text-xs font-bold rounded-lg transition-colors ${
+                        batch.status === 'draft'
+                          ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                          : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                      }`}
+                    >
+                      {batch.status === 'draft' ? 'Review Batch →' : 'View →'}
+                    </a>
+                    {reportLabel && (
+                      <a
+                        href={`/dealer/campaigns/${batch.id}/report`}
+                        className="text-xs font-semibold text-blue-600 hover:text-blue-700"
+                      >
+                        {reportLabel} →
+                      </a>
+                    )}
+                  </div>
                 </div>
               )
             })}
