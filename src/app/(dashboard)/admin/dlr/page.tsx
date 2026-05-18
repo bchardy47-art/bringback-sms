@@ -265,22 +265,19 @@ export default async function DlrPlatformAdminPage() {
         </section>
       )}
 
-      {/* ── Platform Activity (de-emphasised, scoped to admin's own tenant) ── */}
+      {/* ── System Health (de-emphasised, scoped to admin's own tenant) ── */}
       {health && (
         <section className="pt-4 border-t border-gray-200">
           <div className="flex items-center gap-2 mb-3">
             <h2 className="text-sm font-semibold text-gray-700">
-              Platform Activity
+              System Health
             </h2>
             <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-500">
-              BCHardy tenant only
+              Internal sandbox only
             </span>
           </div>
           <p className="text-xs text-gray-500 mb-3 max-w-2xl">
-            Live SMS plumbing and 24-hour activity for the BCHardy operations tenant
-            ({health.tenant.name}). Use this to verify the platform&apos;s own
-            sandbox is healthy — it is <strong>not</strong> a measure of any
-            dealership&apos;s production traffic.
+            Internal test activity only. This is not dealership production traffic.
           </p>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             <SmallStat label="Active Enrollments" value={health.activeEnrollments} />

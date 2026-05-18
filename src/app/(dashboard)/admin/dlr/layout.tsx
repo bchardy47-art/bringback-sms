@@ -3,30 +3,21 @@ import { getServerSession } from 'next-auth'
 import { redirect } from 'next/navigation'
 import { authOptions } from '@/lib/auth'
 
-// Nav order follows the launch workflow:
-//   Setup → Pilot Prep → Approval Gate → Execution → Operations
+// Primary admin nav. Kept intentionally short and operator-facing — the
+// "developer/debug" surfaces (production, readiness, go-no-go, pre-live,
+// first-pilot, pilot-pack, suppression, workflows) still exist as routes
+// on disk and are linked from /admin/dlr itself (Today's Tasks, System
+// Health panel, per-intake checklist). They were removed from this top
+// nav so a new operator sees a 5-step workflow instead of 16 tabs.
 const NAV = [
-  // ── Always first ─────────────────────────────────────────────────
-  { href: '/admin/dlr',              label: 'Overview' },
-  { href: '/admin/dlr/intakes',      label: '🏠 Intakes' },
-  // ── Setup (do these before importing leads) ───────────────────────
-  { href: '/admin/dlr/production',   label: 'Production' },
-  { href: '/admin/dlr/readiness',    label: 'Readiness' },
-  { href: '/admin/dlr/workflows',    label: 'Workflows' },
-  // ── Pilot prep (import → review → pack) ──────────────────────────
-  { href: '/admin/dlr/pilot-leads',  label: 'Pilot Leads' },
-  { href: '/admin/dlr/pilot-pack',   label: 'Pilot Pack' },
-  { href: '/admin/dlr/go-no-go',     label: 'Go / No-Go' },
-  // ── Execution (batch → first pilot → live) ────────────────────────
-  { href: '/admin/dlr/pilot',        label: 'Pilot' },
-  { href: '/admin/dlr/pre-live',     label: 'Pre-Live' },
-  { href: '/admin/dlr/first-pilot',  label: 'First Pilot' },
-  { href: '/admin/dlr/live-pilot',   label: 'Live Pilot' },
-  // ── Operations ───────────────────────────────────────────────────
-  { href: '/admin/dlr/handoffs',     label: 'Handoff Queue' },
-  { href: '/admin/dlr/messages',     label: 'Message Audit' },
-  { href: '/admin/dlr/health',       label: 'Health' },
-  { href: '/admin/dlr/suppression',  label: 'Suppression' },
+  { href: '/admin/dlr',              label: 'Platform' },
+  { href: '/admin/dlr/intakes',      label: 'Dealers' },
+  { href: '/admin/dlr/pilot-leads',  label: 'Lead Review' },
+  { href: '/admin/dlr/pilot',        label: 'Pilot Batches' },
+  { href: '/admin/dlr/live-pilot',   label: 'Send Pilot' },
+  { href: '/admin/dlr/handoffs',     label: 'Handoffs' },
+  { href: '/admin/dlr/messages',     label: 'Messages' },
+  { href: '/admin/dlr/health',       label: 'System Health' },
 ]
 
 export default async function DlrAdminLayout({
