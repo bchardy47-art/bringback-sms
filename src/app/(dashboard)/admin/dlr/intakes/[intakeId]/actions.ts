@@ -27,12 +27,21 @@ function generateSlug(name: string): string {
 }
 
 // ── Mark 10DLC submitted to TCR ───────────────────────────────────────────────
+//
+// Accepts an optional reference (TCR campaign/brand ID or short note) the
+// operator captured when submitting in the Telnyx portal. Stored on
+// dealerIntakes.tenDlcReference. Pass null/undefined/empty to skip.
 
-export async function mark10dlcPending(intakeId: string) {
+export async function mark10dlcPending(intakeId: string, reference?: string | null) {
   await requireSession()
+  const trimmed = typeof reference === 'string' ? reference.trim() : ''
   await db
     .update(dealerIntakes)
-    .set({ launchStatus: '10dlc_pending', updatedAt: new Date() })
+    .set({
+      launchStatus: '10dlc_pending',
+      tenDlcReference: trimmed.length > 0 ? trimmed : null,
+      updatedAt: new Date(),
+    })
     .where(eq(dealerIntakes.id, intakeId))
   revalidatePath(`/admin/dlr/intakes/${intakeId}`)
 }

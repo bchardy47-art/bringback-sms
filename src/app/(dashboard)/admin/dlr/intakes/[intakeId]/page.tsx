@@ -9,7 +9,57 @@ import {
   getLaunchStatusColor,
 } from '@/lib/intake/checklist'
 import { getChecklistExtras } from './actions'
-import { ChecklistPanel, AdminNotesPanel } from './IntakeDetailClient'
+import {
+  ChecklistPanel,
+  AdminNotesPanel,
+  CopyButton,
+  ExternalLinkButton,
+  TenDlcSubmitActions,
+} from './IntakeDetailClient'
+
+// Format a single value-or-em-dash line for a copy block.
+function packetLine(label: string, value: string | number | null | undefined): string {
+  const v = value == null || value === '' ? '—' : String(value)
+  return `${label}: ${v}`
+}
+
+function buildCompliancePacket(intake: typeof dealerIntakes.$inferSelect): string {
+  const lines = [
+    packetLine('Legal Name', intake.businessLegalName),
+    packetLine('EIN', intake.ein),
+    packetLine('Website', intake.businessWebsite),
+    packetLine('Address', intake.businessAddress),
+    packetLine('Approved Sender Name', intake.dealershipName),
+    packetLine('Expected Monthly Volume', intake.expectedMonthlyVolume),
+    '',
+    packetLine('Primary Contact Name', intake.primaryContactName),
+    packetLine('Primary Contact Email', intake.primaryContactEmail),
+    packetLine('Primary Contact Phone', intake.alertPhone ?? intake.storePhone),
+    '',
+    '— Lead Source Explanation —',
+    intake.leadSourceExplanation ?? '—',
+    '',
+    '— Consent Explanation —',
+    intake.consentExplanation ?? '—',
+  ]
+  return lines.join('\n')
+}
+
+function buildContactBlock(intake: typeof dealerIntakes.$inferSelect): string {
+  return [
+    packetLine('Name',  intake.primaryContactName),
+    packetLine('Email', intake.primaryContactEmail),
+    packetLine('Phone', intake.alertPhone ?? intake.storePhone),
+  ].join('\n')
+}
+
+// Best-effort URL normalizer for the dealer-website link button. The intake
+// form already accepts bare-domain entries; mirror that tolerance here so
+// the link always opens cleanly.
+function ensureHttp(url: string): string {
+  if (/^https?:\/\//i.test(url)) return url
+  return `https://${url}`
+}
 
 function SidebarRow({ label, value }: { label: string; value: string | null | undefined }) {
   return (
@@ -47,6 +97,12 @@ export default async function IntakeDetailPage({
 
   const extras = await getChecklistExtras(intake.tenantId)
   const checklist = computeChecklist(intake, tenant, extras)
+
+  const tenDlcStep = checklist.find(c => c.key === '10dlc_submitted')
+  const tenDlcPending = tenDlcStep?.status === 'pending'
+
+  const compliancePacket = buildCompliancePacket(intake)
+  const contactBlock     = buildContactBlock(intake)
 
   const submittedAt = intake.submittedAt
     ? new Date(intake.submittedAt).toLocaleDateString('en-US', {
@@ -99,8 +155,21 @@ export default async function IntakeDetailPage({
 
       {/* Body */}
       <div className="px-8 py-6 flex gap-6">
-        {/* Left: Checklist */}
-        <div className="flex-1 min-w-0">
+        {/* Left: Checklist + operator actions */}
+        <div className="flex-1 min-w-0 space-y-4">
+          {tenDlcPending && (
+            <TenDlcSubmitActions
+              intakeId={intake.id}
+              compliancePacket={compliancePacket}
+              initialReference={intake.tenDlcReference}
+            />
+          )}
+          {intake.tenDlcReference && !tenDlcPending && (
+            <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs text-gray-600">
+              <span className="text-gray-400">TCR reference:</span>{' '}
+              <span className="font-mono font-medium text-gray-800">{intake.tenDlcReference}</span>
+            </div>
+          )}
           <ChecklistPanel
             items={checklist}
             intakeId={intake.id}
@@ -116,7 +185,21 @@ export default async function IntakeDetailPage({
             <SidebarRow label="Rooftop Name" value={intake.dealershipName} />
             <SidebarRow label="Legal Name" value={intake.businessLegalName} />
             <SidebarRow label="EIN" value={intake.ein} />
-            <SidebarRow label="Website" value={intake.businessWebsite} />
+            <div>
+              <p className="text-xs text-gray-400">Website</p>
+              {intake.businessWebsite ? (
+                <p className="text-sm font-medium mt-0.5 break-words">
+                  <ExternalLinkButton
+                    href={ensureHttp(intake.businessWebsite)}
+                    label={intake.businessWebsite}
+                  />
+                </p>
+              ) : (
+                <p className="text-sm font-medium text-gray-800 mt-0.5">
+                  <span className="text-gray-300 italic">—</span>
+                </p>
+              )}
+            </div>
             <SidebarRow label="Address" value={intake.businessAddress} />
           </SidebarSection>
 
@@ -125,6 +208,9 @@ export default async function IntakeDetailPage({
             <SidebarRow label="Email" value={intake.primaryContactEmail} />
             <SidebarRow label="Alert Email" value={intake.alertEmail} />
             <SidebarRow label="Manager Mobile" value={intake.alertPhone} />
+            <div className="pt-1">
+              <CopyButton text={contactBlock} label="Copy contact block" />
+            </div>
           </SidebarSection>
 
           <SidebarSection title="Operations">

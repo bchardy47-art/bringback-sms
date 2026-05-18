@@ -136,10 +136,10 @@ export function computeChecklist(
       description:
         'Brand + campaign registration submitted in the Telnyx portal. Approval typically takes 1–3 weeks.',
       status: rank >= 2 ? 'done' : infoReady ? 'pending' : 'blocked',
-      action:
-        infoReady && rank < 2
-          ? { label: 'Mark as submitted', type: 'server_action', actionKey: 'mark10dlcPending' }
-          : undefined,
+      // No in-row action: when this step is pending the TenDlcSubmitActions
+      // panel above the checklist handles submission (Open Telnyx + Copy
+      // compliance packet + reference capture + Mark submitted). Keeping the
+      // duplicate button here would create two ways to do the same thing.
     },
     {
       key: '10dlc_approved',

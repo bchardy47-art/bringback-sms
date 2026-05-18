@@ -1188,6 +1188,13 @@ export const dealerIntakes = pgTable('dealer_intakes', {
   // when the dealer accepts the recommended defaults (the common path).
   dealerMessagingNotes: text('dealer_messaging_notes'),
 
+  // Operator-captured 10DLC submission reference (Phase 23). Free-text
+  // entered when admin marks the 10dlc_submitted step done — usually a
+  // TCR campaign ID (CMP-XXXXXXXX) or brand ID. Promoted into
+  // tenants.campaignId at provisioning time when it looks like a
+  // campaign ID; otherwise surfaced read-only on the intake detail page.
+  tenDlcReference: text('ten_dlc_reference'),
+
   // ── Admin ─────────────────────────────────────────────────────────────────
   adminNotes:    text('admin_notes'),
   submittedAt:   timestamp('submitted_at', { withTimezone: true }),
