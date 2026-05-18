@@ -38,6 +38,26 @@ export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
   const isApi = pathname.startsWith('/api/')
 
+  // ── Forced no-cache for authenticated /admin/** pages ──────────────────────
+  // Repeated post-deploy verifications showed admin browser sessions getting
+  // stale HTML — page document requests never reaching Caddy after a deploy.
+  // The most likely culprit is an intermediate cache (browser, service worker,
+  // mobile network proxy) holding the prior build's HTML. Force no-store on
+  // every middleware response that could be the answer to a /admin/** page
+  // request, including the auth-redirect responses, so a cached login redirect
+  // can't trap a freshly-logged-in admin either.
+  const isAdminPage =
+    !isApi && (pathname === '/admin' || pathname.startsWith('/admin/'))
+
+  function applyAdminNoCache(res: NextResponse): NextResponse {
+    if (!isAdminPage) return res
+    res.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
+    res.headers.set('Pragma', 'no-cache')
+    res.headers.set('Expires', '0')
+    res.headers.set('Surrogate-Control', 'no-store')
+    return res
+  }
+
   // ── /api/admin/** — admin-only API surface ─────────────────────────────────
   // Defense in depth: every handler under here also calls requireAdmin,
   // but rejecting at the edge means a dealer's request never even reaches
@@ -63,15 +83,15 @@ export async function middleware(req: NextRequest) {
 
   // ── Team page surface — no dealers; admins-only for /admin/**, gated by layout ──
   if (isTeamPage(pathname) && !isApi) {
-    if (!token) return loginRedirect(req)
+    if (!token) return applyAdminNoCache(loginRedirect(req))
     if (token.role === 'dealer') {
-      return NextResponse.redirect(new URL('/dealer/dashboard', req.url))
+      return applyAdminNoCache(NextResponse.redirect(new URL('/dealer/dashboard', req.url)))
     }
     // /admin/** also requires role=admin. We can do it here to avoid an
     // extra SSR roundtrip; the (dashboard)/admin layout still has the same
     // check as belt-and-suspenders.
     if (pathname.startsWith('/admin') && token.role !== 'admin') {
-      return NextResponse.redirect(new URL('/dashboard', req.url))
+      return applyAdminNoCache(NextResponse.redirect(new URL('/dashboard', req.url)))
     }
     // Platform admins should land in the admin console, not the dealer-style
     // /dashboard tenant overview. Managers and agents continue to use
@@ -84,7 +104,7 @@ export async function middleware(req: NextRequest) {
     }
   }
 
-  return NextResponse.next()
+  return applyAdminNoCache(NextResponse.next())
 }
 
 export const config = {
