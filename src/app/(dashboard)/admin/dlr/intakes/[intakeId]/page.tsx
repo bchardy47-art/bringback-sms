@@ -1,18 +1,26 @@
 import { notFound } from 'next/navigation'
-import { eq } from 'drizzle-orm'
+import { and, eq, count } from 'drizzle-orm'
 import Link from 'next/link'
 import { db } from '@/lib/db'
-import { dealerIntakes, tenants } from '@/lib/db/schema'
+import { dealerIntakes, tenants, phoneNumbers, dealerInvites } from '@/lib/db/schema'
 import {
   computeChecklist,
   getLaunchStatusLabel,
   getLaunchStatusColor,
 } from '@/lib/intake/checklist'
+import {
+  computeOperatorStatus,
+  OPERATOR_STEP_ORDER,
+  OPERATOR_STEP_LABEL,
+  type OperatorStep,
+  type StepStatus,
+} from '@/lib/intake/operator-status'
 import { getChecklistExtras } from './actions'
 import {
   ChecklistPanel,
   AdminNotesPanel,
   CopyButton,
+  CopySummaryButton,
   ExternalLinkButton,
   TenDlcSubmitActions,
 } from './IntakeDetailClient'
@@ -61,6 +69,49 @@ function ensureHttp(url: string): string {
   return `https://${url}`
 }
 
+// ── Progress strip (Operator Command Center) ─────────────────────────────────
+//
+// 8-step compact strip across the top of the command center: shows which
+// stages are done (green), which is current (blue), and which are still
+// pending (gray). Wraps on narrow viewports.
+
+function ProgressStrip({
+  stepStatus,
+  currentStep,
+}: {
+  stepStatus:  Record<OperatorStep, StepStatus>
+  currentStep: OperatorStep
+}) {
+  return (
+    <ol className="flex flex-wrap gap-x-1 gap-y-2 items-center text-xs">
+      {OPERATOR_STEP_ORDER.map((step, idx) => {
+        const status   = stepStatus[step]
+        const isLast   = idx === OPERATOR_STEP_ORDER.length - 1
+        const isHere   = step === currentStep
+        const label    = OPERATOR_STEP_LABEL[step]
+        const dotClass =
+          status === 'done'    ? 'bg-emerald-500 text-white' :
+          isHere               ? 'bg-blue-600 text-white'    :
+                                 'bg-gray-200 text-gray-500'
+        const labelClass =
+          status === 'done'    ? 'text-emerald-700' :
+          isHere               ? 'text-blue-800 font-semibold' :
+                                 'text-gray-400'
+
+        return (
+          <li key={step} className="flex items-center gap-1.5">
+            <span className={`inline-flex w-5 h-5 rounded-full items-center justify-center text-[10px] font-bold ${dotClass}`}>
+              {status === 'done' ? '✓' : idx + 1}
+            </span>
+            <span className={`${labelClass} whitespace-nowrap`}>{label}</span>
+            {!isLast && <span className="text-gray-300 mx-1">›</span>}
+          </li>
+        )
+      })}
+    </ol>
+  )
+}
+
 function SidebarRow({ label, value }: { label: string; value: string | null | undefined }) {
   return (
     <div>
@@ -97,6 +148,30 @@ export default async function IntakeDetailPage({
 
   const extras = await getChecklistExtras(intake.tenantId)
   const checklist = computeChecklist(intake, tenant, extras)
+
+  // Active-number + dealer-invite counts power the Operator Command
+  // Center status. Both are simple existence checks; we read the count
+  // because the small table makes it cheap and the UI doesn't need the
+  // rows themselves.
+  const [phoneCountRow, inviteCountRow] = intake.tenantId
+    ? await Promise.all([
+        db.select({ c: count() })
+          .from(phoneNumbers)
+          .where(and(
+            eq(phoneNumbers.tenantId, intake.tenantId),
+            eq(phoneNumbers.isActive, true),
+          )),
+        db.select({ c: count() })
+          .from(dealerInvites)
+          .where(eq(dealerInvites.tenantId, intake.tenantId)),
+      ])
+    : [[{ c: 0 }], [{ c: 0 }]]
+  const phoneCount  = phoneCountRow[0]?.c ?? 0
+  const inviteCount = inviteCountRow[0]?.c ?? 0
+
+  const operatorStatus = computeOperatorStatus({
+    intake, tenant, extras, phoneCount, inviteCount,
+  })
 
   const tenDlcStep = checklist.find(c => c.key === '10dlc_submitted')
   const tenDlcPending = tenDlcStep?.status === 'pending'
@@ -155,8 +230,92 @@ export default async function IntakeDetailPage({
 
       {/* Body */}
       <div className="px-8 py-6 flex gap-6">
-        {/* Left: Checklist + operator actions */}
-        <div className="flex-1 min-w-0 space-y-4">
+        {/* Left: Operator Command Center + checklist */}
+        <div className="flex-1 min-w-0 space-y-6">
+
+          {/* ── Operator Command Center ──────────────────────────────────── */}
+          <section className="space-y-4">
+            {/* Progress strip */}
+            <ProgressStrip stepStatus={operatorStatus.stepStatus} currentStep={operatorStatus.currentStep} />
+
+            {/* Status panel + primary CTA */}
+            <div className={`rounded-xl border-2 p-5 ${
+              operatorStatus.state === 'first_pilot_sent'        ? 'border-emerald-200 bg-emerald-50' :
+              operatorStatus.state === 'waiting_on_number'       ? 'border-amber-300 bg-amber-50'    :
+              operatorStatus.state === 'tendlc_pending' ||
+              operatorStatus.state === 'waiting_on_lead_upload'  ? 'border-gray-200 bg-white'        :
+                                                                   'border-blue-200 bg-blue-50'
+            }`}>
+              <div className="flex items-start justify-between gap-3 flex-wrap">
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold uppercase tracking-widest text-gray-500">
+                    Operator Command Center
+                  </p>
+                  <h2 className="text-xl font-bold text-gray-900 mt-0.5">
+                    {operatorStatus.label}
+                  </h2>
+                  <p className="text-sm text-gray-700 mt-1 max-w-2xl">
+                    {operatorStatus.description}
+                  </p>
+                </div>
+                <CopySummaryButton
+                  dealershipName={intake.dealershipName ?? '(unnamed)'}
+                  intakeId={intake.id}
+                  statusLabel={operatorStatus.label}
+                  nextStepLabel={operatorStatus.primary?.label ?? '(no action — waiting)'}
+                />
+              </div>
+
+              {/* Primary action — single big button */}
+              {operatorStatus.primary && (
+                <div className="mt-4 flex flex-wrap items-center gap-3">
+                  {operatorStatus.primary.copyText ? (
+                    <CopyButton
+                      text={(() => {
+                        const t = operatorStatus.primary!.copyText!
+                        if (t.startsWith('http')) return t
+                        // operator-status.ts uses relative paths like /intake/<token>;
+                        // emit a full https URL so the dealer link is shareable.
+                        return `https://dlr-sms.com${t.startsWith('/') ? '' : '/'}${t}`
+                      })()}
+                      label={operatorStatus.primary.label}
+                      className="text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
+                    />
+                  ) : operatorStatus.primary.href ? (
+                    <a
+                      href={operatorStatus.primary.href}
+                      target={operatorStatus.primary.external ? '_blank' : undefined}
+                      rel={operatorStatus.primary.external ? 'noopener noreferrer' : undefined}
+                      className="text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
+                    >
+                      {operatorStatus.primary.label}{operatorStatus.primary.external ? ' ↗' : ' →'}
+                    </a>
+                  ) : (
+                    /* actionKey path — surfaces in the checklist below where the
+                       server-action wiring already lives. Render a passive note
+                       pointing operators there. */
+                    <span className="text-xs text-gray-600 italic">
+                      Run from the operational checklist below ({operatorStatus.primary.label}).
+                    </span>
+                  )}
+
+                  {operatorStatus.nextAfter && (
+                    <span className="text-xs text-gray-500">
+                      Then: {operatorStatus.nextAfter}
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {!operatorStatus.primary && operatorStatus.nextAfter && (
+                <p className="mt-3 text-xs text-gray-500 italic">
+                  Then: {operatorStatus.nextAfter}
+                </p>
+              )}
+            </div>
+          </section>
+
+          {/* ── 10DLC submit block (still surfaced when relevant) ─────────── */}
           {tenDlcPending && (
             <TenDlcSubmitActions
               intakeId={intake.id}
@@ -170,11 +329,18 @@ export default async function IntakeDetailPage({
               <span className="font-mono font-medium text-gray-800">{intake.tenDlcReference}</span>
             </div>
           )}
-          <ChecklistPanel
-            items={checklist}
-            intakeId={intake.id}
-            intakeToken={intake.token}
-          />
+
+          {/* ── Operational checklist (de-emphasised) ─────────────────────── */}
+          <div>
+            <h3 className="text-sm font-semibold text-gray-700 mb-2">
+              Operational checklist
+            </h3>
+            <ChecklistPanel
+              items={checklist}
+              intakeId={intake.id}
+              intakeToken={intake.token}
+            />
+          </div>
         </div>
 
         {/* Right: Sidebar */}

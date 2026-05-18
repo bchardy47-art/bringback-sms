@@ -46,6 +46,55 @@ export function CopyButton({
   )
 }
 
+// ── Operator-summary copy button (Operator Command Center) ────────────────────
+//
+// Builds the standard 4-line operator status summary lazily on click so the
+// caller can pass plain props (dealership name + intake id + status label +
+// next-step label) rather than constructing the multi-line string up-front
+// in a server component. The shape matches buildOperatorSummary() in
+// src/lib/intake/operator-status.ts but we duplicate the few lines here
+// to avoid a server-only import landing in a client bundle.
+
+export function CopySummaryButton({
+  dealershipName,
+  intakeId,
+  statusLabel,
+  nextStepLabel,
+  adminBaseUrl,
+}: {
+  dealershipName: string
+  intakeId:       string
+  statusLabel:    string
+  nextStepLabel:  string
+  adminBaseUrl?:  string
+}) {
+  const [copied, setCopied] = useState(false)
+
+  function onClick() {
+    const base = adminBaseUrl
+      ?? (typeof window !== 'undefined' ? window.location.origin : 'https://dlr-sms.com')
+    const text = [
+      `Dealer: ${dealershipName}`,
+      `Status: ${statusLabel}`,
+      `Next step: ${nextStepLabel}`,
+      `Admin URL: ${base}/admin/dlr/intakes/${intakeId}`,
+    ].join('\n')
+    void navigator.clipboard.writeText(text)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1500)
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="text-xs font-medium text-gray-700 hover:text-gray-900 bg-white border border-gray-300 hover:bg-gray-50 px-2.5 py-1 rounded transition-colors whitespace-nowrap"
+    >
+      {copied ? '✓ Copied' : 'Copy next-step summary'}
+    </button>
+  )
+}
+
 // ── External link button (e.g. dealer website) ────────────────────────────────
 
 export function ExternalLinkButton({

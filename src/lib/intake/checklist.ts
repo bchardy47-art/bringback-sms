@@ -93,8 +93,7 @@ export function computeChecklist(
     {
       key: 'business_identity',
       label: 'Business identity complete',
-      description:
-        'Rooftop name, legal name, EIN, website, address — all required for TCR brand registration.',
+      description: 'Legal name, EIN, website, address — for TCR brand registration.',
       status: businessIdentityDone
         ? 'done'
         : intake.submittedAt
@@ -104,8 +103,7 @@ export function computeChecklist(
     {
       key: 'contacts',
       label: 'Contacts complete',
-      description:
-        'Primary contact, alert email, and manager mobile number — required for revival alerts.',
+      description: 'Primary contact, alert email, manager mobile — for revival alerts.',
       status: contactsDone
         ? 'done'
         : intake.submittedAt
@@ -133,8 +131,7 @@ export function computeChecklist(
     {
       key: '10dlc_submitted',
       label: '10DLC submitted to TCR',
-      description:
-        'Brand + campaign registration submitted in the Telnyx portal. Approval typically takes 1–3 weeks.',
+      description: 'Brand + campaign submitted in Telnyx. Approval: 1–3 weeks.',
       status: rank >= 2 ? 'done' : infoReady ? 'pending' : 'blocked',
       // No in-row action: when this step is pending the TenDlcSubmitActions
       // panel above the checklist handles submission (Open Telnyx + Copy
@@ -154,8 +151,7 @@ export function computeChecklist(
     {
       key: 'tenant_provisioned',
       label: 'Tenant provisioned in DLR',
-      description:
-        'Dealership account created in DLR with intake data pre-filled into tenant settings.',
+      description: 'Dealership account created with intake data pre-filled.',
       status: intake.tenantId ? 'done' : rank >= 3 ? 'pending' : 'blocked',
       action:
         !intake.tenantId && rank >= 3
