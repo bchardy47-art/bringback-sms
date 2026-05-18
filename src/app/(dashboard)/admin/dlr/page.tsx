@@ -30,6 +30,7 @@ import {
 } from '@/lib/admin/dlr-queries'
 import { getPlatformOverview, type PipelineRow } from '@/lib/admin/platform-queries'
 import { getLaunchStatusLabel, getLaunchStatusColor } from '@/lib/intake/checklist'
+import { PipelineRow as PipelineRowLink } from './PipelineRow'
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
@@ -170,12 +171,15 @@ export default async function DlrPlatformAdminPage() {
                   <th className="px-5 py-3">Number</th>
                   <th className="px-5 py-3">Tenant</th>
                   <th className="px-5 py-3">Next action</th>
-                  <th className="px-5 py-3" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {pipeline.map(row => (
-                  <tr key={row.intakeId} className="hover:bg-gray-50 transition-colors">
+                  // Whole row is clickable — see ./PipelineRow.tsx. The
+                  // previous trailing "Open →" cell was removed because the
+                  // entire row now navigates to row.nextActionHref, making
+                  // the small right-aligned link redundant.
+                  <PipelineRowLink key={row.intakeId} href={row.nextActionHref}>
                     <td className="px-5 py-3">
                       <p className="font-semibold text-gray-900">{row.dealershipName}</p>
                       <p className="text-xs text-gray-400">
@@ -206,16 +210,11 @@ export default async function DlrPlatformAdminPage() {
                         ? <span className="text-emerald-700 font-semibold">✓ {row.tenantName}</span>
                         : <span className="text-gray-300">not provisioned</span>}
                     </td>
-                    <td className="px-5 py-3 text-xs text-gray-700">{row.nextAction}</td>
-                    <td className="px-5 py-3 text-right">
-                      <Link
-                        href={row.nextActionHref}
-                        className="text-xs font-semibold text-red-600 hover:text-red-700"
-                      >
-                        Open →
-                      </Link>
+                    <td className="px-5 py-3 text-xs">
+                      <span className="font-semibold text-red-600">{row.nextAction}</span>
+                      <span className="text-red-600 ml-1" aria-hidden="true">→</span>
                     </td>
-                  </tr>
+                  </PipelineRowLink>
                 ))}
               </tbody>
             </table>
