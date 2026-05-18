@@ -5,7 +5,7 @@ import { LayoutDashboard, Upload, ClipboardList, MessageSquare } from 'lucide-re
 
 const NAV_ITEMS = [
   { href: '/dealer/dashboard', label: 'Dashboard',    icon: LayoutDashboard },
-  { href: '/dealer/import',    label: 'Import Leads', icon: Upload },
+  { href: '/dealer/import',    label: 'Upload Leads', icon: Upload },
   { href: '/dealer/batches',   label: 'Batches',      icon: ClipboardList },
   { href: '/dealer/inbox',     label: 'Inbox',        icon: MessageSquare },
 ]

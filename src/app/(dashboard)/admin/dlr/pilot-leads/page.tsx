@@ -225,10 +225,15 @@ export default async function PilotLeadsPage({
       <div className="rounded-xl bg-gray-900 px-6 py-4 flex items-center justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-0.5">
-            Pilot Lead Setup
+            Admin Lead Review
           </p>
           <p className="text-xl font-bold text-white">
             {currentTenant?.name ?? 'Select a dealer'}
+          </p>
+          <p className="text-xs text-gray-400 mt-1 max-w-2xl">
+            Dealerships upload their own leads from the dealer dashboard. This page is for admin review,
+            spot-checks, and operator overrides. Anything you upload here lands in the same import queue
+            as a dealer-side upload.
           </p>
         </div>
         <div className="flex items-center gap-4">
@@ -350,9 +355,10 @@ export default async function PilotLeadsPage({
                 1
               </span>
               <div>
-                <h2 className="text-sm font-semibold text-gray-900">Upload leads</h2>
+                <h2 className="text-sm font-semibold text-gray-900">Admin upload (override)</h2>
                 <p className="text-xs text-gray-500">
-                  Import a CSV of dead leads for this dealer. Each row is validated immediately.
+                  Dealers normally upload from their own dashboard. Use this only when you need to
+                  spot-check, replay, or fix a dealer&apos;s file on their behalf.
                 </p>
               </div>
             </div>

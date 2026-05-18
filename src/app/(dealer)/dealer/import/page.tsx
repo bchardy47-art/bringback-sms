@@ -15,6 +15,7 @@ import { getServerSession } from 'next-auth'
 import { redirect } from 'next/navigation'
 import { authOptions } from '@/lib/auth'
 import { ImportForm } from '@/app/(dashboard)/admin/dlr/pilot-leads/ImportForm'
+import { DealerConsentGate } from './DealerConsentGate'
 import {
   AutoSelectEligible,
   BulkClearButton,
@@ -177,9 +178,11 @@ export default async function DealerImportPage({
 
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Import Leads</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Upload Dead Leads</h1>
         <p className="mt-1 text-sm text-gray-500">
-          Upload dead leads from your CRM. DLR will classify them by age and build personalised message sequences.
+          Upload a CSV of prior dealership leads. DLR will validate the file,
+          bucket leads by age, and prepare a pilot batch for admin review before
+          any messages are sent.
         </p>
       </div>
 
@@ -262,12 +265,14 @@ export default async function DealerImportPage({
         <div className="bg-gray-50 px-5 py-3 border-b border-gray-200 flex items-center gap-3">
           <span className="flex items-center justify-center w-6 h-6 rounded-full bg-gray-800 text-white text-xs font-bold shrink-0">1</span>
           <div>
-            <h2 className="text-sm font-semibold text-gray-900">Upload leads</h2>
-            <p className="text-xs text-gray-500">Import a CSV. Each row is validated immediately.</p>
+            <h2 className="text-sm font-semibold text-gray-900">Upload your CSV</h2>
+            <p className="text-xs text-gray-500">Each row is validated immediately. Nothing is sent until you and DLR admin approve a batch.</p>
           </div>
         </div>
         <div className="p-5">
-          <ImportForm tenantId={tenantId} apiBase={apiBase} />
+          <DealerConsentGate>
+            <ImportForm tenantId={tenantId} apiBase={apiBase} />
+          </DealerConsentGate>
         </div>
       </div>
 

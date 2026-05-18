@@ -123,8 +123,8 @@ export default async function DealerDashboardPage() {
             className="flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors"
           >
             <div>
-              <p className="text-sm font-semibold text-gray-800">Import Leads</p>
-              <p className="text-xs text-gray-500">Upload a CSV of dead leads from your CRM</p>
+              <p className="text-sm font-semibold text-gray-800">Upload Dead Leads</p>
+              <p className="text-xs text-gray-500">Upload a CSV of prior dealership leads — DLR will prepare them for admin review.</p>
             </div>
             <span className="text-gray-400 text-sm">→</span>
           </a>
@@ -177,7 +177,7 @@ export default async function DealerDashboardPage() {
             href="/dealer/import"
             className="mt-5 inline-block px-5 py-2.5 bg-gray-900 text-white text-sm font-semibold rounded-xl hover:bg-gray-700 transition-colors"
           >
-            Import your first leads →
+            Upload your first leads →
           </a>
         </div>
       )}
