@@ -59,7 +59,7 @@ export default async function DlrPlatformAdminPage() {
   const tasks = buildAdminTasks(stats, pipeline, urgentHandoffs.length)
 
   return (
-    <div className="px-8 py-6 space-y-6 max-w-7xl mx-auto">
+    <div className="px-4 md:px-8 py-6 space-y-6 max-w-7xl mx-auto">
 
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <div>
@@ -162,17 +162,13 @@ export default async function DlrPlatformAdminPage() {
         ) : (
           <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
             {/*
-              Each pipeline row is a Next.js <Link> wrapping a 6-column grid.
-              Previously this was a <table> with an onClick handler on <tr>
-              (see deleted ./PipelineRow.tsx). That worked in dev but didn't
-              navigate reliably in production — the bullet-proof fix is to
-              make each row a real <a> element instead.
-
-              The grid template gives roughly the same visual rhythm as the
-              old <th>/<td> layout. The header row uses the same template
-              so columns line up perfectly with the rows below.
+              Each pipeline row is a Next.js <Link>. Mobile renders a
+              labelled stacked card; desktop renders the same 6-column
+              grid that was already working. Header row is hidden on
+              mobile (would be unlabelled / mis-aligned next to the
+              stacked card content).
             */}
-            <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1.5fr_2fr] gap-4 px-5 py-3 bg-gray-50 text-xs text-gray-500 uppercase tracking-wider">
+            <div className="hidden md:grid grid-cols-[2fr_1fr_1fr_1fr_1.5fr_2fr] gap-4 px-5 py-3 bg-gray-50 text-xs text-gray-500 uppercase tracking-wider">
               <div>Dealership</div>
               <div>Launch</div>
               <div>10DLC</div>
@@ -185,41 +181,86 @@ export default async function DlrPlatformAdminPage() {
                 <Link
                   key={row.intakeId}
                   href={row.nextActionHref}
-                  className="grid grid-cols-[2fr_1fr_1fr_1fr_1.5fr_2fr] gap-4 items-center px-5 py-3 text-sm hover:bg-gray-50 hover:shadow-sm cursor-pointer transition-all"
+                  className="block hover:bg-gray-50 hover:shadow-sm cursor-pointer transition-all"
                 >
-                  <div className="min-w-0">
-                    <p className="font-semibold text-gray-900 truncate">{row.dealershipName}</p>
+                  {/* ── Mobile card (hidden on md+) ── */}
+                  <div className="md:hidden px-4 py-3">
+                    <p className="font-semibold text-gray-900">{row.dealershipName}</p>
                     <p className="text-xs text-gray-400">
                       {row.submittedAt
                         ? `Submitted ${new Date(row.submittedAt).toLocaleDateString()}`
                         : 'Form not yet submitted'}
                     </p>
+                    <div className="grid grid-cols-2 gap-y-1.5 gap-x-3 mt-3 text-xs">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="text-gray-400 flex-shrink-0">Launch:</span>
+                        <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold truncate ${getLaunchStatusColor(row.launchStatus)}`}>
+                          {getLaunchStatusLabel(row.launchStatus)}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="text-gray-400 flex-shrink-0">10DLC:</span>
+                        <span className="font-mono text-gray-600 truncate">{row.tenDlcStatus}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-gray-400 flex-shrink-0">Number:</span>
+                        {row.numberAssigned ? (
+                          <span className="font-semibold text-emerald-700">✓ assigned</span>
+                        ) : row.tenantId ? (
+                          <span className="font-semibold text-amber-700">— missing</span>
+                        ) : (
+                          <span className="text-gray-300">—</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="text-gray-400 flex-shrink-0">Tenant:</span>
+                        {row.tenantId
+                          ? <span className="text-emerald-700 font-semibold truncate">✓ {row.tenantName}</span>
+                          : <span className="text-gray-300">not provisioned</span>}
+                      </div>
+                    </div>
+                    <div className="mt-3 text-right text-sm">
+                      <span className="font-semibold text-red-600">{row.nextAction}</span>
+                      <span className="text-red-600 ml-1" aria-hidden="true">→</span>
+                    </div>
                   </div>
-                  <div>
-                    <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold ${getLaunchStatusColor(row.launchStatus)}`}>
-                      {getLaunchStatusLabel(row.launchStatus)}
-                    </span>
-                  </div>
-                  <div className="text-xs text-gray-600 font-mono truncate">
-                    {row.tenDlcStatus}
-                  </div>
-                  <div>
-                    {row.numberAssigned ? (
-                      <span className="text-xs font-semibold text-emerald-700">✓ assigned</span>
-                    ) : row.tenantId ? (
-                      <span className="text-xs font-semibold text-amber-700">— missing</span>
-                    ) : (
-                      <span className="text-xs text-gray-300">—</span>
-                    )}
-                  </div>
-                  <div className="text-xs min-w-0">
-                    {row.tenantId
-                      ? <span className="text-emerald-700 font-semibold truncate block">✓ {row.tenantName}</span>
-                      : <span className="text-gray-300">not provisioned</span>}
-                  </div>
-                  <div className="text-xs text-right">
-                    <span className="font-semibold text-red-600">{row.nextAction}</span>
-                    <span className="text-red-600 ml-1" aria-hidden="true">→</span>
+
+                  {/* ── Desktop grid (md+) ── */}
+                  <div className="hidden md:grid grid-cols-[2fr_1fr_1fr_1fr_1.5fr_2fr] gap-4 items-center px-5 py-3 text-sm">
+                    <div className="min-w-0">
+                      <p className="font-semibold text-gray-900 truncate">{row.dealershipName}</p>
+                      <p className="text-xs text-gray-400">
+                        {row.submittedAt
+                          ? `Submitted ${new Date(row.submittedAt).toLocaleDateString()}`
+                          : 'Form not yet submitted'}
+                      </p>
+                    </div>
+                    <div>
+                      <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold ${getLaunchStatusColor(row.launchStatus)}`}>
+                        {getLaunchStatusLabel(row.launchStatus)}
+                      </span>
+                    </div>
+                    <div className="text-xs text-gray-600 font-mono truncate">
+                      {row.tenDlcStatus}
+                    </div>
+                    <div>
+                      {row.numberAssigned ? (
+                        <span className="text-xs font-semibold text-emerald-700">✓ assigned</span>
+                      ) : row.tenantId ? (
+                        <span className="text-xs font-semibold text-amber-700">— missing</span>
+                      ) : (
+                        <span className="text-xs text-gray-300">—</span>
+                      )}
+                    </div>
+                    <div className="text-xs min-w-0">
+                      {row.tenantId
+                        ? <span className="text-emerald-700 font-semibold truncate block">✓ {row.tenantName}</span>
+                        : <span className="text-gray-300">not provisioned</span>}
+                    </div>
+                    <div className="text-xs text-right">
+                      <span className="font-semibold text-red-600">{row.nextAction}</span>
+                      <span className="text-red-600 ml-1" aria-hidden="true">→</span>
+                    </div>
                   </div>
                 </Link>
               ))}
@@ -238,7 +279,29 @@ export default async function DlrPlatformAdminPage() {
             </Link>
           </div>
           <div className="bg-white rounded-xl border border-red-200 overflow-hidden">
-            <table className="w-full text-sm">
+            {/* ── Mobile card list (hidden on md+) ── */}
+            <ul className="md:hidden divide-y divide-gray-100">
+              {urgentHandoffs.map(h => (
+                <li key={h.id} className="px-4 py-3">
+                  <p className="font-semibold text-gray-900">{h.tenantName}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Lead: <span className="text-gray-700">{h.leadFirstName} {h.leadLastName}</span>
+                  </p>
+                  <p className="text-xs text-gray-600 mt-1 line-clamp-2">
+                    &ldquo;{h.customerMessage}&rdquo;
+                  </p>
+                  <div className="mt-2 flex items-center justify-between gap-3">
+                    <span className="text-xs font-mono text-gray-500 truncate">{h.classification}</span>
+                    <Link href="/admin/dlr/handoffs" className="text-xs font-semibold text-red-600 hover:text-red-700 flex-shrink-0">
+                      Review →
+                    </Link>
+                  </div>
+                </li>
+              ))}
+            </ul>
+
+            {/* ── Desktop table (md+) ── */}
+            <table className="hidden md:table w-full text-sm">
               <thead className="bg-red-50 text-xs text-red-600 uppercase tracking-wider text-left">
                 <tr>
                   <th className="px-5 py-3">Dealership</th>
@@ -355,12 +418,12 @@ function PlatformStatCard({
   return (
     <Link
       href={href}
-      className={`block bg-white rounded-xl border p-4 hover:shadow-sm transition-shadow ${
+      className={`block bg-white rounded-xl border p-3 md:p-4 hover:shadow-sm transition-shadow ${
         alert ? 'border-red-200' : 'border-gray-200'
       }`}
     >
       <p className="text-xs font-medium text-gray-500">{label}</p>
-      <p className={`text-3xl font-bold mt-1 ${alert ? 'text-red-600' : 'text-gray-900'}`}>
+      <p className={`text-2xl md:text-3xl font-bold mt-1 ${alert ? 'text-red-600' : 'text-gray-900'}`}>
         {value}
       </p>
       {sub && <p className="text-xs text-red-500 mt-0.5">{sub}</p>}

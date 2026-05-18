@@ -31,17 +31,21 @@ export default async function DlrAdminLayout({
 
   return (
     <div className="min-h-full bg-gray-50">
-      {/* Sub-nav */}
-      <div className="bg-white border-b border-gray-200 px-8">
-        <div className="flex items-center gap-1 py-2">
-          <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider mr-3">
+      {/*
+        Sub-nav — horizontally scrollable on mobile so the 8 nav items
+        plus the "DLR Admin" label never blow out the viewport width.
+        Desktop keeps the original single-line look.
+      */}
+      <div className="bg-white border-b border-gray-200 px-4 md:px-8">
+        <div className="flex items-center gap-0.5 md:gap-1 py-2 overflow-x-auto">
+          <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider mr-2 md:mr-3 whitespace-nowrap">
             DLR Admin
           </span>
           {NAV.map(({ href, label }) => (
             <Link
               key={href}
               href={href}
-              className="px-3 py-1.5 rounded-lg text-xs font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors"
+              className="px-2.5 md:px-3 py-1.5 rounded-lg text-xs font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors whitespace-nowrap"
             >
               {label}
             </Link>
