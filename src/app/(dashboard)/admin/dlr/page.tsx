@@ -30,7 +30,6 @@ import {
 } from '@/lib/admin/dlr-queries'
 import { getPlatformOverview, type PipelineRow } from '@/lib/admin/platform-queries'
 import { getLaunchStatusLabel, getLaunchStatusColor } from '@/lib/intake/checklist'
-import { PipelineRow as PipelineRowLink } from './PipelineRow'
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
@@ -162,62 +161,69 @@ export default async function DlrPlatformAdminPage() {
           </div>
         ) : (
           <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 text-xs text-gray-500 uppercase tracking-wider text-left">
-                <tr>
-                  <th className="px-5 py-3">Dealership</th>
-                  <th className="px-5 py-3">Launch</th>
-                  <th className="px-5 py-3">10DLC</th>
-                  <th className="px-5 py-3">Number</th>
-                  <th className="px-5 py-3">Tenant</th>
-                  <th className="px-5 py-3">Next action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {pipeline.map(row => (
-                  // Whole row is clickable — see ./PipelineRow.tsx. The
-                  // previous trailing "Open →" cell was removed because the
-                  // entire row now navigates to row.nextActionHref, making
-                  // the small right-aligned link redundant.
-                  <PipelineRowLink key={row.intakeId} href={row.nextActionHref}>
-                    <td className="px-5 py-3">
-                      <p className="font-semibold text-gray-900">{row.dealershipName}</p>
-                      <p className="text-xs text-gray-400">
-                        {row.submittedAt
-                          ? `Submitted ${new Date(row.submittedAt).toLocaleDateString()}`
-                          : 'Form not yet submitted'}
-                      </p>
-                    </td>
-                    <td className="px-5 py-3">
-                      <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold ${getLaunchStatusColor(row.launchStatus)}`}>
-                        {getLaunchStatusLabel(row.launchStatus)}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3 text-xs text-gray-600 font-mono">
-                      {row.tenDlcStatus}
-                    </td>
-                    <td className="px-5 py-3">
-                      {row.numberAssigned ? (
-                        <span className="text-xs font-semibold text-emerald-700">✓ assigned</span>
-                      ) : row.tenantId ? (
-                        <span className="text-xs font-semibold text-amber-700">— missing</span>
-                      ) : (
-                        <span className="text-xs text-gray-300">—</span>
-                      )}
-                    </td>
-                    <td className="px-5 py-3 text-xs">
-                      {row.tenantId
-                        ? <span className="text-emerald-700 font-semibold">✓ {row.tenantName}</span>
-                        : <span className="text-gray-300">not provisioned</span>}
-                    </td>
-                    <td className="px-5 py-3 text-xs">
-                      <span className="font-semibold text-red-600">{row.nextAction}</span>
-                      <span className="text-red-600 ml-1" aria-hidden="true">→</span>
-                    </td>
-                  </PipelineRowLink>
-                ))}
-              </tbody>
-            </table>
+            {/*
+              Each pipeline row is a Next.js <Link> wrapping a 6-column grid.
+              Previously this was a <table> with an onClick handler on <tr>
+              (see deleted ./PipelineRow.tsx). That worked in dev but didn't
+              navigate reliably in production — the bullet-proof fix is to
+              make each row a real <a> element instead.
+
+              The grid template gives roughly the same visual rhythm as the
+              old <th>/<td> layout. The header row uses the same template
+              so columns line up perfectly with the rows below.
+            */}
+            <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1.5fr_2fr] gap-4 px-5 py-3 bg-gray-50 text-xs text-gray-500 uppercase tracking-wider">
+              <div>Dealership</div>
+              <div>Launch</div>
+              <div>10DLC</div>
+              <div>Number</div>
+              <div>Tenant</div>
+              <div>Next action</div>
+            </div>
+            <div className="divide-y divide-gray-100">
+              {pipeline.map(row => (
+                <Link
+                  key={row.intakeId}
+                  href={row.nextActionHref}
+                  className="grid grid-cols-[2fr_1fr_1fr_1fr_1.5fr_2fr] gap-4 items-center px-5 py-3 text-sm hover:bg-gray-50 hover:shadow-sm cursor-pointer transition-all"
+                >
+                  <div className="min-w-0">
+                    <p className="font-semibold text-gray-900 truncate">{row.dealershipName}</p>
+                    <p className="text-xs text-gray-400">
+                      {row.submittedAt
+                        ? `Submitted ${new Date(row.submittedAt).toLocaleDateString()}`
+                        : 'Form not yet submitted'}
+                    </p>
+                  </div>
+                  <div>
+                    <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold ${getLaunchStatusColor(row.launchStatus)}`}>
+                      {getLaunchStatusLabel(row.launchStatus)}
+                    </span>
+                  </div>
+                  <div className="text-xs text-gray-600 font-mono truncate">
+                    {row.tenDlcStatus}
+                  </div>
+                  <div>
+                    {row.numberAssigned ? (
+                      <span className="text-xs font-semibold text-emerald-700">✓ assigned</span>
+                    ) : row.tenantId ? (
+                      <span className="text-xs font-semibold text-amber-700">— missing</span>
+                    ) : (
+                      <span className="text-xs text-gray-300">—</span>
+                    )}
+                  </div>
+                  <div className="text-xs min-w-0">
+                    {row.tenantId
+                      ? <span className="text-emerald-700 font-semibold truncate block">✓ {row.tenantName}</span>
+                      : <span className="text-gray-300">not provisioned</span>}
+                  </div>
+                  <div className="text-xs text-right">
+                    <span className="font-semibold text-red-600">{row.nextAction}</span>
+                    <span className="text-red-600 ml-1" aria-hidden="true">→</span>
+                  </div>
+                </Link>
+              ))}
+            </div>
           </div>
         )}
       </section>
