@@ -56,84 +56,126 @@ export default async function DealerBatchesPage() {
     : []
   const workflowMap = new Map(workflowRows.map(w => [w.id, w]))
 
-  const draftCount = batches.filter(b => b.status === 'draft').length
+  // Action-first layout: drafts that the dealer must approve get their own
+  // section at the top with a prominent CTA. Everything else (approved,
+  // active, completed, cancelled) is pushed below into a compact list so
+  // older history doesn't drown out the work that needs doing.
+  // 'draft' is the only status the per-batch DealerBatchChecklist exposes
+  // controls for — including 'previewed' here would mislead the dealer.
+  const reviewBatches = batches.filter(b => b.status === 'draft')
+  const otherBatches  = batches.filter(b => b.status !== 'draft')
 
   return (
-    <div className="p-8 max-w-4xl mx-auto space-y-6">
+    <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-5 md:space-y-6">
 
-      {/* Header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Your Batches</h1>
+      {/* Header — secondary 'Upload more leads' link, not a big black button */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-xl md:text-2xl font-bold text-gray-900">Your Batches</h1>
           <p className="mt-1 text-sm text-gray-500">
             Review message previews and approve pilot batches before anything is sent.
           </p>
         </div>
         <a
           href="/dealer/import"
-          className="px-4 py-2 bg-gray-900 hover:bg-gray-700 text-white text-sm font-semibold rounded-xl transition-colors"
+          className="flex-shrink-0 text-xs font-semibold text-blue-600 hover:text-blue-700 whitespace-nowrap"
         >
-          + Import Leads
+          Upload more leads →
         </a>
       </div>
 
-      {/* Pending review callout */}
-      {draftCount > 0 && (
-        <div className="rounded-xl border border-blue-200 bg-blue-50 px-5 py-3.5 flex items-center gap-3">
-          <span className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-bold">
-            {draftCount}
-          </span>
-          <div>
-            <p className="text-sm font-semibold text-blue-900">
-              {draftCount} batch{draftCount !== 1 ? 'es' : ''} waiting for your review
-            </p>
-            <p className="text-xs text-blue-700">
-              No messages are sent until you review the previews and approve each batch.
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* Batch list */}
-      {batches.length === 0 ? (
-        <div className="rounded-xl border-2 border-dashed border-gray-200 py-14 px-8 text-center">
+      {/* Empty state */}
+      {batches.length === 0 && (
+        <div className="rounded-xl border-2 border-dashed border-gray-200 py-12 px-6 text-center">
           <p className="text-base font-semibold text-gray-700 mb-1">No batches yet</p>
           <p className="text-sm text-gray-500 max-w-sm mx-auto mb-5">
-            Import leads and create a pilot batch to get started.
+            Upload leads from the dealer dashboard to create your first pilot batch.
           </p>
           <a
             href="/dealer/import"
-            className="px-5 py-2.5 bg-gray-900 text-white text-sm font-semibold rounded-xl hover:bg-gray-700 transition-colors"
+            className="inline-block px-5 py-2.5 bg-gray-900 text-white text-sm font-semibold rounded-xl hover:bg-gray-700 transition-colors"
           >
-            Import Leads →
+            Upload Dead Leads →
           </a>
         </div>
-      ) : (
-        <div className="border border-gray-200 rounded-xl overflow-hidden">
-          <div className="bg-gray-50 px-5 py-3 border-b border-gray-200">
+      )}
+
+      {/* Needs your review */}
+      {reviewBatches.length > 0 && (
+        <section>
+          <h2 className="text-sm font-semibold text-gray-900">
+            Needs your review ({reviewBatches.length})
+          </h2>
+          <p className="text-xs text-gray-500 mt-0.5 mb-3">
+            No messages are sent until you review the previews and approve each batch.
+          </p>
+          <ul className="space-y-3">
+            {reviewBatches.map(batch => {
+              const wf     = batch.workflowId ? workflowMap.get(batch.workflowId) : null
+              const bucket = wf?.ageBucket ?? null
+
+              return (
+                <li
+                  key={batch.id}
+                  className="bg-white border-2 border-blue-200 rounded-xl p-4 shadow-sm"
+                >
+                  <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                    <p className="text-sm font-semibold text-gray-900">
+                      {wf?.name ?? 'Unknown workflow'}
+                    </p>
+                    <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-gray-100 text-gray-600">
+                      Draft
+                    </span>
+                    {batch.isFirstPilot && (
+                      <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-700">
+                        First Pilot
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-500 mb-3">
+                    {bucket ? `${BUCKET_LABEL[bucket]} · ` : ''}
+                    {batch.leads.length} lead{batch.leads.length !== 1 ? 's' : ''}
+                  </p>
+                  <a
+                    href={`/dealer/batches/${batch.id}`}
+                    className="block w-full text-center px-4 py-2.5 text-sm font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                  >
+                    Review Batch →
+                  </a>
+                </li>
+              )
+            })}
+          </ul>
+        </section>
+      )}
+
+      {/* All batches (everything not in 'draft') */}
+      {otherBatches.length > 0 && (
+        <section className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+          <div className="bg-gray-50 px-4 md:px-5 py-2.5 border-b border-gray-200">
             <p className="text-sm font-semibold text-gray-900">
-              All Batches ({batches.length})
+              All Batches ({otherBatches.length})
             </p>
           </div>
-          <div className="divide-y divide-gray-100">
-            {batches.map(batch => {
+          <ul className="divide-y divide-gray-100">
+            {otherBatches.map(batch => {
               const wf     = batch.workflowId ? workflowMap.get(batch.workflowId) : null
               const bucket = wf?.ageBucket ?? null
               const style  = STATUS_STYLE[batch.status] ?? { chip: 'bg-gray-100 text-gray-600', label: batch.status }
 
               // Status-aware report-link label. Reports are only useful once the
-              // batch has data (sending/paused/completed). Draft/previewed/
-              // approved batches haven't generated anything to report on, and
-              // cancelled batches have no meaningful outcome to summarise.
+              // batch has data (sending/paused/completed). Approved batches
+              // haven't generated anything yet, and cancelled batches have no
+              // meaningful outcome to summarise.
               const reportLabel =
                 batch.status === 'completed' ? 'View Results' :
                 batch.status === 'sending' || batch.status === 'paused' ? 'View Status' :
                 null
 
               return (
-                <div key={batch.id} className="px-5 py-4 flex items-center justify-between gap-4">
+                <li key={batch.id} className="px-4 md:px-5 py-3.5 flex items-center justify-between gap-3">
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       <p className="text-sm font-semibold text-gray-900 truncate">
                         {wf?.name ?? 'Unknown workflow'}
                       </p>
@@ -150,25 +192,15 @@ export default async function DealerBatchesPage() {
                       {bucket ? `${BUCKET_LABEL[bucket]} · ` : ''}
                       {batch.leads.length} lead{batch.leads.length !== 1 ? 's' : ''}
                       {' · '}
-                      Created {new Date(batch.createdAt).toLocaleDateString()}
+                      {new Date(batch.createdAt).toLocaleDateString()}
                     </p>
-                    {batch.approvedAt && (
-                      <p className="text-xs text-emerald-600 mt-0.5">
-                        Approved {new Date(batch.approvedAt).toLocaleDateString()}
-                        {batch.approvedBy ? ` by ${batch.approvedBy}` : ''}
-                      </p>
-                    )}
                   </div>
-                  <div className="flex-shrink-0 flex flex-col items-end gap-1.5">
+                  <div className="flex-shrink-0 flex flex-col items-end gap-1">
                     <a
                       href={`/dealer/batches/${batch.id}`}
-                      className={`px-4 py-2 text-xs font-bold rounded-lg transition-colors ${
-                        batch.status === 'draft'
-                          ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                          : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-                      }`}
+                      className="px-3 py-1.5 text-xs font-bold rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors"
                     >
-                      {batch.status === 'draft' ? 'Review Batch →' : 'View →'}
+                      View →
                     </a>
                     {reportLabel && (
                       <a
@@ -179,11 +211,11 @@ export default async function DealerBatchesPage() {
                       </a>
                     )}
                   </div>
-                </div>
+                </li>
               )
             })}
-          </div>
-        </div>
+          </ul>
+        </section>
       )}
     </div>
   )
