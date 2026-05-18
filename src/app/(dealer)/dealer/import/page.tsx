@@ -28,7 +28,8 @@ import {
   type BucketPlanItem,
 } from '@/app/(dashboard)/admin/dlr/pilot-leads/LeadReviewControls'
 import type { PilotPreviewMessage } from '@/lib/db/schema'
-import { FIRST_PILOT_CAP, AGE_BUCKET_LABELS, type AgeBucket } from '@/lib/db/schema'
+import { FIRST_PILOT_CAP, type AgeBucket } from '@/lib/db/schema'
+import { DEALER_BUCKET_LABEL } from '@/lib/pilot/age-classification'
 
 // ── Style maps (duplicated from admin page for independence) ──────────────────
 
@@ -51,7 +52,7 @@ const STATUS_LABEL: Record<string, string> = {
   excluded:     '— Excluded',
   pending:      '… Pending',
   held:         '⏳ Held',
-  needs_review: '? Needs Review',
+  needs_review: '? Needs Date',
 }
 
 const BUCKET_COLOR: Record<AgeBucket, { bg: string; text: string; border: string }> = {
@@ -155,7 +156,7 @@ export default async function DealerImportPage({
         workflowId:   wf.id,
         workflowName: wf.name,
         ageBucket:    wf.ageBucket,
-        bucketLabel:  wf.ageBucket ? AGE_BUCKET_LABELS[wf.ageBucket as AgeBucket] : 'Unknown',
+        bucketLabel:  wf.ageBucket ? DEALER_BUCKET_LABEL[wf.ageBucket as AgeBucket] : 'Unknown',
         leadCount:    0,
       })
     }
@@ -378,13 +379,23 @@ export default async function DealerImportPage({
                       </td>
                       <td className="px-4 py-3">
                         {lead.ageBucket ? (
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${BUCKET_COLOR[lead.ageBucket as AgeBucket]?.bg ?? ''} ${BUCKET_COLOR[lead.ageBucket as AgeBucket]?.text ?? ''}`}>
-                            {AGE_BUCKET_LABELS[lead.ageBucket as AgeBucket]}
-                          </span>
+                          <div className="space-y-0.5">
+                            <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${BUCKET_COLOR[lead.ageBucket as AgeBucket]?.bg ?? ''} ${BUCKET_COLOR[lead.ageBucket as AgeBucket]?.text ?? ''}`}>
+                              {DEALER_BUCKET_LABEL[lead.ageBucket as AgeBucket]}
+                            </span>
+                            {lead.leadAgeDays != null && (
+                              <p className="text-gray-400 text-xs">{lead.leadAgeDays}d old</p>
+                            )}
+                          </div>
                         ) : lead.importStatus === 'held' ? (
-                          <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-violet-100 text-violet-700">&lt; 14d</span>
+                          <div className="space-y-0.5">
+                            <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-violet-100 text-violet-700">&lt; 14d</span>
+                            {lead.leadAgeDays != null && (
+                              <p className="text-gray-400 text-xs">{lead.leadAgeDays}d old</p>
+                            )}
+                          </div>
                         ) : (
-                          <span className="text-gray-300 italic text-xs">no date</span>
+                          <span className="text-gray-300 italic text-xs">missing date</span>
                         )}
                       </td>
                       <td className="px-4 py-3">

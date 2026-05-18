@@ -381,14 +381,19 @@ export async function importLeads(
     // that says the same thing in different words.
     const allWarnings = [...validation.warnings]
     if (ageResult.warning) allWarnings.push(ageResult.warning)
-    // Promote eligible → warning so the operator notices missing-date rows
-    // even though the wording came from classifyLeadAge above.
+    // Missing or unparseable date → 'needs_review' status. Previously this
+    // promoted eligible → warning, which let the dealer accidentally select
+    // a date-less row that then failed downstream batch creation with a
+    // confusing "no auto-assigned workflow" error. Promoting to needs_review
+    // (and rejecting selection of needs_review rows in setLeadSelected) puts
+    // the failure in front of the dealer at the right step.
     if (
       ageResult.classification === 'needs_review' &&
       !parsedContactDate &&
-      finalStatus === 'eligible'
+      finalStatus !== 'blocked' &&
+      finalStatus !== 'excluded'
     ) {
-      finalStatus = 'warning'
+      finalStatus = 'needs_review'
     }
 
     // Resolve the bucket workflow (null if lead is held, needs_review, or no workflow configured)
@@ -511,6 +516,18 @@ export async function setLeadSelected(
   if (!row) return { ok: false, error: 'Import row not found' }
   if (row.importStatus === 'blocked' || row.importStatus === 'excluded') {
     return { ok: false, error: `Cannot select a ${row.importStatus} lead` }
+  }
+
+  // needs_review (missing/invalid contact date) → no auto-assigned workflow,
+  // so this lead cannot land in a bucket and would only fail downstream batch
+  // creation. Reject selection here with a clear, dealer-actionable error.
+  if (selected && row.importStatus === 'needs_review') {
+    return {
+      ok: false,
+      error: 'This lead is missing a parseable contact date. ' +
+             'Re-import with a recognised date column (e.g. Lead Date, Created Date, ' +
+             'Inquiry Date) so DLR can assign it to a campaign bucket.',
+    }
   }
 
   // First-pilot consent gate: unknown consent cannot be selected.
