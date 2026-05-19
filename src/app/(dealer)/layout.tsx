@@ -162,8 +162,28 @@ export default async function DealerLayout({ children }: { children: React.React
           ))}
         </nav>
 
-        {/* Page content */}
-        <main className="flex-1 overflow-auto">{children}</main>
+        {/* Page content + persistent support footer.
+            Main is now flex-column so the support line stays pinned at
+            the bottom of the viewport regardless of child content; the
+            scrollable area sits above it. Subtle gray styling — no
+            emergency framing. Appears on every dealer page (Dashboard,
+            Upload Leads, Batches, Inbox, Settings) since this is the
+            outer dealer layout wrapping all child routes. */}
+        <main className="flex-1 overflow-hidden flex flex-col">
+          <div className="flex-1 overflow-auto">{children}</div>
+          <footer
+            className="flex-shrink-0 px-4 md:px-8 py-2.5 bg-white text-center text-xs text-gray-400"
+            style={{ borderTop: '1px solid #e5e7eb' }}
+          >
+            Questions?{' '}
+            <a
+              href="mailto:support@dlr-sms.com"
+              className="text-gray-600 hover:text-gray-900 underline"
+            >
+              Email support@dlr-sms.com
+            </a>
+          </footer>
+        </main>
       </div>
     </div>
   )
