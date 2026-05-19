@@ -20,6 +20,7 @@ import {
   getLaunchStatusLabel,
   getLaunchStatusColor,
 } from '@/lib/intake/checklist'
+import { DealerViewLinks } from '../DealerViewLinks'
 
 // 10DLC status pill colors. Mirrors the dealer-intake checklist palette
 // so the two pages don't drift from each other.
@@ -204,6 +205,12 @@ export default async function DealersPage() {
             Intake-centric view →
           </Link>
         </p>
+
+        {/* "Dealer view" reference panel — quick-jump URLs for walking a
+            dealer through what they see during onboarding calls. */}
+        <div className="mt-6">
+          <DealerViewLinks />
+        </div>
       </div>
     </div>
   )

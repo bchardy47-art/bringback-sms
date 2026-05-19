@@ -2,7 +2,8 @@ import { notFound } from 'next/navigation'
 import { and, eq, count } from 'drizzle-orm'
 import Link from 'next/link'
 import { db } from '@/lib/db'
-import { dealerIntakes, tenants, phoneNumbers, dealerInvites } from '@/lib/db/schema'
+import { dealerIntakes, tenants, phoneNumbers, dealerInvites, users } from '@/lib/db/schema'
+import { DealerViewLinks } from '../../DealerViewLinks'
 import {
   computeChecklist,
   getLaunchStatusLabel,
@@ -138,7 +139,12 @@ export default async function IntakeDetailPage({
   // Center status. Both are simple existence checks; we read the count
   // because the small table makes it cheap and the UI doesn't need the
   // rows themselves.
-  const [phoneCountRow, inviteCountRow] = intake.tenantId
+  //
+  // Dealer-user email lookup feeds the "Dealer view" sidebar panel — so
+  // Brian can see exactly which login walks-the-dealer-through-the-app
+  // for this intake's tenant. First (oldest) dealer user wins if there
+  // are multiple. Null when no dealer user has redeemed an invite yet.
+  const [phoneCountRow, inviteCountRow, dealerUserRow] = intake.tenantId
     ? await Promise.all([
         db.select({ c: count() })
           .from(phoneNumbers)
@@ -149,10 +155,19 @@ export default async function IntakeDetailPage({
         db.select({ c: count() })
           .from(dealerInvites)
           .where(eq(dealerInvites.tenantId, intake.tenantId)),
+        db.select({ email: users.email })
+          .from(users)
+          .where(and(
+            eq(users.tenantId, intake.tenantId),
+            eq(users.role, 'dealer'),
+          ))
+          .orderBy(users.createdAt)
+          .limit(1),
       ])
-    : [[{ c: 0 }], [{ c: 0 }]]
-  const phoneCount  = phoneCountRow[0]?.c ?? 0
-  const inviteCount = inviteCountRow[0]?.c ?? 0
+    : [[{ c: 0 }], [{ c: 0 }], [] as { email: string }[]]
+  const phoneCount       = phoneCountRow[0]?.c ?? 0
+  const inviteCount      = inviteCountRow[0]?.c ?? 0
+  const dealerLoginEmail = dealerUserRow[0]?.email ?? null
 
   const operatorStatus = computeOperatorStatus({
     intake, tenant, extras, phoneCount, inviteCount,
@@ -339,6 +354,17 @@ export default async function IntakeDetailPage({
               intakeToken={intake.token}
             />
           </div>
+
+          {/* ── "Dealer view" reference ──────────────────────────────────── */}
+          {/* Quick-jump URLs for walking this dealer through what they see
+              during onboarding calls. Includes the dealer login email (when
+              one exists for this tenant) so Brian knows exactly which
+              account to sign in with. Dealer routes still enforce role gates
+              — no impersonation introduced. */}
+          <DealerViewLinks
+            dealerLoginEmail={dealerLoginEmail}
+            tenantName={tenant?.name ?? intake.dealershipName ?? null}
+          />
         </div>
 
         {/* Right: Sidebar */}
