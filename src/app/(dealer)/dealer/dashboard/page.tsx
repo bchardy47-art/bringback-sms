@@ -205,6 +205,22 @@ export default async function DealerDashboardPage() {
   const allStatsZero = importCount + draftCount + activeCount + inboxCount === 0
   const showReassurance = allStatsZero && setup.showPanel
 
+  // ── Messaging-state safety banner ────────────────────────────────────────
+  // Surfaced above everything else so a skeptical dealer can never look at
+  // the stat cards ("Active Conversations: 2", "Approved Batches: 1") and
+  // mistakenly think DLR is already messaging customers. Computed from the
+  // same tenant flags the setup panel reads, so the two views can't drift.
+  // Suppressed entirely when the account is blocked or paused — the
+  // existing setup panel already alerts in red for those cases.
+  const safetyBlocked = !!(tenantRow?.complianceBlocked || tenantRow?.automationPaused)
+  const hasAnyBatch   = draftCount + activeCount + completedCount > 0
+  const messagingLive = !!tenantRow?.smsLiveApproved
+  const safetyBannerState: 'live' | 'in_review' | 'not_live' | null =
+    safetyBlocked        ? null         :
+    messagingLive        ? 'live'       :
+    hasAnyBatch          ? 'in_review'  :
+                           'not_live'
+
   return (
     <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-6 md:space-y-8">
 
@@ -217,6 +233,9 @@ export default async function DealerDashboardPage() {
           {dealershipName} — here&apos;s where your Dead Lead Revival pipeline stands.
         </p>
       </div>
+
+      {/* ── Messaging-state safety banner ─────────────────────────────── */}
+      {safetyBannerState && <MessagingSafetyBanner state={safetyBannerState} />}
 
       {/* ── DLR Setup Progress panel ───────────────────────────────────── */}
       {setup.showPanel && (
@@ -411,5 +430,96 @@ function SetupStepRow({
         )}
       </div>
     </li>
+  )
+}
+
+// ── Messaging safety banner ─────────────────────────────────────────────────
+//
+// Top-of-dashboard reassurance about whether DLR is actually sending
+// customer messages right now. Three states; suppressed when the account
+// is blocked or paused (the setup panel already alerts in red for those).
+//
+// Calm, dealer-friendly copy. Red is reserved for actual problems; the
+// "not yet" and "in review" states use blue and amber respectively so a
+// new dealer doesn't see scary colors during normal onboarding.
+
+const BANNER_TONE_CLASS: Record<'blue' | 'amber' | 'emerald', {
+  bg:     string
+  border: string
+  title:  string
+  detail: string
+  icon:   string
+}> = {
+  blue: {
+    bg:     'bg-blue-50',
+    border: 'border-blue-200',
+    title:  'text-blue-900',
+    detail: 'text-blue-800',
+    icon:   'bg-blue-100 text-blue-700',
+  },
+  amber: {
+    bg:     'bg-amber-50',
+    border: 'border-amber-200',
+    title:  'text-amber-900',
+    detail: 'text-amber-800',
+    icon:   'bg-amber-100 text-amber-700',
+  },
+  emerald: {
+    bg:     'bg-emerald-50',
+    border: 'border-emerald-200',
+    title:  'text-emerald-900',
+    detail: 'text-emerald-800',
+    icon:   'bg-emerald-100 text-emerald-700',
+  },
+}
+
+function MessagingSafetyBanner({
+  state,
+}: {
+  state: 'live' | 'in_review' | 'not_live'
+}) {
+  let tone:  'blue' | 'amber' | 'emerald'
+  let icon:  string
+  let title: string
+  let detail: string
+
+  if (state === 'live') {
+    tone   = 'emerald'
+    icon   = '✓'
+    title  = 'DLR messaging is live.'
+    detail = 'Customer replies will appear in Inbox. You stay in control — take over conversations anytime.'
+  } else if (state === 'in_review') {
+    tone   = 'amber'
+    icon   = '⏳'
+    title  = 'Campaigns are in review — not live.'
+    detail = 'Approving a batch prepares it for final launch review. It does not start sending by itself.'
+  } else {
+    tone   = 'blue'
+    icon   = 'ℹ'
+    title  = 'DLR is not sending messages yet.'
+    detail = 'Your dashboard may show imported leads, draft batches, or test conversations, but no customer messages go live until your first campaign is reviewed and DLR completes live-send activation with you.'
+  }
+
+  const t = BANNER_TONE_CLASS[tone]
+
+  return (
+    <section
+      role="status"
+      aria-live="polite"
+      className={`rounded-xl border-2 ${t.border} ${t.bg} p-4 md:p-5`}
+    >
+      <div className="flex items-start gap-3">
+        <span
+          className={`flex-shrink-0 w-7 h-7 rounded-full inline-flex items-center justify-center text-sm font-bold ${t.icon}`}
+          aria-hidden="true"
+        >
+          {icon}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className={`text-sm md:text-base font-bold ${t.title}`}>{title}</p>
+          <p className={`text-xs md:text-sm mt-1 leading-relaxed ${t.detail}`}>{detail}</p>
+        </div>
+      </div>
+    </section>
   )
 }
