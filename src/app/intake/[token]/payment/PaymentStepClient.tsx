@@ -90,11 +90,19 @@ export function PaymentStepClient({
           </strong>{' '}
           (typically 7–10 business days).
         </p>
-        <p className="text-xs text-gray-500 mb-5">
+        <p className="text-xs text-gray-500 mb-4">
           Note: Stripe&apos;s checkout page labels this wait as a &ldquo;14-day trial.&rdquo;
           That&apos;s how Stripe describes the billing-delay window — it&apos;s the same
           thing, not a separate offer.
         </p>
+
+        <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 mb-5">
+          <p className="text-sm text-amber-900">
+            <span className="font-semibold">Heads up:</span> after checkout,
+            you&apos;ll complete a setup form. Have your legal business name
+            and EIN handy.
+          </p>
+        </div>
 
         <button
           type="button"

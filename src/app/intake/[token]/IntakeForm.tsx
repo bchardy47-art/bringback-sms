@@ -251,6 +251,66 @@ export function IntakeForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {/* ── Setup prep heads-up ─────────────────────────────────────────
+          Surfaces what the dealer will be asked for *before* they hit the
+          first input. Reduces drop-off when EIN / legal name aren't at
+          hand and reassures them this is preparation, not a send. */}
+      <div className="bg-white rounded-xl border border-gray-200 p-5 sm:p-6 space-y-4">
+        <div>
+          <h2 className="text-base font-bold text-gray-900">
+            What you&apos;ll need for setup
+          </h2>
+          <p className="text-sm text-gray-500 mt-1">
+            Carriers require this information for 10DLC registration before
+            dealership SMS can go live. Have these handy before you start:
+          </p>
+        </div>
+
+        <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm text-gray-700">
+          <li className="flex gap-2">
+            <span className="text-red-600 mt-0.5">•</span>
+            <span>Legal business name</span>
+          </li>
+          <li className="flex gap-2">
+            <span className="text-red-600 mt-0.5">•</span>
+            <span>EIN / Tax ID</span>
+          </li>
+          <li className="flex gap-2">
+            <span className="text-red-600 mt-0.5">•</span>
+            <span>Dealership website</span>
+          </li>
+          <li className="flex gap-2">
+            <span className="text-red-600 mt-0.5">•</span>
+            <span>Business address</span>
+          </li>
+          <li className="flex gap-2">
+            <span className="text-red-600 mt-0.5">•</span>
+            <span>Primary contact name, email, and phone</span>
+          </li>
+          <li className="flex gap-2">
+            <span className="text-red-600 mt-0.5">•</span>
+            <span>CRM name</span>
+          </li>
+          <li className="flex gap-2">
+            <span className="text-red-600 mt-0.5">•</span>
+            <span>Basic lead-source explanation</span>
+          </li>
+          <li className="flex gap-2">
+            <span className="text-red-600 mt-0.5">•</span>
+            <span>SMS consent / opt-in explanation</span>
+          </li>
+        </ul>
+
+        <div className="rounded-lg bg-gray-50 border border-gray-200 px-4 py-3">
+          <p className="text-sm text-gray-700">
+            <span className="font-semibold">No messages will be sent from this form.</span>{' '}
+            DLR uses this to prepare your carrier registration and setup
+            checklist. You can save what you have and return to this link
+            later — your account is already activated.
+          </p>
+        </div>
+      </div>
+
       {/* ── 1. Business verification ──────────────────────────────────── */}
       <Section
         title="Business verification"
@@ -260,7 +320,11 @@ export function IntakeForm({
           <Field label="Legal Business Name" required hint="IRS-registered legal entity name">
             <Input name="businessLegalName" placeholder="Smith Automotive Group LLC" required />
           </Field>
-          <Field label="EIN / Tax ID" required hint="9-digit federal tax ID (XX-XXXXXXX)">
+          <Field
+            label="EIN / Tax ID"
+            required
+            hint="9-digit federal tax ID (XX-XXXXXXX). Used for carrier registration only — if you don't have it handy, you can pause and return to this link."
+          >
             <Input name="ein" placeholder="12-3456789" required />
           </Field>
         </Row>
