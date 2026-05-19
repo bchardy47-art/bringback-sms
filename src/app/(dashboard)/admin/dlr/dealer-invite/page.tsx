@@ -19,7 +19,7 @@
 
 'use client'
 
-import { Suspense, useEffect, useState, useTransition } from 'react'
+import { Suspense, useState, useTransition } from 'react'
 import { useSearchParams } from 'next/navigation'
 import {
   generateDealerInvite,
@@ -35,43 +35,45 @@ export default function DealerInvitePage() {
 }
 
 function DealerInviteClient() {
+  // Read URL params on every render; the inputs below use `defaultValue`
+  // (uncontrolled) so they pick these up on mount without state-sync
+  // gymnastics, and we read submitted values from `FormData` at click time —
+  // that way the click is never blocked by stale React state or by an
+  // HTML5 `required` validation racing the URL prefill. An earlier version
+  // of this page used `<input required value={state} />` with a useState
+  // initializer + useEffect; if the search params resolved one tick later
+  // than the initial render, the input stayed empty and the browser's
+  // native required-field popover silently swallowed every click before
+  // the React `onSubmit` handler could run. Uncontrolled inputs + FormData
+  // remove that race entirely.
   const searchParams = useSearchParams()
-  const initialTenant     = searchParams.get('tenantId')   ?? ''
-  const initialEmail      = searchParams.get('email')      ?? ''
-  const initialDealership = searchParams.get('dealership') ?? ''
+  const initialTenant  = searchParams.get('tenantId')   ?? ''
+  const initialEmail   = searchParams.get('email')      ?? ''
+  const dealershipName = searchParams.get('dealership') ?? ''
 
-  const [tenantId,       setTenantId]       = useState(initialTenant)
-  const [email,          setEmail]          = useState(initialEmail)
-  const [dealershipName, setDealershipName] = useState(initialDealership)
-  const [result,         setResult]         = useState<GenerateDealerInviteResult | null>(null)
-  const [isPending, startTransition]        = useTransition()
-  const [error,          setError]          = useState<string | null>(null)
-  const [copied,         setCopied]         = useState(false)
+  const [result,    setResult]    = useState<GenerateDealerInviteResult | null>(null)
+  const [isPending, startTransition] = useTransition()
+  const [error,     setError]     = useState<string | null>(null)
+  const [copied,    setCopied]    = useState(false)
 
-  // If the operator opens this page with different params (e.g. they
-  // re-navigated from a different intake) keep the form in sync.
-  useEffect(() => {
-    setTenantId(initialTenant)
-    setEmail(initialEmail)
-    setDealershipName(initialDealership)
-    setResult(null)
-    setError(null)
-  }, [initialTenant, initialEmail, initialDealership])
-
-  function handleGenerate(e: React.FormEvent) {
+  function handleGenerate(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setError(null)
     setResult(null)
     setCopied(false)
 
-    if (!tenantId.trim()) {
+    const formData = new FormData(e.currentTarget)
+    const tenantId = ((formData.get('tenantId') as string | null) ?? '').trim()
+    const email    = ((formData.get('email')    as string | null) ?? '').trim()
+
+    if (!tenantId) {
       setError('Enter a tenant ID')
       return
     }
 
     startTransition(async () => {
       try {
-        const r = await generateDealerInvite(tenantId.trim(), email.trim() || undefined)
+        const r = await generateDealerInvite(tenantId, email || undefined)
         setResult(r)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to generate invite')
@@ -96,8 +98,8 @@ function DealerInviteClient() {
     setResult(null)
     setError(null)
     setCopied(false)
-    // Keep the tenantId/email/dealership prefilled so the admin can
-    // generate another invite quickly if needed (e.g. expired link).
+    // Defaults are taken from the URL on each render; if the operator
+    // wants a different tenant, they'll edit the inputs directly.
   }
 
   return (
@@ -120,19 +122,20 @@ function DealerInviteClient() {
       {!result && (
         <form
           onSubmit={handleGenerate}
+          noValidate
           className="border border-gray-200 rounded-xl px-5 sm:px-6 py-5 space-y-4 bg-white"
         >
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="dealer-invite-tenantId" className="block text-sm font-medium text-gray-700 mb-1">
               Tenant ID <span className="text-red-500">*</span>
             </label>
             <input
+              id="dealer-invite-tenantId"
               type="text"
-              value={tenantId}
-              onChange={(e) => setTenantId(e.target.value)}
+              name="tenantId"
+              defaultValue={initialTenant}
               placeholder="UUID from the tenants table"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
             />
             <p className="text-xs text-gray-400 mt-1">
               Pre-filled when you open this page from an intake&apos;s Operator
@@ -141,13 +144,14 @@ function DealerInviteClient() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="dealer-invite-email" className="block text-sm font-medium text-gray-700 mb-1">
               Dealer email
             </label>
             <input
+              id="dealer-invite-email"
               type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              name="email"
+              defaultValue={initialEmail}
               placeholder="jane@dealership.com"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
