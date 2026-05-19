@@ -522,7 +522,9 @@ export function CreateBatchButton({
             disabled={stage === 'loading'}
             className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-bold rounded-xl transition-colors shadow-sm"
           >
-            {stage === 'loading' ? 'Creating…' : `Create Recommended Pilot (${totalLeads} lead${totalLeads !== 1 ? 's' : ''}) →`}
+            {stage === 'loading'
+              ? 'Creating…'
+              : `Create ${bucketPlan.length === 1 ? 'Pilot Batch' : 'Pilot Batches'} (${totalLeads} lead${totalLeads !== 1 ? 's' : ''}) →`}
           </button>
         )}
         {error && <p className="text-sm text-red-600 font-medium">⚠ {error}</p>}
@@ -588,7 +590,7 @@ export function CreateBatchButton({
           >
             {stage === 'loading'
               ? 'Creating…'
-              : `Create Recommended Pilot (${totalLeads} lead${totalLeads !== 1 ? 's' : ''}) →`
+              : `Create ${bucketPlan.length === 1 ? 'Pilot Batch' : 'Pilot Batches'} (${totalLeads} lead${totalLeads !== 1 ? 's' : ''}) →`
             }
           </button>
         </>

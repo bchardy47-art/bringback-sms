@@ -295,15 +295,19 @@ export default async function DealerImportPage({
               { label: 'Needs Date', value: needsReviewCount, color: needsReviewCount > 0 ? 'text-orange-600' : 'text-gray-300' },
               { label: 'Blocked',    value: blockedCount,    color: blockedCount > 0 ? 'text-red-600' : 'text-gray-300' },
               {
-                // Big number = count selected. Label carries the cap so
-                // we never render a confusing "10 of 5" or three numbers
-                // separated by slashes. Cap is enforced on the click
-                // handler — count should be ≤ FIRST_PILOT_CAP in normal
-                // operation. Legacy rows can sit above the cap and the
-                // label still reads truthfully.
-                label: `Selected (max ${FIRST_PILOT_CAP})`,
+                // Big number = count selected. Label depends on whether
+                // the selection spans one or more age-bucket groups —
+                // previously this read "Selected (max 5)" which dealers
+                // misread as "you cannot select more than 5 in total."
+                // The first-pilot cap is per group, not global; rephrasing
+                // "across groups" / "for this group" makes that explicit.
+                // Detailed helper copy appears in the Step 2 subtitle.
+                label:
+                  bucketPlan.length > 1   ? 'Selected across groups'   :
+                  bucketPlan.length === 1 ? 'Selected for this group'  :
+                                            'Selected',
                 value: selectedCount,
-                color: selectedCount >= FIRST_PILOT_CAP ? 'text-blue-700' : selectedCount > 0 ? 'text-blue-600' : 'text-gray-300',
+                color: selectedCount > 0 ? 'text-blue-600' : 'text-gray-300',
               },
             ].map(s => (
               <div key={s.label} className="bg-white border border-gray-200 rounded-lg px-3 py-2.5 text-center shadow-sm">
@@ -369,7 +373,9 @@ export default async function DealerImportPage({
                   </span>
                 </h2>
                 <p className="text-xs text-gray-500">
-                  Check each lead, then select up to {FIRST_PILOT_CAP} for the pilot batch.
+                  Check each lead, then add it to your first pilot selection.
+                  DLR caps each first pilot group at {FIRST_PILOT_CAP} leads so
+                  you can review safely. No messages send from this page.
                 </p>
               </div>
             </div>
@@ -378,7 +384,8 @@ export default async function DealerImportPage({
               <BulkClearButton tenantId={tenantId} blockedCount={blockedCount} apiBase={apiBase} />
               {selectedCount > 0 && (
                 <span className="px-2.5 py-1 bg-blue-100 text-blue-700 text-xs font-bold rounded-full">
-                  {selectedCount} of {FIRST_PILOT_CAP} selected
+                  {selectedCount} selected
+                  {bucketPlan.length > 1 ? ` across ${bucketPlan.length} groups` : ''}
                 </span>
               )}
             </div>
