@@ -8,7 +8,15 @@ import {
   pilotLeadImports,
   conversations,
   tenants,
+  dealerIntakes,
 } from '@/lib/db/schema'
+import {
+  computeDealerSetupStatus,
+  DEALER_STEP_STATUS_LABEL,
+  DEALER_STEP_STATUS_CLASS,
+  type DealerSetupStep,
+  type DealerSetupStatus,
+} from '@/lib/dealer/setup-status'
 
 export default async function DealerDashboardPage() {
   const session = await getServerSession(authOptions)
@@ -17,37 +25,80 @@ export default async function DealerDashboardPage() {
 
   const tenantId = session.user.tenantId
 
-  const [[tenantRow], [importRow], [draftRow], [activeRow], [inboxRow]] = await Promise.all([
-    db.select({ name: tenants.name }).from(tenants).where(eq(tenants.id, tenantId)),
+  const [
+    tenantRow,
+    importRow,
+    draftRow,
+    approvedRow,
+    completedRow,
+    inboxRow,
+    intakeRow,
+  ] = await Promise.all([
+    db.select({
+      name:               tenants.name,
+      tenDlcStatus:       tenants.tenDlcStatus,
+      smsSendingNumber:   tenants.smsSendingNumber,
+      smsLiveApproved:    tenants.smsLiveApproved,
+      automationPaused:   tenants.automationPaused,
+      complianceBlocked:  tenants.complianceBlocked,
+    }).from(tenants).where(eq(tenants.id, tenantId)).then(r => r[0] ?? null),
 
-    // Total lead imports
     db.select({ count: count() })
       .from(pilotLeadImports)
-      .where(eq(pilotLeadImports.tenantId, tenantId)),
+      .where(eq(pilotLeadImports.tenantId, tenantId))
+      .then(r => r[0]?.count ?? 0),
 
-    // Draft batches awaiting review
     db.select({ count: count() })
       .from(pilotBatches)
-      .where(and(eq(pilotBatches.tenantId, tenantId), eq(pilotBatches.status, 'draft'))),
+      .where(and(eq(pilotBatches.tenantId, tenantId), eq(pilotBatches.status, 'draft')))
+      .then(r => r[0]?.count ?? 0),
 
-    // Approved / active batches
     db.select({ count: count() })
       .from(pilotBatches)
-      .where(and(eq(pilotBatches.tenantId, tenantId), eq(pilotBatches.status, 'approved'))),
+      .where(and(eq(pilotBatches.tenantId, tenantId), eq(pilotBatches.status, 'approved')))
+      .then(r => r[0]?.count ?? 0),
 
-    // Open inbox conversations
+    db.select({ count: count() })
+      .from(pilotBatches)
+      .where(and(eq(pilotBatches.tenantId, tenantId), eq(pilotBatches.status, 'completed')))
+      .then(r => r[0]?.count ?? 0),
+
     db.select({ count: count() })
       .from(conversations)
-      .where(and(eq(conversations.tenantId, tenantId), eq(conversations.status, 'open'))),
+      .where(and(eq(conversations.tenantId, tenantId), eq(conversations.status, 'open')))
+      .then(r => r[0]?.count ?? 0),
+
+    db.query.dealerIntakes.findFirst({
+      where: eq(dealerIntakes.tenantId, tenantId),
+    }).then(r => r ?? null),
   ])
 
   const dealershipName = tenantRow?.name ?? 'Your Dealership'
-  const importCount    = importRow?.count   ?? 0
-  const draftCount     = draftRow?.count    ?? 0
-  const activeCount    = activeRow?.count   ?? 0
-  const inboxCount     = inboxRow?.count    ?? 0
+  const importCount    = importRow as number
+  const draftCount     = draftRow as number
+  const activeCount    = approvedRow as number
+  const completedCount = completedRow as number
+  const inboxCount     = inboxRow as number
 
   const firstName = session.user.name?.split(' ')[0] ?? 'there'
+
+  // ── Setup progress ────────────────────────────────────────────────────────
+  const setup: DealerSetupStatus = computeDealerSetupStatus({
+    intake: intakeRow,
+    tenant: tenantRow,
+    counts: {
+      leadImports:       importCount,
+      draftBatches:      draftCount,
+      approvedBatches:   activeCount,
+      completedBatches:  completedCount,
+      openConversations: inboxCount,
+    },
+  })
+
+  // Step 6 ("Lead upload ready") status drives whether the empty-state CTA
+  // points the dealer to upload (their action) or to wait (passive).
+  const leadStepStatus = setup.steps.find(s => s.key === 'leads')?.status ?? 'not_started'
+  const canUploadNow = leadStepStatus === 'needs_your_action' || leadStepStatus === 'done'
 
   const stats = [
     {
@@ -84,6 +135,9 @@ export default async function DealerDashboardPage() {
     },
   ]
 
+  const allStatsZero = importCount + draftCount + activeCount + inboxCount === 0
+  const showReassurance = allStatsZero && setup.showPanel
+
   return (
     <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-6 md:space-y-8">
 
@@ -97,13 +151,49 @@ export default async function DealerDashboardPage() {
         </p>
       </div>
 
+      {/* ── DLR Setup Progress panel ───────────────────────────────────── */}
+      {setup.showPanel && (
+        <section
+          className={`rounded-xl border-2 p-4 md:p-6 ${
+            setup.overall === 'blocked' ? 'border-red-300 bg-red-50' : 'border-blue-200 bg-blue-50'
+          }`}
+        >
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div className="min-w-0">
+              <p className={`text-xs font-semibold uppercase tracking-widest ${
+                setup.overall === 'blocked' ? 'text-red-700' : 'text-blue-700'
+              }`}>
+                {setup.overall === 'blocked' ? 'Account paused' : 'DLR Setup Progress'}
+              </p>
+              <h2 className="text-lg md:text-xl font-bold text-gray-900 mt-0.5">
+                {setup.title || 'DLR Setup Progress'}
+              </h2>
+              <p className="text-sm text-gray-700 mt-1 max-w-2xl">
+                {setup.subtitle}
+              </p>
+              {setup.nextHint && (
+                <p className="text-sm font-medium text-gray-900 mt-3">
+                  Next: <span className="font-normal">{setup.nextHint}</span>
+                </p>
+              )}
+            </div>
+          </div>
+
+          <ol className="mt-4 space-y-2">
+            {setup.steps.map((step, idx) => (
+              <SetupStepRow key={step.key} index={idx + 1} step={step} />
+            ))}
+          </ol>
+        </section>
+      )}
+
       {/* Stats grid */}
       <div className="grid grid-cols-2 gap-4">
         {stats.map(({ label, value, href, color, bg, desc }) => (
           <a
             key={label}
             href={href}
-            className={`${bg} border border-gray-200 rounded-xl px-6 py-5 shadow-sm hover:shadow transition-shadow block`}
+            className={`${bg} border border-gray-200 rounded-xl px-4 md:px-6 py-4 md:py-5 shadow-sm hover:shadow transition-shadow block`}
           >
             <p className={`text-3xl font-bold ${color}`}>{value}</p>
             <p className="text-sm font-semibold text-gray-700 mt-1">{label}</p>
@@ -111,6 +201,15 @@ export default async function DealerDashboardPage() {
           </a>
         ))}
       </div>
+
+      {/* Reassurance when everything is zero AND setup isn't done */}
+      {showReassurance && (
+        <div className="rounded-xl border border-dashed border-gray-200 px-5 py-3 text-center">
+          <p className="text-sm text-gray-600">
+            Nothing is broken — your account is waiting for the next setup step.
+          </p>
+        </div>
+      )}
 
       {/* Quick actions */}
       <div className="border border-gray-200 rounded-xl overflow-hidden">
@@ -165,8 +264,8 @@ export default async function DealerDashboardPage() {
         </div>
       </div>
 
-      {/* Empty state guidance */}
-      {importCount === 0 && (
+      {/* Empty-state CTA — only when zero leads AND dealer can actually act */}
+      {importCount === 0 && canUploadNow && (
         <div className="rounded-xl border-2 border-dashed border-gray-200 py-10 px-8 text-center">
           <p className="text-base font-semibold text-gray-700 mb-2">Start your first revival</p>
           <p className="text-sm text-gray-500 max-w-sm mx-auto">
@@ -182,5 +281,45 @@ export default async function DealerDashboardPage() {
         </div>
       )}
     </div>
+  )
+}
+
+// ── Step row component ──────────────────────────────────────────────────────
+
+function SetupStepRow({ index, step }: { index: number; step: DealerSetupStep }) {
+  const isDone   = step.status === 'done'
+  const isActive = step.status === 'in_progress' || step.status === 'needs_your_action'
+
+  return (
+    <li className="flex items-start gap-3 bg-white border border-gray-200 rounded-lg px-3 py-2.5">
+      <span
+        className={`flex-shrink-0 w-6 h-6 rounded-full inline-flex items-center justify-center text-xs font-bold ${
+          isDone   ? 'bg-emerald-500 text-white' :
+          isActive ? 'bg-blue-600    text-white' :
+                     'bg-gray-200    text-gray-500'
+        }`}
+        aria-hidden="true"
+      >
+        {isDone ? '✓' : index}
+      </span>
+
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <p className={`text-sm font-semibold ${isDone ? 'text-gray-500' : 'text-gray-900'}`}>
+            {step.label}
+          </p>
+          <span
+            className={`px-2 py-0.5 rounded-full text-xs font-bold whitespace-nowrap ${
+              DEALER_STEP_STATUS_CLASS[step.status]
+            }`}
+          >
+            {DEALER_STEP_STATUS_LABEL[step.status]}
+          </span>
+        </div>
+        {step.detail && (
+          <p className="text-xs text-gray-600 mt-0.5">{step.detail}</p>
+        )}
+      </div>
+    </li>
   )
 }
