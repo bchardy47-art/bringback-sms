@@ -74,6 +74,13 @@ export async function POST(
 
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
+      // Restrict to card only. Even if the Stripe dashboard enables
+      // Klarna / Cash App Pay / other consumer BNPL methods globally,
+      // this checkout is B2B (dealership subscription) — surfacing
+      // consumer methods here looks unprofessional and confuses dealers.
+      // Setting payment_method_types here overrides the dashboard's
+      // automatic-method selection for this session only.
+      payment_method_types: ['card'],
       line_items: [{ price: priceId, quantity: 1 }],
       // Pre-fill email and link to a Stripe Customer if we already have one;
       // otherwise Stripe will create one and we capture the id at success.
