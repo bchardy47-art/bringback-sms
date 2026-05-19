@@ -11,7 +11,11 @@ import { authOptions } from '@/lib/auth'
 // nav so a new operator sees a 5-step workflow instead of 16 tabs.
 const NAV = [
   { href: '/admin/dlr',              label: 'Platform' },
-  { href: '/admin/dlr/intakes',      label: 'Dealers' },
+  // "Dealers" points at the tenant-centric view at /admin/dlr/dealers.
+  // The intake-centric view (where operators generate new intake links)
+  // is still reachable from the dealers page footer + from per-tenant
+  // rows ("Open command center" → /admin/dlr/intakes/<id>).
+  { href: '/admin/dlr/dealers',      label: 'Dealers' },
   { href: '/admin/dlr/pilot-leads',  label: 'Lead Review' },
   { href: '/admin/dlr/pilot',        label: 'Pilot Batches' },
   { href: '/admin/dlr/live-pilot',   label: 'Send Pilot' },
