@@ -571,11 +571,21 @@ export default async function DealerImportPage({
           <div className={`px-5 py-3 border-b flex items-center gap-3 ${selectedCount > 0 ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'}`}>
             <span className={`flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold shrink-0 ${selectedCount > 0 ? 'bg-blue-600 text-white' : 'bg-gray-300 text-gray-600'}`}>3</span>
             <div>
+              {/*
+                Heading pluralizes with bucketPlan: 1 group → "Create Pilot
+                Batch", 2+ groups → "Create Pilot Batches" — same logic the
+                Create button below uses, so the section header and CTA can't
+                drift. Selected count gets the "across N groups" suffix when
+                more than one group is in play.
+              */}
               <h2 className={`text-sm font-semibold ${selectedCount > 0 ? 'text-blue-900' : 'text-gray-500'}`}>
-                {selectedCount > 0
-                  ? `Create Pilot Batch — ${selectedCount} lead${selectedCount !== 1 ? 's' : ''} selected`
-                  : 'Create Pilot Batch — select leads above first'
-                }
+                {(() => {
+                  const noun = bucketPlan.length > 1 ? 'Create Pilot Batches' : 'Create Pilot Batch'
+                  if (selectedCount === 0) return `${noun} — select leads above first`
+                  const groupSuffix = bucketPlan.length > 1 ? ` across ${bucketPlan.length} groups` : ''
+                  const leadWord    = selectedCount === 1 ? 'lead' : 'leads'
+                  return `${noun} — ${selectedCount} ${leadWord} selected${groupSuffix}`
+                })()}
               </h2>
               <p className={`text-xs mt-0.5 ${selectedCount > 0 ? 'text-blue-700' : 'text-gray-400'}`}>
                 Creates a <strong>draft batch only</strong>. You&apos;ll review each batch before anything is sent.
