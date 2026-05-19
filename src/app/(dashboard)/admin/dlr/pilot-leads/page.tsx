@@ -27,6 +27,7 @@ import {
   CreateBatchButton,
   type BucketPlanItem,
 } from './LeadReviewControls'
+import { TenantSelector } from './TenantSelector'
 import type { PilotPreviewMessage } from '@/lib/db/schema'
 import { FIRST_PILOT_CAP, AGE_BUCKET_LABELS, type AgeBucket } from '@/lib/db/schema'
 
@@ -80,20 +81,36 @@ const CONSENT_LABEL: Record<string, string> = {
 export default async function PilotLeadsPage({
   searchParams,
 }: {
-  searchParams: { status?: string }
+  searchParams: { status?: string; tenantId?: string }
 }) {
   const session = await getServerSession(authOptions)
   if (!session?.user?.tenantId) redirect('/login')
   if (session.user.role !== 'admin') redirect('/')
 
-  const tenantId     = session.user.tenantId
-  const statusFilter = searchParams.status ?? ''
+  // Tenant selection — admin must explicitly choose a dealer via the
+  // ?tenantId= URL param. The page previously hard-locked to
+  // session.user.tenantId (the signed-in admin's own tenant), which
+  // silently scoped Brian to Demo Dealership and gave no way to switch.
+  // Now: read the requested tenant from the URL, validate it exists in
+  // the tenants table, and only proceed once a real tenant is selected.
+  // No silent defaulting — when no tenantId is provided, the page shows
+  // a "Choose a dealer to review leads" state with the selector visible.
+  const requestedTenantId = searchParams.tenantId ?? null
+  const statusFilter      = searchParams.status   ?? ''
 
-  const currentTenant = await db
-    .select({ id: tenants.id, name: tenants.name })
+  // All tenants for the dropdown — admin sees every dealer.
+  const allTenants = await db
+    .select({ id: tenants.id, name: tenants.name, slug: tenants.slug })
     .from(tenants)
-    .where(eq(tenants.id, tenantId))
-    .then(rows => rows[0])
+    .orderBy(tenants.name)
+
+  // Validate the requested tenant ID against the real list. A typo in
+  // the URL falls back to no-selection rather than rendering an empty
+  // scope under a confusing header.
+  const currentTenant = requestedTenantId
+    ? allTenants.find(t => t.id === requestedTenantId) ?? null
+    : null
+  const tenantId = currentTenant?.id ?? null
 
   // Workflows for this tenant
   const tenantWorkflows = tenantId
@@ -222,29 +239,57 @@ export default async function PilotLeadsPage({
     <div className="p-8 max-w-5xl mx-auto space-y-6">
 
       {/* ── Dealer context banner ─────────────────────────────────────────── */}
-      <div className="rounded-xl bg-gray-900 px-6 py-4 flex items-center justify-between">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-0.5">
-            Admin Lead Review
-          </p>
-          <p className="text-xl font-bold text-white">
-            {currentTenant?.name ?? 'Select a dealer'}
-          </p>
-          <p className="text-xs text-gray-400 mt-1 max-w-2xl">
-            Dealerships upload their own leads from the dealer dashboard. This page is for admin review,
-            spot-checks, and operator overrides. Anything you upload here lands in the same import queue
-            as a dealer-side upload.
-          </p>
-        </div>
-        <div className="flex items-center gap-4">
+      <div className="rounded-xl bg-gray-900 px-6 py-4 space-y-3">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-0.5">
+              Admin Lead Review
+            </p>
+            <p className="text-xl font-bold text-white">
+              {currentTenant
+                ? `Reviewing leads for: ${currentTenant.name}`
+                : 'Choose a dealer to review leads'}
+            </p>
+            {currentTenant?.slug && (
+              <p className="text-xs text-gray-500 font-mono mt-0.5">
+                {currentTenant.slug}
+              </p>
+            )}
+            <p className="text-xs text-gray-400 mt-1.5 max-w-2xl">
+              Dealerships upload their own leads from the dealer dashboard. This page is for admin review,
+              spot-checks, and operator overrides. Anything you upload here lands in the same import queue
+              as a dealer-side upload.
+            </p>
+          </div>
           <a
             href="/admin/dlr/intakes"
-            className="text-xs text-gray-400 hover:text-gray-200 transition-colors"
+            className="text-xs text-gray-400 hover:text-gray-200 transition-colors whitespace-nowrap"
           >
             ← Intake checklist
           </a>
         </div>
+        {/* Tenant selector — always visible so the admin can switch
+            dealers from anywhere on the page. Drives ?tenantId= on the
+            URL via client-side router.push. */}
+        <div className="pt-2 border-t border-gray-800">
+          <TenantSelector tenants={allTenants} currentTenantId={tenantId} />
+        </div>
       </div>
+
+      {/* "Choose a dealer" empty state — shown when no tenantId is in
+          the URL (or the URL's tenantId didn't match a real tenant). */}
+      {!tenantId && (
+        <div className="rounded-xl border-2 border-dashed border-gray-200 py-14 px-8 text-center">
+          <h3 className="text-base font-semibold text-gray-700 mb-1">
+            Choose a dealer to review leads
+          </h3>
+          <p className="text-sm text-gray-500 max-w-md mx-auto">
+            Pick a dealership from the selector above. Lead review, batch
+            creation, and admin uploads are scoped to the chosen dealer.
+            No data is loaded until you select one.
+          </p>
+        </div>
+      )}
 
       {tenantId && (
         <>
@@ -375,9 +420,11 @@ export default async function PilotLeadsPage({
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                 </svg>
               </div>
-              <h3 className="text-base font-semibold text-gray-700 mb-1">No leads imported yet</h3>
+              <h3 className="text-base font-semibold text-gray-700 mb-1">
+                No uploaded leads for {currentTenant?.name ?? 'this dealer'} yet.
+              </h3>
               <p className="text-sm text-gray-500 max-w-sm mx-auto">
-                Upload a CSV from {currentTenant?.name}&apos;s CRM above. You need at least 1 eligible lead to create a pilot batch.
+                Upload a CSV from {currentTenant?.name ?? 'the dealer'}&apos;s CRM above. You need at least 1 eligible lead to create a pilot batch.
               </p>
               <div className="mt-5 inline-block bg-blue-50 border border-blue-100 rounded-lg px-4 py-2 text-xs text-blue-700">
                 Tip: Start with 5–10 leads so you have room to exclude any that are blocked.
@@ -673,6 +720,11 @@ export default async function PilotLeadsPage({
                   <p className={`text-xs mt-0.5 ${selectedCount > 0 ? 'text-blue-700' : 'text-gray-400'}`}>
                     Creates a <strong>draft batch only</strong>. No messages sent until you approve each batch.
                   </p>
+                  {currentTenant && (
+                    <p className={`text-xs mt-0.5 ${selectedCount > 0 ? 'text-blue-800' : 'text-gray-500'}`}>
+                      Creating for: <strong>{currentTenant.name}</strong>
+                    </p>
+                  )}
                 </div>
               </div>
 
