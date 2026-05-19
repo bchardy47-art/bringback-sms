@@ -12,12 +12,32 @@ import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { pilotBatches, workflows } from '@/lib/db/schema'
 
-const STATUS_STYLE: Record<string, { chip: string; label: string }> = {
-  draft:     { chip: 'bg-gray-100 text-gray-600',      label: 'Draft' },
-  approved:  { chip: 'bg-blue-100 text-blue-700',      label: 'Approved' },
-  active:    { chip: 'bg-emerald-100 text-emerald-700', label: 'Active' },
-  completed: { chip: 'bg-green-100 text-green-700',    label: 'Completed' },
-  cancelled: { chip: 'bg-red-100 text-red-700',        label: 'Cancelled' },
+// Dealer-facing send-state map used in the Campaign history list. Each
+// row pairs a chip color with a plain-English label so the dealer can
+// see at a glance whether a campaign has actually sent messages.
+//
+//   - Draft / Preview only         (no sends)
+//   - Approved — not sending yet   (no sends)
+//   - Live / Sending               (real sends happening)
+//   - Paused                       (sent some, paused)
+//   - Completed                    (sent all)
+//   - Cancelled                    (could be pre-send or post-send;
+//                                   helper line uses liveSendCount to
+//                                   decide honestly)
+//
+// The chip color comes from the row's `status`; the helper / counts
+// underneath the row come from `liveSendCount` so we never claim "no
+// messages sent" for a batch that actually fired before cancellation.
+type DealerBatchStatusInfo = { chip: string; label: string }
+
+const DEALER_BATCH_STATUS: Record<string, DealerBatchStatusInfo> = {
+  draft:     { chip: 'bg-gray-100 text-gray-600',       label: 'Draft / Preview only' },
+  approved:  { chip: 'bg-blue-100 text-blue-700',       label: 'Approved — not sending yet' },
+  sending:   { chip: 'bg-emerald-100 text-emerald-700', label: 'Live / Sending' },
+  active:    { chip: 'bg-emerald-100 text-emerald-700', label: 'Live / Sending' },
+  paused:    { chip: 'bg-amber-100 text-amber-700',     label: 'Paused' },
+  completed: { chip: 'bg-green-100 text-green-700',     label: 'Completed' },
+  cancelled: { chip: 'bg-red-100 text-red-700',         label: 'Cancelled' },
 }
 
 // Mirrors AGE_BUCKET_LABELS from schema.ts. Kept inline because this page
@@ -51,8 +71,11 @@ const CAMPAIGN_BUCKETS: Array<{
 ]
 
 // Dealer-facing status word for a featured batch in a campaign card.
+// Short form (single word/phrase) for the space-constrained bucket
+// cards — the Campaign history list below uses the longer dealer
+// labels from DEALER_BATCH_STATUS.
 const DEALER_STATUS_LABEL: Record<string, string> = {
-  draft:     'Ready to review',
+  draft:     'Ready for your review',
   approved:  'Approved',
   sending:   'Sending',
   active:    'Sending',
@@ -226,15 +249,26 @@ export default async function DealerBatchesPage() {
               Campaign history ({batches.length})
             </p>
             <p className="text-xs text-gray-500 mt-0.5">
-              These are prepared previews and review history. Nothing here
-              means messages were sent unless marked live or completed.
+              Only campaigns marked Live, Sending, or Completed have sent messages.
             </p>
           </div>
           <ul className="divide-y divide-gray-100">
             {batches.map(batch => {
               const wf     = batch.workflowId ? workflowMap.get(batch.workflowId) : null
               const bucket = wf?.ageBucket ?? null
-              const style  = STATUS_STYLE[batch.status] ?? { chip: 'bg-gray-100 text-gray-600', label: batch.status }
+              const info   = DEALER_BATCH_STATUS[batch.status] ?? {
+                chip:  'bg-gray-100 text-gray-600',
+                label: batch.status,
+              }
+
+              // Honest helper / counts split — we look at liveSendCount,
+              // not status alone. A cancelled batch that fired some
+              // messages before cancellation should NOT say "no messages
+              // sent"; it should show its counts.
+              const hasSends = batch.liveSendCount > 0
+              const noSendHelper = !hasSends
+                ? 'No messages have been sent from this campaign.'
+                : null
 
               // Status-aware report-link label. Reports are only useful once
               // the batch has data — draft/previewed/approved haven't sent yet.
@@ -244,14 +278,14 @@ export default async function DealerBatchesPage() {
                 null
 
               return (
-                <li key={batch.id} className="px-4 md:px-5 py-3.5 flex items-center justify-between gap-3">
-                  <div className="min-w-0 flex-1">
+                <li key={batch.id} className="px-4 md:px-5 py-3.5 flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1 space-y-1">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <p className="text-sm font-semibold text-gray-900 truncate">
                         {wf?.name ?? 'Unknown workflow'}
                       </p>
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${style.chip}`}>
-                        {style.label}
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${info.chip}`}>
+                        {info.label}
                       </span>
                       {batch.isFirstPilot && (
                         <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-700">
@@ -259,12 +293,38 @@ export default async function DealerBatchesPage() {
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-gray-400 mt-0.5">
+                    <p className="text-xs text-gray-400">
                       {bucket ? `${BUCKET_LABEL[bucket]} · ` : ''}
                       {batch.leads.length} lead{batch.leads.length !== 1 ? 's' : ''}
                       {' · '}
                       {new Date(batch.createdAt).toLocaleDateString()}
                     </p>
+                    {/* Honest sent-state communication: when the batch
+                        has actually fired messages, show the counts the
+                        DB already tracks. Otherwise show the "no
+                        messages sent" reassurance. We never fake an
+                        opt-out count — the batch row doesn't store one,
+                        so we just don't show that column. */}
+                    {hasSends ? (
+                      <p className="text-xs text-gray-600">
+                        <strong className="font-semibold text-gray-800">
+                          {batch.liveSendCount}
+                        </strong>{' '}
+                        sent
+                        {' · '}
+                        <strong className="font-semibold text-gray-800">
+                          {batch.replyCount}
+                        </strong>{' '}
+                        repl{batch.replyCount === 1 ? 'y' : 'ies'}
+                        {' · '}
+                        <strong className="font-semibold text-gray-800">
+                          {batch.handoffCount}
+                        </strong>{' '}
+                        handoff{batch.handoffCount === 1 ? '' : 's'}
+                      </p>
+                    ) : noSendHelper ? (
+                      <p className="text-xs text-gray-500 italic">{noSendHelper}</p>
+                    ) : null}
                   </div>
                   <div className="flex-shrink-0 flex flex-col items-end gap-1">
                     <a
