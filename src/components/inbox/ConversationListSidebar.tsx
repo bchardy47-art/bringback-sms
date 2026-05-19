@@ -142,13 +142,18 @@ export function ConversationListSidebar({
   const TABS = isDealer ? DEALER_TABS : ADMIN_TABS
   const defaultTab = isDealer ? 'needs_review' : 'open'
 
-  // Tab state is owned client-side after first render. The URL ?status= is
-  // read once for the initial value (so deep links / shared URLs work) and
-  // then kept in sync via history.replaceState. We deliberately avoid
+  // Tab state is owned client-side after first render. The URL is read
+  // once for the initial value (so deep links / shared URLs work) and then
+  // kept in sync via history.replaceState. We deliberately avoid
   // next/link, router.push, and router.replace for tab switches so that
   // clicking a tab never triggers an _rsc soft-navigation fetch.
+  //
+  // Param name is `tab` going forward (clearer than `status`, which
+  // collides with the conversations.status column name). Old `?status=`
+  // URLs still resolve as a fallback so existing bookmarks and the
+  // dashboard's smart-deep-link both keep working.
   const [activeTab, setActiveTab] = useState<string>(
-    () => searchParams.get('status') ?? defaultTab,
+    () => searchParams.get('tab') ?? searchParams.get('status') ?? defaultTab,
   )
   const [search, setSearch] = useState('')
 
@@ -156,7 +161,10 @@ export function ConversationListSidebar({
     setActiveTab(key)
     if (typeof window !== 'undefined') {
       const url = new URL(window.location.href)
-      url.searchParams.set('status', key)
+      url.searchParams.set('tab', key)
+      // Strip any legacy `status` param so we don't end up with both
+      // ?tab=X&status=Y in the URL bar after a click.
+      url.searchParams.delete('status')
       window.history.replaceState(window.history.state, '', url.toString())
     }
   }, [])
@@ -243,14 +251,11 @@ export function ConversationListSidebar({
       {/* Conversation list */}
       <div className="flex-1 overflow-y-auto scrollbar-thin">
         {displayed.length === 0 ? (
-          <div className="px-4 py-8 text-center">
-            <p className="text-sm font-medium text-gray-700">
-              No conversations need review right now.
-            </p>
-            <p className="text-xs text-gray-400 mt-1">
-              Customer replies that need attention will appear here.
-            </p>
-          </div>
+          <EmptyTabState
+            activeTab={activeTab}
+            counts={counts}
+            isDealer={isDealer}
+          />
         ) : (
           displayed.map((conv) => {
             const convPath = `${basePath}/${conv.id}`
@@ -328,6 +333,74 @@ export function ConversationListSidebar({
           })
         )}
       </div>
+    </div>
+  )
+}
+
+// ── Tab-aware empty state ───────────────────────────────────────────────────
+//
+// Dealers were getting confused when /dealer/inbox opened on "Needs Review"
+// with zero rows while the Automated / Human-Owned tabs had conversations.
+// The old empty state always said "No conversations need review" regardless
+// of which tab was active, and never told the dealer where the conversations
+// they expected actually lived.
+//
+// This component picks copy based on (a) which tab is active and (b)
+// whether the OTHER tabs have rows the dealer could look at instead.
+
+function EmptyTabState({
+  activeTab,
+  counts,
+  isDealer,
+}: {
+  activeTab: string
+  counts:    Record<string, number>
+  isDealer:  boolean
+}) {
+  // Are there conversations the dealer could find by switching tabs?
+  const otherTabsTotal =
+    Object.entries(counts)
+      .filter(([key]) => key !== activeTab)
+      .reduce((sum, [, n]) => sum + n, 0)
+
+  let title: string
+  let detail: string
+
+  if (isDealer && activeTab === 'needs_review') {
+    title = otherTabsTotal > 0
+      ? 'No conversations need review right now.'
+      : 'No conversations need review right now.'
+    detail = otherTabsTotal > 0
+      ? 'Automated and human-owned conversations are in the other tabs.'
+      : 'Customer replies that need attention will appear here.'
+  } else if (isDealer && activeTab === 'automated') {
+    title = 'No automated conversations right now.'
+    detail = otherTabsTotal > 0
+      ? 'Replies needing review or already taken over are in the other tabs.'
+      : 'Threads DLR is running on autopilot will appear here.'
+  } else if (isDealer && activeTab === 'human_owned') {
+    title = 'No conversations you’ve taken over.'
+    detail = otherTabsTotal > 0
+      ? 'Automated and needs-review conversations are in the other tabs.'
+      : 'Conversations you take over will move here.'
+  } else if (activeTab === 'opted_out') {
+    title = 'No opted-out conversations.'
+    detail = 'Leads who reply STOP will appear here for your records.'
+  } else if (activeTab === 'closed') {
+    title = 'No closed conversations.'
+    detail = 'Resolved threads will be archived here.'
+  } else {
+    // Admin/legacy tabs + any unknown key.
+    title = 'No conversations in this tab.'
+    detail = otherTabsTotal > 0
+      ? 'Other tabs have conversations.'
+      : 'Customer conversations will appear here.'
+  }
+
+  return (
+    <div className="px-4 py-8 text-center">
+      <p className="text-sm font-medium text-gray-700">{title}</p>
+      <p className="text-xs text-gray-400 mt-1">{detail}</p>
     </div>
   )
 }

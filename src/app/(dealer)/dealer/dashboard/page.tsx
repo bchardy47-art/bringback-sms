@@ -31,7 +31,7 @@ export default async function DealerDashboardPage() {
     draftRow,
     approvedRow,
     completedRow,
-    inboxRow,
+    openConvosForBreakdown,
     intakeRow,
   ] = await Promise.all([
     db.select({
@@ -63,10 +63,24 @@ export default async function DealerDashboardPage() {
       .where(and(eq(pilotBatches.tenantId, tenantId), eq(pilotBatches.status, 'completed')))
       .then(r => r[0]?.count ?? 0),
 
-    db.select({ count: count() })
-      .from(conversations)
-      .where(and(eq(conversations.tenantId, tenantId), eq(conversations.status, 'open')))
-      .then(r => r[0]?.count ?? 0),
+    // Open conversations with their last message direction + human-takeover
+    // flag. The inbox tabs slice the same set three ways (needs_review /
+    // automated / human_owned), so we compute the breakdown here to label
+    // the dashboard card honestly and to deep-link the dealer into the tab
+    // that actually has conversations to act on. Previously this was a
+    // simple count query, which made the card read "Open" while the dealer
+    // landed on an empty "Needs Review" tab and assumed the count was wrong.
+    db.query.conversations.findMany({
+      where: and(eq(conversations.tenantId, tenantId), eq(conversations.status, 'open')),
+      columns: { id: true, humanTookOverAt: true },
+      with: {
+        messages: {
+          orderBy: (m, { desc }) => [desc(m.createdAt)],
+          limit: 1,
+          columns: { direction: true },
+        },
+      },
+    }),
 
     db.query.dealerIntakes.findFirst({
       where: eq(dealerIntakes.tenantId, tenantId),
@@ -78,7 +92,31 @@ export default async function DealerDashboardPage() {
   const draftCount     = draftRow as number
   const activeCount    = approvedRow as number
   const completedCount = completedRow as number
-  const inboxCount     = inboxRow as number
+
+  // Categorize open conversations using the SAME predicates as the inbox
+  // sidebar's tab filters — keeps dashboard counts and the deep-link
+  // landing tab consistent.
+  const needsReviewCount = openConvosForBreakdown.filter(c =>
+    !c.humanTookOverAt && c.messages[0]?.direction === 'inbound',
+  ).length
+  const automatedCount = openConvosForBreakdown.filter(c =>
+    !c.humanTookOverAt && (c.messages.length === 0 || c.messages[0]?.direction === 'outbound'),
+  ).length
+  const humanOwnedOpenCount = openConvosForBreakdown.filter(c =>
+    !!c.humanTookOverAt,
+  ).length
+  const inboxCount = openConvosForBreakdown.length
+
+  // Pick the most-actionable tab for the dashboard CTA. Priority:
+  //   needs_review (dealer must reply) >
+  //   human_owned  (dealer is already in the loop) >
+  //   automated    (passive watch) >
+  //   default
+  const inboxHref =
+    needsReviewCount     > 0 ? '/dealer/inbox?tab=needs_review' :
+    humanOwnedOpenCount  > 0 ? '/dealer/inbox?tab=human_owned'  :
+    automatedCount       > 0 ? '/dealer/inbox?tab=automated'    :
+                               '/dealer/inbox'
 
   const firstName = session.user.name?.split(' ')[0] ?? 'there'
 
@@ -126,12 +164,12 @@ export default async function DealerDashboardPage() {
       desc:  'Batches you have approved',
     },
     {
-      label: 'Open Conversations',
+      label: 'Active Conversations',
       value: inboxCount,
-      href:  '/dealer/inbox',
+      href:  inboxHref,
       color: inboxCount > 0 ? 'text-orange-600' : 'text-gray-300',
       bg:    inboxCount > 0 ? 'bg-orange-50'   : 'bg-white',
-      desc:  'Replies waiting in your inbox',
+      desc:  'Includes automated and human-owned conversations.',
     },
   ]
 
@@ -245,7 +283,7 @@ export default async function DealerDashboardPage() {
             <span className="text-gray-400 text-sm">→</span>
           </a>
           <a
-            href="/dealer/inbox"
+            href={inboxHref}
             className="flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors"
           >
             <div className="flex items-center gap-3">
@@ -255,7 +293,7 @@ export default async function DealerDashboardPage() {
               </div>
               {inboxCount > 0 && (
                 <span className="px-2 py-0.5 bg-orange-100 text-orange-700 text-xs font-bold rounded-full">
-                  {inboxCount} open
+                  {inboxCount} active
                 </span>
               )}
             </div>
