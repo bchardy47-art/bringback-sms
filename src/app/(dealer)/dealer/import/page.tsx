@@ -187,6 +187,64 @@ export default async function DealerImportPage({
         </p>
       </div>
 
+      {/* Lead age detection helper — keeps the upload flow honest about which
+          date column DLR needs and why some leads get held or flagged. */}
+      <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 md:p-5 space-y-3 text-sm text-gray-700">
+        <div>
+          <p className="text-sm font-semibold text-gray-900">Lead age detection</p>
+          <p className="text-xs text-gray-500 mt-0.5">
+            Nothing is sent from this page — uploading only prepares previews.
+          </p>
+        </div>
+
+        <p>
+          DLR uses the original lead/inquiry date to group leads into safe
+          follow-up campaigns. Add one of these columns to your CSV
+          (case-insensitive):
+        </p>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-xs">
+          <div>
+            <p className="font-semibold text-gray-800">Preferred — original inquiry date</p>
+            <p className="text-gray-600 leading-snug">
+              <code className="text-gray-700">Lead Date</code>, <code className="text-gray-700">Created Date</code>,{' '}
+              <code className="text-gray-700">Date Created</code>, <code className="text-gray-700">Inquiry Date</code>,{' '}
+              <code className="text-gray-700">Submitted Date</code>, <code className="text-gray-700">Received Date</code>,{' '}
+              <code className="text-gray-700">Prospect Date</code>, <code className="text-gray-700">Created</code>
+            </p>
+          </div>
+          <div>
+            <p className="font-semibold text-gray-800">Fallback — only if no original date</p>
+            <p className="text-gray-600 leading-snug">
+              <code className="text-gray-700">Last Activity Date</code>, <code className="text-gray-700">Last Contacted</code>,{' '}
+              <code className="text-gray-700">Last Contacted Date</code>, bare <code className="text-gray-700">Date</code>
+            </p>
+          </div>
+        </div>
+
+        <p className="text-xs text-gray-600 leading-relaxed">
+          <span className="font-semibold text-gray-800">Why priority matters:</span>{' '}
+          the original inquiry date tells DLR how cold the lead actually is. A
+          “last activity” date is only used when no original column is present
+          — it can make a long-cold lead look recent.
+        </p>
+
+        <ul className="text-xs text-gray-600 space-y-1.5">
+          <li>
+            <span className="font-semibold text-violet-700">Held:</span>{' '}
+            contacted less than 14 days ago — too fresh for revival messaging.
+          </li>
+          <li>
+            <span className="font-semibold text-orange-700">Needs Date:</span>{' '}
+            DLR cannot safely choose a campaign group without a lead date. Re-upload with one of the columns above.
+          </li>
+          <li>
+            <span className="font-semibold text-red-600">Blocked:</span>{' '}
+            phone is invalid, opted out, or revoked consent — DLR will not include the row.
+          </li>
+        </ul>
+      </div>
+
       {/* Auto-select trigger */}
       {eligibleCount > 0 && selectedCount === 0 && (
         <AutoSelectEligible tenantId={tenantId} apiBase={apiBase} />
@@ -259,7 +317,8 @@ export default async function DealerImportPage({
           {heldCount > 0 && (
             <div className="rounded-lg border border-violet-200 bg-violet-50 px-4 py-2.5 text-xs text-violet-800">
               <span className="font-semibold">⏳ {heldCount} held lead{heldCount !== 1 ? 's' : ''}:</span>{' '}
-              contacted less than 14 days ago — will become eligible once they hit the 14-day mark.
+              held because {heldCount === 1 ? 'this lead is' : 'these leads are'} too fresh for revival messaging.
+              {heldCount === 1 ? ' It' : ' They'}&apos;ll become eligible at the 14-day mark.
             </div>
           )}
         </div>

@@ -121,7 +121,9 @@ export function classifyLeadAge(
       ageBucket:      null,
       leadAgeDays:    null,
       enrollAfter:    null,
-      warning:        'Contact date is missing or could not be parsed. Enter the date manually to classify this lead.',
+      warning:
+        'Needs lead date — re-upload with a Lead Date, Created Date, or Inquiry Date column. ' +
+        'DLR cannot safely choose a campaign group without a lead date.',
     }
   }
 
