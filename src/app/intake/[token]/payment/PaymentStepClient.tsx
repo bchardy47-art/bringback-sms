@@ -82,11 +82,26 @@ export function PaymentStepClient({
           </div>
         )}
 
+        {/* Stage 1 only covered intake activation; the account is NOT
+            considered active until a payment method is on file. The earlier
+            "Activation is complete." lead was misleading and triggered
+            tab-close drop-off in QA — replaced with a clear "Step 1
+            complete" framing plus an explicit "what's next + nothing
+            sends yet" reassurance pair. */}
+        <p className="text-sm font-semibold text-gray-900 mb-1">
+          Step 1 complete — finish payment to activate your dealership account.
+        </p>
         <p className="text-sm text-gray-600 mb-2">
-          Activation is complete. Add your payment method to reserve your plan —{' '}
+          Add your payment method so DLR can continue carrier setup, number
+          assignment, and pilot preparation.
+        </p>
+        <p className="text-xs font-semibold text-emerald-700 mb-3">
+          No messages are sent at this step.
+        </p>
+        <p className="text-sm text-gray-600 mb-2">
           <strong className="font-semibold text-gray-800">
-            card goes on file now; the first charge starts when your campaign is approved
-            and live with the carriers
+            Card goes on file now; the first charge starts when your campaign
+            is approved and live with the carriers
           </strong>{' '}
           (typically 7–10 business days).
         </p>
