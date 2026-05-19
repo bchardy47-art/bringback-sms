@@ -15,7 +15,20 @@ import { NoLiveSMSBanner } from '@/components/admin/NoLiveSMSBanner'
 import { pilotBatches } from '@/lib/db/schema'
 import { getLivePilotStatus, type LivePilotStatus } from '@/lib/pilot/live-pilot-execution'
 import { ConfirmationGate } from './ConfirmationGate'
+import { ConfirmingForm } from '../ConfirmingForm'
 import type { FirstPilotState, PilotReport } from '@/lib/db/schema'
+
+// Standardized live-SMS warning copy — shown above every button that
+// can fire real customer SMS, plus echoed inside the browser confirm()
+// dialog so the admin has to acknowledge before the request leaves the
+// page. Tweak in one place to keep all "fire SMS" gates aligned.
+const LIVE_SMS_WARNING_TEXT =
+  'This will send real SMS messages to real customers. Do not continue ' +
+  'unless the dealer has approved the batch and live-send activation is ' +
+  'confirmed.'
+const LIVE_SMS_CONFIRM_PROMPT =
+  'This will send real SMS messages to real customers. This cannot be ' +
+  'undone from DLR once sent. Continue?'
 
 // ── State display ─────────────────────────────────────────────────────────────
 
@@ -349,15 +362,32 @@ async function BatchCard({ batchId }: { batchId: string }) {
           </div>
           <div className="px-4 py-4 space-y-3">
             {state === 'ready_for_smoke_test' && (
-              <form action={`/api/admin/live-pilot/${batchId}`} method="POST">
-                <input type="hidden" name="action" value="start_smoke" />
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg"
+              <div className="space-y-3">
+                {/* Destructive-action warning — directly above the live
+                    SMS fire button. The smoke test is the first send
+                    that reaches a real customer. */}
+                <div className="rounded-lg border-2 border-red-300 bg-red-50 px-4 py-3">
+                  <p className="text-xs font-bold text-red-800 uppercase tracking-wide mb-1">
+                    ⚠ Live SMS — Destructive Action
+                  </p>
+                  <p className="text-sm text-red-800">
+                    {LIVE_SMS_WARNING_TEXT}
+                  </p>
+                </div>
+                <ConfirmingForm
+                  action={`/api/admin/live-pilot/${batchId}`}
+                  method="POST"
+                  confirmMessage={LIVE_SMS_CONFIRM_PROMPT}
                 >
-                  Start Smoke Test →
-                </button>
-              </form>
+                  <input type="hidden" name="action" value="start_smoke" />
+                  <button
+                    type="submit"
+                    className="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-lg shadow-sm"
+                  >
+                    Send live SMS smoke test →
+                  </button>
+                </ConfirmingForm>
+              </div>
             )}
             {state === 'smoke_test_sending' && (
               <div className="space-y-3">
@@ -399,16 +429,30 @@ async function BatchCard({ batchId }: { batchId: string }) {
               Smoke test passed. You may now enroll the remaining leads.
             </p>
           </div>
-          <div className="px-4 py-4">
-            <form action={`/api/admin/live-pilot/${batchId}`} method="POST">
+          <div className="px-4 py-4 space-y-3">
+            {/* Destructive-action warning — fires the bigger blast.
+                Smoke test cleared one customer; this releases the rest. */}
+            <div className="rounded-lg border-2 border-red-300 bg-red-50 px-4 py-3">
+              <p className="text-xs font-bold text-red-800 uppercase tracking-wide mb-1">
+                ⚠ Live SMS — Destructive Action
+              </p>
+              <p className="text-sm text-red-800">
+                {LIVE_SMS_WARNING_TEXT}
+              </p>
+            </div>
+            <ConfirmingForm
+              action={`/api/admin/live-pilot/${batchId}`}
+              method="POST"
+              confirmMessage={LIVE_SMS_CONFIRM_PROMPT}
+            >
               <input type="hidden" name="action" value="start_remaining" />
               <button
                 type="submit"
-                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg"
+                className="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-lg shadow-sm"
               >
-                Send Remaining {status.leads.length - 1} Lead{status.leads.length !== 2 ? 's' : ''} →
+                Send live SMS to remaining {status.leads.length - 1} lead{status.leads.length !== 2 ? 's' : ''} →
               </button>
-            </form>
+            </ConfirmingForm>
           </div>
         </div>
       )}
