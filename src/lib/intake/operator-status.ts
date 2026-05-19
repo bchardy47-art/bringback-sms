@@ -243,14 +243,26 @@ export function computeOperatorStatus(p: OperatorStatusInputs): OperatorStatus {
   }
 
   if (extras.workflowApproved && !dealerCanLogIn) {
+    // Pre-fill the invite form so the admin doesn't have to look up the
+    // tenant UUID or retype the dealer's email. The dealer-invite page
+    // reads these via useSearchParams.
+    const inviteParams = new URLSearchParams()
+    if (intake.tenantId)             inviteParams.set('tenantId',   intake.tenantId)
+    if (intake.primaryContactEmail)  inviteParams.set('email',      intake.primaryContactEmail)
+    if (intake.dealershipName)       inviteParams.set('dealership', intake.dealershipName)
+    const inviteHref =
+      inviteParams.toString().length > 0
+        ? `/admin/dlr/dealer-invite?${inviteParams.toString()}`
+        : '/admin/dlr/dealer-invite'
+
     return done(
       'waiting_on_dealer_invite',
       'dealer_login',
       'Generate dealer invite',
-      'Workflows are approved. The dealer cannot log in yet — generate a one-time invite link and send it to them.',
+      "Workflows are approved. The dealer cannot log in yet — generate a one-time invite link. If a dealer email is on file we'll email it automatically; otherwise you'll get a copyable link.",
       {
-        label: 'Generate Dealer Invite',
-        href:  '/admin/dlr/dealer-invite',
+        label: 'Invite dealer user',
+        href:  inviteHref,
       },
       'Dealer logs in and uploads dead leads from /dealer/import.',
     )
