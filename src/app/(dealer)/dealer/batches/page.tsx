@@ -32,6 +32,12 @@ type DealerBatchStatusInfo = { chip: string; label: string }
 
 const DEALER_BATCH_STATUS: Record<string, DealerBatchStatusInfo> = {
   draft:     { chip: 'bg-gray-100 text-gray-600',       label: 'Draft / Preview only' },
+  // 'previewed' is an internal pipeline state that landed as a raw
+  // lowercase chip in dealer QA — confusing because dealers couldn't
+  // tell who did the previewing or whether it had sent. Surfaces as
+  // "Preview only" (same gray treatment as draft); the "No messages
+  // have been sent" helper row below it does the rest of the work.
+  previewed: { chip: 'bg-gray-100 text-gray-600',       label: 'Preview only' },
   approved:  { chip: 'bg-blue-100 text-blue-700',       label: 'Approved — not sending yet' },
   sending:   { chip: 'bg-emerald-100 text-emerald-700', label: 'Live / Sending' },
   active:    { chip: 'bg-emerald-100 text-emerald-700', label: 'Live / Sending' },
