@@ -332,9 +332,13 @@ export function ActivationForm({
                 individuals.
               </span>
               <span className="block">
-                • My dealership indemnifies BCHardy LLC for claims arising from our data,
-                our consent records, or our use of the Service.
+                • My dealership agrees to indemnify Dead Lead Revival (DLR), operated by
+                BCHardy LLC, for claims arising from our data, our consent records, or our
+                use of the Service.
               </span>
+            </span>
+            <span className="block mt-3 text-emerald-700 font-semibold text-xs">
+              No customer messages are sent from this form.
             </span>
             <span className="block mt-3">
               I also consent to text-message communications from DLR at the mobile number
