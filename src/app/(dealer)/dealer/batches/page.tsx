@@ -206,8 +206,10 @@ export default async function DealerBatchesPage() {
                     {ctaLabel}
                   </a>
                 ) : (
-                  <div className="w-full text-center px-4 py-2 text-sm font-medium rounded-lg bg-gray-50 text-gray-400 border border-dashed border-gray-200">
-                    Upload leads to start
+                  <div className="w-full text-center px-4 py-2 text-sm font-medium rounded-lg bg-gray-50 text-gray-500 border border-dashed border-gray-200">
+                    {bucket.recommended
+                      ? 'Upload leads here to start your first pilot'
+                      : `Upload leads in this age window to use this campaign`}
                   </div>
                 )}
               </article>

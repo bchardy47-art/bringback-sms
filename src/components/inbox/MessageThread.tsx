@@ -19,7 +19,14 @@ export function MessageThread({ messages }: { messages: Message[] }) {
   }, [messages])
 
   if (messages.length === 0) {
-    return <p className="text-sm text-gray-400 text-center py-8">No messages yet.</p>
+    return (
+      <div className="text-center py-10 px-4">
+        <p className="text-sm font-medium text-gray-600">No messages in this conversation yet.</p>
+        <p className="text-xs text-gray-400 mt-1">
+          Messages will appear here as DLR sends and as the lead replies.
+        </p>
+      </div>
+    )
   }
 
   return (

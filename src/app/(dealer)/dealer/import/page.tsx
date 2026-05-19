@@ -283,10 +283,15 @@ export default async function DealerImportPage({
 
       {/* Zero state */}
       {allLeads.length === 0 && (
-        <div className="rounded-xl border-2 border-dashed border-gray-200 py-12 px-8 text-center">
-          <h3 className="text-base font-semibold text-gray-700 mb-1">No leads yet</h3>
-          <p className="text-sm text-gray-500 max-w-sm mx-auto">
-            Upload a CSV above. Tip: start with 5–10 leads so you have room to exclude any blocked ones.
+        <div className="rounded-xl border-2 border-dashed border-gray-200 py-10 px-6 text-center space-y-2">
+          <h3 className="text-base font-semibold text-gray-700">No leads yet</h3>
+          <p className="text-sm text-gray-600 max-w-md mx-auto">
+            Upload a CSV above. After upload, DLR validates each row, groups leads by age,
+            and prepares preview campaigns for your review.
+          </p>
+          <p className="text-xs text-gray-400 max-w-md mx-auto">
+            Nothing is sent until you approve a campaign. Tip: start with 5–10 leads so you
+            have room to exclude any blocked ones.
           </p>
         </div>
       )}
