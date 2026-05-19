@@ -1,6 +1,6 @@
 import { getServerSession } from 'next-auth'
 import { redirect } from 'next/navigation'
-import { eq, and, count } from 'drizzle-orm'
+import { eq, and, count, inArray } from 'drizzle-orm'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 import {
@@ -31,6 +31,7 @@ export default async function DealerDashboardPage() {
     draftRow,
     approvedRow,
     completedRow,
+    liveSendsRow,
     openConvosForBreakdown,
     intakeRow,
   ] = await Promise.all([
@@ -61,6 +62,21 @@ export default async function DealerDashboardPage() {
     db.select({ count: count() })
       .from(pilotBatches)
       .where(and(eq(pilotBatches.tenantId, tenantId), eq(pilotBatches.status, 'completed')))
+      .then(r => r[0]?.count ?? 0),
+
+    // Strong evidence that customer messages have actually been or are
+    // being sent for this tenant. 'sending' = mid-flight; 'completed' =
+    // first batch finished. ONLY this count gates the green "DLR
+    // messaging is live" banner — the internal sms_live_approved flag
+    // alone is insufficient because admins can flip it before a dealer
+    // has reached payment / setup form / pilot review (see Janet @ Test
+    // Motors Honda QA).
+    db.select({ count: count() })
+      .from(pilotBatches)
+      .where(and(
+        eq(pilotBatches.tenantId, tenantId),
+        inArray(pilotBatches.status, ['sending', 'completed']),
+      ))
       .then(r => r[0]?.count ?? 0),
 
     // Open conversations with their last message direction + human-takeover
@@ -206,20 +222,37 @@ export default async function DealerDashboardPage() {
   const showReassurance = allStatsZero && setup.showPanel
 
   // ── Messaging-state safety banner ────────────────────────────────────────
-  // Surfaced above everything else so a skeptical dealer can never look at
-  // the stat cards ("Active Conversations: 2", "Approved Batches: 1") and
-  // mistakenly think DLR is already messaging customers. Computed from the
-  // same tenant flags the setup panel reads, so the two views can't drift.
+  //
+  // Dealer-facing live status must be conservative. Internal readiness
+  // flags should not imply messages are actively sending.
+  //
+  // The previous version trusted `tenants.sms_live_approved` alone as the
+  // green-"live" trigger, which broke trust during QA: an admin can flip
+  // that flag before the dealer has reached payment / setup form / pilot
+  // review, and a dealer who is still mid-onboarding would see the green
+  // banner while the setup panel below it screamed "Action needed" on
+  // multiple steps (Janet @ Test Motors Honda).
+  //
+  // The fix: green requires *strong evidence of actual sending* — at
+  // least one pilot batch in 'sending' or 'completed' state — AND the
+  // live flag still set. Approved-only or draft-only batches stay amber,
+  // and the smsLiveApproved-without-sends case gets its own amber
+  // "in_setup" copy so the dealer knows internal prep is in motion but
+  // customer messages are not flowing.
+  //
   // Suppressed entirely when the account is blocked or paused — the
   // existing setup panel already alerts in red for those cases.
-  const safetyBlocked = !!(tenantRow?.complianceBlocked || tenantRow?.automationPaused)
-  const hasAnyBatch   = draftCount + activeCount + completedCount > 0
-  const messagingLive = !!tenantRow?.smsLiveApproved
-  const safetyBannerState: 'live' | 'in_review' | 'not_live' | null =
-    safetyBlocked        ? null         :
-    messagingLive        ? 'live'       :
-    hasAnyBatch          ? 'in_review'  :
-                           'not_live'
+  const safetyBlocked     = !!(tenantRow?.complianceBlocked || tenantRow?.automationPaused)
+  const liveSendsCount    = liveSendsRow as number
+  const hasLiveSends      = liveSendsCount > 0
+  const hasAnyBatch       = draftCount + activeCount + liveSendsCount > 0
+  const smsLiveApproved   = !!tenantRow?.smsLiveApproved
+  const safetyBannerState: 'live' | 'in_setup' | 'in_review' | 'not_live' | null =
+    safetyBlocked                       ? null         :
+    hasLiveSends && smsLiveApproved     ? 'live'       :
+    smsLiveApproved                     ? 'in_setup'   :
+    hasAnyBatch                         ? 'in_review'  :
+                                          'not_live'
 
   return (
     <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-6 md:space-y-8">
@@ -476,7 +509,7 @@ const BANNER_TONE_CLASS: Record<'blue' | 'amber' | 'emerald', {
 function MessagingSafetyBanner({
   state,
 }: {
-  state: 'live' | 'in_review' | 'not_live'
+  state: 'live' | 'in_setup' | 'in_review' | 'not_live'
 }) {
   let tone:  'blue' | 'amber' | 'emerald'
   let icon:  string
@@ -488,6 +521,14 @@ function MessagingSafetyBanner({
     icon   = '✓'
     title  = 'DLR messaging is live.'
     detail = 'Customer replies will appear in Inbox. You stay in control — take over conversations anytime.'
+  } else if (state === 'in_setup') {
+    // smsLiveApproved is true internally, but no batches have actually
+    // sent or are sending yet. Dealer must finish payment / setup / pilot
+    // review before customers see messages.
+    tone   = 'amber'
+    icon   = '⏳'
+    title  = 'Campaigns are in setup — not sending yet.'
+    detail = 'Some internal setup may already be approved, but customer messages do not go live until payment, campaign review, and final launch activation are complete.'
   } else if (state === 'in_review') {
     tone   = 'amber'
     icon   = '⏳'
