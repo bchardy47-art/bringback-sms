@@ -30,6 +30,25 @@ export default async function DealerSettingsPage() {
     columns: { stripeCustomerId: true, paymentStatus: true, plan: true },
   })
 
+  // Recovery path for the "no billing on file" state: find ANY intake for
+  // this tenant so we can deep-link the dealer back to /intake/<token>/payment.
+  // Only fetched when there's no billing intake — otherwise the dealer
+  // already has the Stripe portal button and doesn't need a recovery link.
+  // Token is used solely as the URL credential for the recovery link;
+  // never rendered as visible text. If no intake row exists (admin-provisioned
+  // tenant without an intake), recoveryHref stays null and the UI falls
+  // back to a support contact prompt.
+  const recoveryIntake = billingIntake
+    ? null
+    : await db.query.dealerIntakes.findFirst({
+        where: eq(dealerIntakes.tenantId, session.user.tenantId),
+        orderBy: [desc(dealerIntakes.createdAt)],
+        columns: { token: true },
+      })
+  const recoveryHref = recoveryIntake
+    ? `/intake/${recoveryIntake.token}/payment`
+    : null
+
   const name = user?.name ?? session.user.name ?? ''
   const email = user?.email ?? session.user.email ?? ''
 
@@ -73,6 +92,7 @@ export default async function DealerSettingsPage() {
           <BillingPortalButton
             hasCustomer={Boolean(billingIntake?.stripeCustomerId)}
             paymentStatus={billingIntake?.paymentStatus ?? null}
+            recoveryHref={recoveryHref}
           />
         </div>
 

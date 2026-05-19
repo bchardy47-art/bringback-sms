@@ -15,12 +15,19 @@ import { CreditCard, ExternalLink } from 'lucide-react'
 //   paymentStatus — current payment status from dealer_intakes; surfaced
 //                  as a small badge above the button so the dealer sees
 //                  state at a glance.
+//   recoveryHref — when !hasCustomer, deep-link to /intake/<token>/payment
+//                  so the dealer has a one-click recovery path back into
+//                  the payment step instead of a dead-end message. Null
+//                  if no intake row exists for the tenant, in which case
+//                  we render a support-contact fallback.
 export function BillingPortalButton({
   hasCustomer,
   paymentStatus,
+  recoveryHref,
 }: {
-  hasCustomer: boolean
+  hasCustomer:   boolean
   paymentStatus?: string | null
+  recoveryHref?:  string | null
 }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -77,10 +84,36 @@ export function BillingPortalButton({
           </button>
         </>
       ) : (
-        <p className="text-sm text-gray-500">
-          No billing on file for this account. Complete the payment step from your
-          activation link, or contact support if you believe this is wrong.
-        </p>
+        <div className="space-y-3">
+          <p className="text-sm font-semibold text-gray-900">
+            No payment method is on file yet.
+          </p>
+          <p className="text-sm text-gray-600">
+            Add a payment method so DLR can continue carrier setup, number
+            assignment, and pilot preparation.
+          </p>
+          {recoveryHref ? (
+            <a
+              href={recoveryHref}
+              className="inline-flex items-center gap-2 rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 transition-colors"
+            >
+              <CreditCard size={15} />
+              Finish payment setup
+              <span aria-hidden="true">→</span>
+            </a>
+          ) : (
+            <p className="text-sm text-gray-600">
+              Contact{' '}
+              <a
+                href="mailto:support@dlr-sms.com"
+                className="font-semibold text-gray-900 underline hover:text-gray-700"
+              >
+                support@dlr-sms.com
+              </a>{' '}
+              and we&apos;ll resend your activation link.
+            </p>
+          )}
+        </div>
       )}
 
       {error && (
