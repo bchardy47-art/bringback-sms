@@ -64,14 +64,26 @@ export default async function DealerConversationPage({
   if (!conversation) notFound()
 
   const { lead } = conversation
-  const canReply = conversation.status === 'open'
+  const isHumanOwned    = !!conversation.humanTookOverAt
+  const isOpen          = conversation.status === 'open'
+  const isOptedOut      = conversation.status === 'opted_out'
+  const isClosed        = conversation.status === 'closed'
+  // Compose only enabled when the dealer has explicitly taken over. An
+  // automated open conversation must NOT accept a manual reply — that's
+  // the QA bug this gate fixes.
+  const canReply        = isOpen && isHumanOwned
   const statusStyle = CONV_STATUS_STYLES[conversation.status] ?? CONV_STATUS_STYLES.open
   const stateStyle = STATE_STYLES[lead.state] ?? { label: lead.state, color: 'bg-gray-100 text-gray-600' }
   const initials = `${lead.firstName[0] ?? ''}${lead.lastName?.[0] ?? ''}`.toUpperCase()
   const avatarColor = nameToColor(lead.firstName)
 
-  // Show take-over banner when the lead has replied OR when already taken over
-  const showTakeOverBanner = lead.state === 'responded' || !!conversation.humanTookOverAt
+  // Show take-over banner for any open conversation (not opted_out, not
+  // closed). The banner renders one of two states: "Automation is
+  // managing" + take-over button when humanTookOverAt is null, or the
+  // green "Human Active" confirmation after take-over. Conversations
+  // that are already opted-out or closed surface their own footer cards
+  // instead of the banner.
+  const showTakeOverBanner = isOpen
 
   return (
     <div className="flex h-full overflow-hidden">
@@ -126,22 +138,33 @@ export default async function DealerConversationPage({
           <MessageThread messages={conversation.messages} />
         </div>
 
-        {/* Reply area */}
+        {/* Reply area — four mutually exclusive states. Compose can ONLY
+            render when canReply (open + human-owned). Automated open
+            conversations show a disabled placeholder pointing the dealer
+            at the take-over banner above; the banner is where the action
+            lives so we don't duplicate the button here. */}
         {canReply ? (
           <div className="flex-shrink-0 bg-white border-t border-gray-200">
             <ReplyBox conversationId={conversation.id} />
           </div>
-        ) : conversation.status === 'opted_out' ? (
-          <div className="flex-shrink-0 border-t border-red-200 bg-red-50 px-5 py-4">
-            <p className="text-sm text-center text-red-700 font-medium">
-              This lead has opted out — messaging is disabled.
+        ) : isOpen ? (
+          <div className="flex-shrink-0 border-t border-amber-200 bg-amber-50 px-5 py-4">
+            <p className="text-sm text-center text-amber-800">
+              Compose disabled while automation manages this conversation.
+              Take over above to reply manually.
             </p>
           </div>
-        ) : (
+        ) : isOptedOut ? (
+          <div className="flex-shrink-0 border-t border-red-200 bg-red-50 px-5 py-4">
+            <p className="text-sm text-center text-red-700 font-medium">
+              This lead opted out. Do not send messages.
+            </p>
+          </div>
+        ) : isClosed ? (
           <div className="flex-shrink-0 border-t border-gray-200 bg-white px-5 py-4">
             <p className="text-sm text-gray-400 text-center">Conversation is closed.</p>
           </div>
-        )}
+        ) : null}
       </div>
 
       {/* Right: Lead details panel (desktop only) */}

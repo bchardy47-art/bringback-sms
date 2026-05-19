@@ -319,7 +319,18 @@ export function ConversationListSidebar({
                   </div>
                   {lastMsg ? (
                     <p className={`text-xs truncate ${isInbound && !isHumanOwned ? 'text-gray-800 font-medium' : 'text-gray-500'}`}>
-                      {lastMsg.direction === 'outbound' ? 'Automation: ' : ''}{lastMsg.body}
+                      {/* Preview prefix:
+                          - outbound → "Automation: …" (automation sent this)
+                          - inbound + customer name available → "{FirstName}: …"
+                          - inbound + no name → just the body
+                          Keeps attribution clear so an inbound reply
+                          isn't mislabelled as automation. */}
+                      {lastMsg.direction === 'outbound'
+                        ? 'Automation: '
+                        : conv.lead.firstName
+                          ? `${conv.lead.firstName}: `
+                          : ''}
+                      {lastMsg.body}
                     </p>
                   ) : (
                     <p className="text-xs text-gray-400">No messages</p>
