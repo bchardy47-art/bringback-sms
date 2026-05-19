@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { dealerIntakes } from '@/lib/db/schema'
 import { normalizeWebsite } from '@/lib/normalize-website'
+import { sendIntakeReceivedEmail } from '@/lib/intake/confirmation-email'
 
 function str(v: unknown): string | undefined {
   if (typeof v === 'string' && v.trim().length > 0) return v.trim()
@@ -139,6 +140,18 @@ export async function POST(
         updatedAt:            new Date(),
       })
       .where(eq(dealerIntakes.id, intake.id))
+
+    // Fire the dealer confirmation email. The handler already guards against
+    // re-submission (the early `intake.submittedAt` check + 409), so this
+    // runs exactly once per intake. The helper catches all SMTP errors
+    // internally and returns void; we still wrap defensively so an
+    // unexpected throw can't 500 the dealer's submission — their data is
+    // already saved by the UPDATE above.
+    try {
+      await sendIntakeReceivedEmail(intake.id)
+    } catch (emailErr) {
+      console.error('[intake POST] confirmation email helper threw unexpectedly:', emailErr)
+    }
 
     return NextResponse.json({ ok: true })
   } catch (err) {
