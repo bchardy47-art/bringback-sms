@@ -138,6 +138,35 @@ export default async function DealerDashboardPage() {
   const leadStepStatus = setup.steps.find(s => s.key === 'leads')?.status ?? 'not_started'
   const canUploadNow = leadStepStatus === 'needs_your_action' || leadStepStatus === 'done'
 
+  // Per-step "what should I click" mapping for steps in `needs_your_action`.
+  // Returns null for steps where there's nothing the dealer can click —
+  // e.g. carrier registration pending, sending number assignment, launch
+  // approval — those stay labeled "Waiting on DLR" / "Not started" only.
+  // Token, when needed, is taken from the intake row already loaded above;
+  // it's embedded in href only, never rendered as visible text.
+  const intakeToken = intakeRow?.token ?? null
+  function actionForStep(stepKey: string, status: string): { label: string; href: string } | null {
+    if (status !== 'needs_your_action') return null
+    switch (stepKey) {
+      case 'payment':
+        // Billing settings page exposes the "Finish payment setup →" recovery
+        // button that deep-links into the intake/payment flow.
+        return { label: 'Finish payment setup →', href: '/dealer/settings' }
+      case 'form':
+        // Stage 2 onboarding form lives at /intake/<token>. If no token (rare,
+        // admin-provisioned tenant), drop to settings as a soft fallback.
+        return intakeToken
+          ? { label: 'Open setup form →',     href: `/intake/${intakeToken}` }
+          : { label: 'Finish payment setup →', href: '/dealer/settings' }
+      case 'leads':
+        return { label: 'Upload leads →',  href: '/dealer/import' }
+      case 'pilot':
+        return { label: 'Review batches →', href: '/dealer/batches' }
+      default:
+        return null
+    }
+  }
+
   const stats = [
     {
       label: 'Leads Imported',
@@ -219,7 +248,12 @@ export default async function DealerDashboardPage() {
 
           <ol className="mt-4 space-y-2">
             {setup.steps.map((step, idx) => (
-              <SetupStepRow key={step.key} index={idx + 1} step={step} />
+              <SetupStepRow
+                key={step.key}
+                index={idx + 1}
+                step={step}
+                action={actionForStep(step.key, step.status)}
+              />
             ))}
           </ol>
         </section>
@@ -324,7 +358,15 @@ export default async function DealerDashboardPage() {
 
 // ── Step row component ──────────────────────────────────────────────────────
 
-function SetupStepRow({ index, step }: { index: number; step: DealerSetupStep }) {
+function SetupStepRow({
+  index,
+  step,
+  action,
+}: {
+  index:   number
+  step:    DealerSetupStep
+  action?: { label: string; href: string } | null
+}) {
   const isDone   = step.status === 'done'
   const isActive = step.status === 'in_progress' || step.status === 'needs_your_action'
 
@@ -356,6 +398,16 @@ function SetupStepRow({ index, step }: { index: number; step: DealerSetupStep })
         </div>
         {step.detail && (
           <p className="text-xs text-gray-600 mt-0.5">{step.detail}</p>
+        )}
+        {action && (
+          <div className="mt-2 flex justify-start sm:justify-end">
+            <a
+              href={action.href}
+              className="inline-flex items-center rounded-md bg-gray-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-gray-700 transition-colors"
+            >
+              {action.label}
+            </a>
+          </div>
         )}
       </div>
     </li>
