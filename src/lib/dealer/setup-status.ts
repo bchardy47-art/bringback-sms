@@ -215,6 +215,43 @@ export function computeDealerSetupStatus(p: DealerSetupInputs): DealerSetupStatu
     account, payment, form, tendlc, number, leads, pilot, launch,
   ]
 
+  // ── Serialize dealer-action steps ──────────────────────────────────────────
+  // QA flagged the panel showing two "Action needed" buttons at once
+  // (e.g. payment=needs_your_action AND pilot=needs_your_action when a
+  // draft batch had been created but payment hadn't completed). That
+  // breaks the guided-flow expectation. Walk the dealer-action steps in
+  // their natural completion order; the first needs_your_action stays as
+  // the actionable step, every later one is downgraded to 'not_started'
+  // with a detail line explaining what unlocks it. The dashboard's
+  // actionForStep() helper only emits an action button when status ===
+  // 'needs_your_action', so this mutation alone is enough to remove the
+  // duplicate button without touching the dashboard render code.
+  //
+  // 'form' and 'leads' already gate their needs_your_action branches on
+  // upstream completion in the per-step logic above, so they're rarely
+  // out of order. 'pilot' is the historical outlier — drafts can exist
+  // independent of payment/form state — and is the step this pass
+  // primarily catches. Treating all four uniformly future-proofs
+  // against similar drift if a new step is added later.
+  const DEALER_ACTION_ORDER = ['payment', 'form', 'leads', 'pilot'] as const
+  const BLOCKED_DETAIL: Record<string, string> = {
+    payment: 'Available after payment is complete.',
+    form:    'Available after the setup form is submitted.',
+    leads:   'Available after leads are uploaded.',
+  }
+  let earliestActionKey: string | null = null
+  for (const key of DEALER_ACTION_ORDER) {
+    const step = steps.find(s => s.key === key)
+    if (!step) continue
+    if (step.status !== 'needs_your_action') continue
+    if (earliestActionKey === null) {
+      earliestActionKey = key
+      continue
+    }
+    step.status = 'not_started'
+    step.detail = BLOCKED_DETAIL[earliestActionKey] ?? 'Available after the earlier step.'
+  }
+
   // ── Overall verdict ────────────────────────────────────────────────────────
   let overall: DealerSetupOverall
   let title:   string
