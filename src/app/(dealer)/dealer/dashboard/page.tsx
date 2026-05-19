@@ -1,5 +1,6 @@
 import { getServerSession } from 'next-auth'
 import { redirect } from 'next/navigation'
+import { revalidatePath } from 'next/cache'
 import { eq, and, count, inArray } from 'drizzle-orm'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
@@ -17,11 +18,46 @@ import {
   type DealerSetupStep,
   type DealerSetupStatus,
 } from '@/lib/dealer/setup-status'
+import {
+  pauseTenantAutomation,
+  resumeTenantAutomation,
+} from '@/lib/admin/dlr-queries'
+import { ConfirmingForm } from '@/app/(dashboard)/admin/dlr/ConfirmingForm'
+
+// Dealer-friendly pause/resume confirmation strings — reused by the
+// automation status card below. Kept here so updates land in one place.
+const PAUSE_CONFIRM_PROMPT =
+  'This will pause DLR automation for your dealership. No automated ' +
+  'follow-up will run until resumed. Continue?'
+const RESUME_CONFIRM_PROMPT =
+  'This will resume DLR automation for your dealership. Only approved/' +
+  'live workflows will continue. Continue?'
 
 export default async function DealerDashboardPage() {
   const session = await getServerSession(authOptions)
   if (!session) redirect('/login')
   if (session.user.role !== 'dealer') redirect('/dashboard')
+
+  // Dealer-scoped pause/resume server actions. Re-verify the session
+  // inside each action body — the closure's `session` reference can be
+  // stale by the time a form submit fires, and we never want to operate
+  // on anyone but the signed-in dealer's own tenant. Underlying
+  // mutation reuses the admin dlr-queries helpers but tenant scope is
+  // strictly the dealer's own.
+  async function dealerPauseAutomation() {
+    'use server'
+    const s = await getServerSession(authOptions)
+    if (!s || s.user.role !== 'dealer') throw new Error('Unauthorized')
+    await pauseTenantAutomation(s.user.tenantId)
+    revalidatePath('/dealer/dashboard')
+  }
+  async function dealerResumeAutomation() {
+    'use server'
+    const s = await getServerSession(authOptions)
+    if (!s || s.user.role !== 'dealer') throw new Error('Unauthorized')
+    await resumeTenantAutomation(s.user.tenantId)
+    revalidatePath('/dealer/dashboard')
+  }
 
   const tenantId = session.user.tenantId
 
@@ -288,6 +324,22 @@ export default async function DealerDashboardPage() {
 
       {/* ── Messaging-state safety banner ─────────────────────────────── */}
       {safetyBannerState && <MessagingSafetyBanner state={safetyBannerState} />}
+
+      {/* ── DLR Automation Status card ───────────────────────────────────
+          Dealer-side live-ops surface. Three states:
+            - not_live  → informational, no action button
+            - running   → live + not paused, "Pause all automation" button
+            - paused    → automationPaused true, "Resume automation" button
+          Hidden when the account is compliance-blocked (the setup panel
+          below already alerts in red and the dealer can't override). */}
+      {!tenantRow?.complianceBlocked && (
+        <DealerAutomationStatusCard
+          isLive={isLive}
+          paused={!!tenantRow?.automationPaused}
+          pauseAction={dealerPauseAutomation}
+          resumeAction={dealerResumeAutomation}
+        />
+      )}
 
       {/* ── DLR Setup Progress panel ───────────────────────────────────── */}
       {setup.showPanel && (
@@ -578,6 +630,144 @@ function MessagingSafetyBanner({
         <div className="min-w-0 flex-1">
           <p className={`text-sm md:text-base font-bold ${t.title}`}>{title}</p>
           <p className={`text-xs md:text-sm mt-1 leading-relaxed ${t.detail}`}>{detail}</p>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ── Dealer automation status card ──────────────────────────────────────────
+//
+// Dealer-side live-ops surface for pause/resume. Three states:
+//   - not_live  → informational ("Automation is not live yet"), no button
+//   - running   → live + not paused, shows "Pause all automation" with
+//                 ConfirmingForm gate
+//   - paused    → automationPaused=true, shows "Resume automation" with
+//                 ConfirmingForm gate
+//
+// All copy is dealer-friendly: "your dealership", "pause automation",
+// "approved/live workflows" — no internal terms (tenant, worker, queue).
+
+const AUTOMATION_TONE: Record<'gray' | 'emerald' | 'amber', {
+  bg:     string
+  border: string
+  title:  string
+  detail: string
+  icon:   string
+}> = {
+  gray: {
+    bg:     'bg-gray-50',
+    border: 'border-gray-200',
+    title:  'text-gray-900',
+    detail: 'text-gray-600',
+    icon:   'bg-gray-200 text-gray-700',
+  },
+  emerald: {
+    bg:     'bg-emerald-50',
+    border: 'border-emerald-200',
+    title:  'text-emerald-900',
+    detail: 'text-emerald-800',
+    icon:   'bg-emerald-100 text-emerald-700',
+  },
+  amber: {
+    bg:     'bg-amber-50',
+    border: 'border-amber-200',
+    title:  'text-amber-900',
+    detail: 'text-amber-800',
+    icon:   'bg-amber-100 text-amber-700',
+  },
+}
+
+function DealerAutomationStatusCard({
+  isLive,
+  paused,
+  pauseAction,
+  resumeAction,
+}: {
+  isLive:       boolean
+  paused:       boolean
+  pauseAction:  () => Promise<void>
+  resumeAction: () => Promise<void>
+}) {
+  // State derivation — paused trumps live/not-live framing.
+  let tone:   'gray' | 'emerald' | 'amber'
+  let icon:   string
+  let title:  string
+  let detail: string
+  let button: 'pause' | 'resume' | null
+
+  if (paused) {
+    tone   = 'amber'
+    icon   = '⏸'
+    title  = 'Automation is paused'
+    detail = 'No automated follow-up is running. Existing human-owned conversations remain available in Inbox.'
+    button = 'resume'
+  } else if (isLive) {
+    tone   = 'emerald'
+    icon   = '✓'
+    title  = 'Automation is running'
+    detail = 'DLR is managing approved live conversations. You can pause automation if something looks wrong.'
+    button = 'pause'
+  } else {
+    tone   = 'gray'
+    icon   = 'ℹ'
+    title  = 'Automation is not live yet'
+    detail = 'DLR will not send customer messages until campaign review and live-send activation are complete.'
+    button = null
+  }
+
+  const t = AUTOMATION_TONE[tone]
+
+  return (
+    <section
+      role="status"
+      aria-live="polite"
+      className={`rounded-xl border-2 ${t.border} ${t.bg} p-4 md:p-5`}
+    >
+      <div className="flex items-start gap-3">
+        <span
+          className={`flex-shrink-0 w-7 h-7 rounded-full inline-flex items-center justify-center text-sm font-bold ${t.icon}`}
+          aria-hidden="true"
+        >
+          {icon}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-0.5">
+            DLR Automation Status
+          </p>
+          <p className={`text-sm md:text-base font-bold ${t.title}`}>{title}</p>
+          <p className={`text-xs md:text-sm mt-1 leading-relaxed ${t.detail}`}>{detail}</p>
+
+          {button === 'pause' && (
+            <div className="mt-3">
+              <ConfirmingForm
+                action={pauseAction}
+                confirmMessage={PAUSE_CONFIRM_PROMPT}
+              >
+                <button
+                  type="submit"
+                  className="inline-flex items-center rounded-md bg-red-600 px-4 py-2 text-xs font-bold text-white hover:bg-red-700 transition-colors"
+                >
+                  Pause all automation
+                </button>
+              </ConfirmingForm>
+            </div>
+          )}
+          {button === 'resume' && (
+            <div className="mt-3">
+              <ConfirmingForm
+                action={resumeAction}
+                confirmMessage={RESUME_CONFIRM_PROMPT}
+              >
+                <button
+                  type="submit"
+                  className="inline-flex items-center rounded-md bg-emerald-600 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-700 transition-colors"
+                >
+                  Resume automation
+                </button>
+              </ConfirmingForm>
+            </div>
+          )}
         </div>
       </div>
     </section>
