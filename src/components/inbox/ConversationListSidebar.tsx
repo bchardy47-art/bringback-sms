@@ -319,7 +319,7 @@ export function ConversationListSidebar({
                   </div>
                   {lastMsg ? (
                     <p className={`text-xs truncate ${isInbound && !isHumanOwned ? 'text-gray-800 font-medium' : 'text-gray-500'}`}>
-                      {lastMsg.direction === 'outbound' ? 'DLR: ' : ''}{lastMsg.body}
+                      {lastMsg.direction === 'outbound' ? 'Automation: ' : ''}{lastMsg.body}
                     </p>
                   ) : (
                     <p className="text-xs text-gray-400">No messages</p>

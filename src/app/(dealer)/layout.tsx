@@ -149,7 +149,7 @@ export default async function DealerLayout({ children }: { children: React.React
           {[
             { href: '/dealer/dashboard', label: 'Dashboard' },
             { href: '/dealer/import',    label: 'Upload Leads' },
-            { href: '/dealer/batches',   label: 'Batches' },
+            { href: '/dealer/batches',   label: 'Campaigns' },
             { href: '/dealer/inbox',     label: 'Inbox' },
           ].map(({ href, label }) => (
             <a

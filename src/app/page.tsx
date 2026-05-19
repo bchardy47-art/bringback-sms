@@ -237,7 +237,7 @@ export default function RootPage() {
       {/* ── Hero ───────────────────────────────────────────────────────── */}
       <section style={heroSection}>
         <div style={container}>
-          <p style={eyebrow}>DLR · Dead Lead Revival · by BCHardy LLC</p>
+          <p style={eyebrow}>DLR · Dead Lead Revival</p>
           <h1 style={h1}>Revive dead dealership leads without adding CRM busywork.</h1>
           <p style={lead}>
             DLR helps independent dealerships safely re-engage old internet leads by SMS,
@@ -257,7 +257,7 @@ export default function RootPage() {
           </nav>
 
           <p style={invitedNote}>
-            Already invited by DLR? Use the link Brian sent you to finish setup.
+            Already invited by DLR? Use your activation link to continue setup.
           </p>
         </div>
       </section>

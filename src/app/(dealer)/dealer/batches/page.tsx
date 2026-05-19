@@ -225,6 +225,10 @@ export default async function DealerBatchesPage() {
             <p className="text-sm font-semibold text-gray-900">
               Campaign history ({batches.length})
             </p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              These are prepared previews and review history. Nothing here
+              means messages were sent unless marked live or completed.
+            </p>
           </div>
           <ul className="divide-y divide-gray-100">
             {batches.map(batch => {

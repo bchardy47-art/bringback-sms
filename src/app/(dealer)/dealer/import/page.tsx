@@ -198,9 +198,12 @@ export default async function DealerImportPage({
         </div>
 
         <p>
-          DLR uses the original lead/inquiry date to group leads into safe
-          follow-up campaigns. Add one of these columns to your CSV
-          (case-insensitive):
+          Include the date each lead originally contacted your store. DLR uses
+          that date to group leads into safe follow-up campaigns.
+        </p>
+
+        <p className="text-xs text-gray-600">
+          Common column names we recognize (case-insensitive):
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-xs">
