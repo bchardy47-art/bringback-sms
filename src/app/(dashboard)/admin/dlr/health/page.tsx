@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { revalidatePath } from 'next/cache'
 import { authOptions } from '@/lib/auth'
 import { getAutomationHealth, pauseTenantAutomation, resumeTenantAutomation } from '@/lib/admin/dlr-queries'
+import { ConfirmingForm } from '../ConfirmingForm'
 
 export default async function HealthPage() {
   const session = await getServerSession(authOptions)
@@ -59,23 +60,29 @@ export default async function HealthPage() {
         </div>
         <div className="pt-2 flex gap-2">
           {health.tenant.automationPaused ? (
-            <form action={resume}>
+            <ConfirmingForm
+              action={resume}
+              confirmMessage={`This will resume automation for ${health.tenant.name}. Only approved/live workflows will continue.`}
+            >
               <button
                 type="submit"
                 className="px-4 py-2 text-sm font-semibold text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors"
               >
                 Resume automation
               </button>
-            </form>
+            </ConfirmingForm>
           ) : (
-            <form action={pause}>
+            <ConfirmingForm
+              action={pause}
+              confirmMessage={`This will pause automation for ${health.tenant.name}. No automated follow-up will run until resumed.`}
+            >
               <button
                 type="submit"
                 className="px-4 py-2 text-sm font-semibold text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
               >
                 Pause automation
               </button>
-            </form>
+            </ConfirmingForm>
           )}
         </div>
       </div>

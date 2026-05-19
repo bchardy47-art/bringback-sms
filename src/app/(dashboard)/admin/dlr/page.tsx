@@ -30,6 +30,7 @@ import {
 } from '@/lib/admin/dlr-queries'
 import { getPlatformOverview, type PipelineRow } from '@/lib/admin/platform-queries'
 import { getLaunchStatusLabel, getLaunchStatusColor } from '@/lib/intake/checklist'
+import { ConfirmingForm } from './ConfirmingForm'
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
@@ -363,17 +364,23 @@ export default async function DlrPlatformAdminPage() {
               </div>
               <div className="mt-3 flex gap-2">
                 {!health.tenant.automationPaused ? (
-                  <form action={pause}>
+                  <ConfirmingForm
+                    action={pause}
+                    confirmMessage={`This will pause automation for ${health.tenant.name}. No automated follow-up will run until resumed.`}
+                  >
                     <button type="submit" className="px-3 py-1.5 text-xs font-semibold text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors">
-                      Pause BCHardy automation
+                      Pause {health.tenant.name} automation
                     </button>
-                  </form>
+                  </ConfirmingForm>
                 ) : (
-                  <form action={resume}>
+                  <ConfirmingForm
+                    action={resume}
+                    confirmMessage={`This will resume automation for ${health.tenant.name}. Only approved/live workflows will continue.`}
+                  >
                     <button type="submit" className="px-3 py-1.5 text-xs font-semibold text-green-600 border border-green-200 rounded-lg hover:bg-green-50 transition-colors">
-                      Resume BCHardy automation
+                      Resume {health.tenant.name} automation
                     </button>
-                  </form>
+                  </ConfirmingForm>
                 )}
               </div>
             </div>
