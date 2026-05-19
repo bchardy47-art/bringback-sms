@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { OnboardingTimeline } from '@/components/intake/OnboardingTimeline'
 
 const PLAN_LABEL: Record<string, string> = {
   pilot: 'Pilot',
@@ -110,6 +111,15 @@ export function PaymentStepClient({
           That&apos;s how Stripe describes the billing-delay window — it&apos;s the same
           thing, not a separate offer.
         </p>
+
+        {/* Full onboarding timeline so the dealer can see the whole path
+            before clicking checkout. Step 2 (payment) is current; step 1
+            (dealership setup) is marked done. Sits above the amber EIN
+            heads-up so the order reads: full picture → specific reminder
+            for what comes next → CTA. */}
+        <div className="mb-4">
+          <OnboardingTimeline currentStep={2} />
+        </div>
 
         <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 mb-5">
           <p className="text-sm text-amber-900">

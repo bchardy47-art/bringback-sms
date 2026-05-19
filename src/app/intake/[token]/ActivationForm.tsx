@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Check } from 'lucide-react'
 import { TERMS_VERSION } from '@/lib/legal'
+import { OnboardingTimeline } from '@/components/intake/OnboardingTimeline'
 
 // Stage 1 — Activation / Close.
 //   Goal: capture the deal in 60–90 seconds.
@@ -284,6 +285,13 @@ export function ActivationForm({
           </select>
         </div>
       </div>
+
+      {/* "What happens next" — short dealer-facing timeline rendered right
+          before the consent block so the dealer can see the full path
+          before they commit. Step 1 is marked current; downstream steps
+          stay neutral. Includes the standard "no customer messages send
+          until the first campaign is reviewed" reassurance line. */}
+      <OnboardingTimeline currentStep={1} />
 
       {/* Acceptance — single checkbox, but the label surfaces the binding
           dealer warranties at the moment of click so consent is informed.
