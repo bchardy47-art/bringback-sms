@@ -237,30 +237,54 @@ export default async function DealerBatchesPage() {
             const otherBatch    = bucketBatches.find(b => b.status !== 'draft') ?? null
             const featured      = draftBatch ?? otherBatch ?? null
 
+            // The card's CTA opens a single batch (featured), so the count
+            // shown on the card must match that batch's visible-lead count
+            // — not the bucket-wide aggregate, which previously caused the
+            // card to read "7 leads" while the review page only showed 1.
+            // `featured.leads` is already filtered to non-test leads upstream.
+            const featuredLeadCount = featured?.leads.length ?? 0
+            const featuredIsEmpty   = featured !== null && featuredLeadCount === 0
+
+            // Suppress the "Start here" badge AND the urgent draft styling
+            // when the featured batch has zero eligible visible leads —
+            // clicking through would only show the empty-state on the
+            // review page, which makes the badge a trap during a demo.
+            const showStartHere   = bucket.recommended && !featuredIsEmpty
+            const isUrgentDraft   = draftBatch !== null && !featuredIsEmpty
+
             const statusLabel =
-              !featured                       ? 'No leads yet' :
+              !featured       ? 'No leads yet'       :
+              featuredIsEmpty ? 'No eligible leads'  :
               DEALER_STATUS_LABEL[featured.status] ?? featured.status
 
-            const ctaLabel =
-              draftBatch ? 'Review Campaign →' :
-              otherBatch ? 'View Campaign →'   :
-              null
-
-            const totalLeads = bucketBatches.reduce((n, b) => n + b.leads.length, 0)
+            // CTA states:
+            //   urgent_draft → big blue "Review Campaign"
+            //   view         → gray "View Campaign" for non-draft batches
+            //   empty        → muted "No eligible leads yet" (still
+            //                  linked to the batch so a curious dealer
+            //                  can see the empty review page, but
+            //                  non-primary styling avoids drawing the
+            //                  demo toward a dead campaign)
+            //   no_featured  → dashed upload-prompt empty state
+            const ctaState: 'urgent_draft' | 'view' | 'empty' | 'no_featured' =
+              !featured        ? 'no_featured'  :
+              featuredIsEmpty  ? 'empty'        :
+              draftBatch       ? 'urgent_draft' :
+                                 'view'
 
             return (
               <article
                 key={bucket.key}
                 className={`bg-white rounded-xl p-4 shadow-sm flex flex-col gap-3 ${
-                  draftBatch       ? 'border-2 border-blue-200' :
-                  bucket.recommended ? 'border-2 border-purple-200' :
+                  isUrgentDraft       ? 'border-2 border-blue-200' :
+                  showStartHere       ? 'border-2 border-purple-200' :
                   'border border-gray-200'
                 }`}
               >
                 <div>
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <h3 className="text-sm font-semibold text-gray-900">{bucket.label}</h3>
-                    {bucket.recommended && (
+                    {showStartHere && (
                       <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-700 whitespace-nowrap">
                         Start here
                       </span>
@@ -273,31 +297,44 @@ export default async function DealerBatchesPage() {
 
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-gray-500">
-                    {totalLeads > 0
-                      ? `${totalLeads} lead${totalLeads === 1 ? '' : 's'}`
+                    {featuredLeadCount > 0
+                      ? `${featuredLeadCount} lead${featuredLeadCount === 1 ? '' : 's'}`
                       : 'No leads selected'}
                   </span>
                   <span className={`font-semibold ${
-                    draftBatch ? 'text-blue-700' :
-                    otherBatch ? 'text-gray-700' :
-                                 'text-gray-400'
+                    isUrgentDraft ? 'text-blue-700'  :
+                    featured      ? 'text-gray-700' :
+                                    'text-gray-400'
                   }`}>
                     {statusLabel}
                   </span>
                 </div>
 
-                {featured && ctaLabel ? (
+                {ctaState === 'urgent_draft' && featured && (
                   <a
                     href={`/dealer/batches/${featured.id}`}
-                    className={`block w-full text-center px-4 py-2 text-sm font-bold rounded-lg transition-colors ${
-                      draftBatch
-                        ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                        : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-                    }`}
+                    className="block w-full text-center px-4 py-2 text-sm font-bold rounded-lg transition-colors bg-blue-600 hover:bg-blue-700 text-white"
                   >
-                    {ctaLabel}
+                    Review Campaign →
                   </a>
-                ) : (
+                )}
+                {ctaState === 'view' && featured && (
+                  <a
+                    href={`/dealer/batches/${featured.id}`}
+                    className="block w-full text-center px-4 py-2 text-sm font-bold rounded-lg transition-colors bg-gray-100 hover:bg-gray-200 text-gray-700"
+                  >
+                    View Campaign →
+                  </a>
+                )}
+                {ctaState === 'empty' && featured && (
+                  <a
+                    href={`/dealer/batches/${featured.id}`}
+                    className="block w-full text-center px-4 py-2 text-sm font-medium rounded-lg bg-gray-50 hover:bg-gray-100 text-gray-500 border border-dashed border-gray-200"
+                  >
+                    No eligible leads yet
+                  </a>
+                )}
+                {ctaState === 'no_featured' && (
                   <div className="w-full text-center px-4 py-2 text-sm font-medium rounded-lg bg-gray-50 text-gray-500 border border-dashed border-gray-200">
                     {bucket.recommended
                       ? 'Upload leads here to start your first campaign'
