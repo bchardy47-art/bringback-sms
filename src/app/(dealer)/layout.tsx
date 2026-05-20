@@ -99,7 +99,7 @@ export default async function DealerLayout({ children }: { children: React.React
             <div className="min-w-0">
               <p className="text-white text-xs font-bold truncate leading-tight">{tenantName}</p>
               <p className="text-xs truncate" style={{ color: 'rgba(255,255,255,0.35)' }}>
-                Dead Lead Revival
+                Powered by DLR
               </p>
             </div>
           </div>

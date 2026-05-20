@@ -207,7 +207,7 @@ export default async function DealerBatchesPage() {
             href="/dealer/import"
             className="inline-block px-5 py-2.5 bg-gray-900 text-white text-sm font-semibold rounded-xl hover:bg-gray-700 transition-colors"
           >
-            Upload Dead Leads →
+            Upload Leads →
           </a>
         </div>
       )}

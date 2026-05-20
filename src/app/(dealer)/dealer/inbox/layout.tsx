@@ -57,6 +57,7 @@ export default async function DealerInboxLayout({ children }: { children: React.
       conversations={convos}
       totalOpen={0}
       basePath="/dealer/inbox"
+      title="Revived Conversations"
     />
   )
 

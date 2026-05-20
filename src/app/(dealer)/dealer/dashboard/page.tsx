@@ -139,7 +139,7 @@ export default async function DealerDashboardPage() {
     }).then(r => r ?? null),
   ])
 
-  const dealershipName = tenantRow?.name ?? 'Your Dealership'
+  const dealershipName = tenantRow?.name ?? 'Dealer'
   const importCount    = importRow as number
   const draftCount     = draftRow as number
   const activeCount    = approvedRow as number
@@ -329,18 +329,26 @@ export default async function DealerDashboardPage() {
   return (
     <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-6 md:space-y-8">
 
-      {/* Welcome header */}
+      {/* Welcome header — dealership-branded framing: dealership owns
+          the workspace, DLR is the engine. "Powered by DLR" keeps DLR
+          visible without implying the dealership built the software. */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900">
-          Hey {firstName} 👋
+          {dealershipName} Revival Center
         </h1>
-        <p className="mt-1 text-sm text-gray-500">
-          {dealershipName} — here&apos;s where your Dead Lead Revival pipeline stands.
+        <p className="mt-0.5 text-xs font-medium uppercase tracking-widest text-gray-400">
+          Powered by DLR
         </p>
+        <p className="mt-2 text-sm text-gray-500">
+          Review prepared campaigns, message previews, and revived lead conversations.
+        </p>
+        <p className="mt-1 text-xs text-gray-400">Hey {firstName} — here&apos;s where things stand.</p>
       </div>
 
       {/* ── Messaging-state safety banner ─────────────────────────────── */}
-      {safetyBannerState && <MessagingSafetyBanner state={safetyBannerState} />}
+      {safetyBannerState && (
+        <MessagingSafetyBanner state={safetyBannerState} dealershipName={dealershipName} />
+      )}
 
       {/* ── Next Step card ────────────────────────────────────────────────
           Lifted above the setup-progress panel so the dealer never has
@@ -384,10 +392,18 @@ export default async function DealerDashboardPage() {
               <p className={`text-xs font-semibold uppercase tracking-widest ${
                 setup.overall === 'blocked' ? 'text-red-700' : 'text-blue-700'
               }`}>
-                {setup.overall === 'blocked' ? 'Account paused' : 'DLR Setup Progress'}
+                {setup.overall === 'blocked' ? 'Account paused' : 'Setup Progress'}
               </p>
               <h2 className="text-lg md:text-xl font-bold text-gray-900 mt-0.5">
-                {setup.title || 'DLR Setup Progress'}
+                {/* Render-site rename: setup-status.ts pure function
+                    keeps its own 'DLR Setup Progress' return value; the
+                    dealer surface re-titles it as the dealership's own
+                    setup. Blocked-state alerts keep the loud
+                    'Account paused' label — branding doesn't override a
+                    compliance alert. */}
+                {setup.overall === 'blocked'
+                  ? (setup.title || 'Account paused')
+                  : `${dealershipName} Setup Progress`}
               </h2>
               <p className="text-sm text-gray-700 mt-1 max-w-2xl">
                 {setup.subtitle}
@@ -448,7 +464,7 @@ export default async function DealerDashboardPage() {
             className="flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors"
           >
             <div>
-              <p className="text-sm font-semibold text-gray-800">Upload Dead Leads</p>
+              <p className="text-sm font-semibold text-gray-800">Upload Leads</p>
               <p className="text-xs text-gray-500">Upload a CSV of prior dealership leads — DLR will prepare them for admin review.</p>
             </div>
             <span className="text-gray-400 text-sm">→</span>
@@ -657,8 +673,12 @@ const BANNER_TONE_CLASS: Record<'blue' | 'amber' | 'emerald', {
 
 function MessagingSafetyBanner({
   state,
+  dealershipName,
 }: {
   state: 'live' | 'in_setup' | 'in_review' | 'not_live'
+  /** Templated into the detail copy so the safety statement says exactly
+      which dealership is (or isn't) sending. */
+  dealershipName: string
 }) {
   let tone:  'blue' | 'amber' | 'emerald'
   let icon:  string
@@ -668,7 +688,7 @@ function MessagingSafetyBanner({
   if (state === 'live') {
     tone   = 'emerald'
     icon   = '✓'
-    title  = 'DLR messaging is live.'
+    title  = `${dealershipName} messaging is live.`
     detail = 'Customer replies will appear in Inbox. You stay in control — take over conversations anytime.'
   } else if (state === 'in_setup') {
     // smsLiveApproved is true internally, but no batches have actually
@@ -677,17 +697,17 @@ function MessagingSafetyBanner({
     tone   = 'amber'
     icon   = '⏳'
     title  = 'Campaigns are in setup — not sending yet.'
-    detail = 'Some internal setup may already be approved, but customer messages do not go live until payment, campaign review, and final launch activation are complete.'
+    detail = `No customer messages will send from ${dealershipName} until payment, campaign review, and final launch approval are complete.`
   } else if (state === 'in_review') {
     tone   = 'amber'
     icon   = '⏳'
     title  = 'Campaigns are in review — not live.'
-    detail = 'Approving a campaign prepares it for final launch review. It does not start sending by itself.'
+    detail = `Approving a campaign prepares it for final review. No messages send from ${dealershipName} until DLR activates your account.`
   } else {
     tone   = 'blue'
     icon   = 'ℹ'
-    title  = 'DLR is not sending messages yet.'
-    detail = 'Your dashboard may show imported leads, draft batches, or test conversations, but no customer messages go live until your first campaign is reviewed and DLR completes live-send activation with you.'
+    title  = 'Not sending yet.'
+    detail = `No customer messages will send from ${dealershipName} until your first campaign is reviewed and DLR completes activation with you.`
   }
 
   const t = BANNER_TONE_CLASS[tone]

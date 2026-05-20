@@ -129,11 +129,18 @@ export function ConversationListSidebar({
   conversations,
   totalOpen: _totalOpen,
   basePath = '/inbox',
+  title = 'Inbox',
 }: {
   conversations: Conversation[]
   totalOpen: number
   /** Base URL for tab links and conversation links. Default: /inbox */
   basePath?: string
+  /**
+   * Sidebar heading. Defaults to 'Inbox' so admin callers keep their
+   * existing label; dealer surfaces pass e.g. 'Revived Conversations'
+   * for the dealership-branded framing.
+   */
+  title?: string
 }) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -193,7 +200,7 @@ export function ConversationListSidebar({
       {/* Header */}
       <div className="px-4 pt-5 pb-3 border-b border-gray-100 flex-shrink-0">
         <div className="flex items-center justify-between mb-3">
-          <h1 className="text-base font-bold text-gray-900">Inbox</h1>
+          <h1 className="text-base font-bold text-gray-900">{title}</h1>
           {needsReviewCount > 0 && (
             <span className="text-xs font-bold text-white bg-red-500 rounded-full px-2 py-0.5">
               {needsReviewCount}

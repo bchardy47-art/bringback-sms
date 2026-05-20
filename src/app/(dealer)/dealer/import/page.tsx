@@ -179,7 +179,7 @@ export default async function DealerImportPage({
 
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Upload Dead Leads</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Upload Leads</h1>
         <p className="mt-1 text-sm text-gray-500">
           Upload a CSV of prior dealership leads. DLR will validate the file,
           bucket leads by age, and prepare a pilot campaign for admin review before
