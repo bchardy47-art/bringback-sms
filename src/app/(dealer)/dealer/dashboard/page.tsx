@@ -256,7 +256,24 @@ export default async function DealerDashboardPage() {
     ? Math.round((doneCount / setup.steps.length) * 100)
     : 0
 
-  const stats = [
+  // Campaign-review surface is "unlocked" only when the setup-status
+  // state machine says the pilot step is the dealer's current action.
+  // If drafts exist but an earlier step (payment/form/leads) blocks
+  // pilot review, the setup checklist downgrades pilot to 'not_started'
+  // — the stat card should mirror that locked framing instead of
+  // contradicting it with a clickable urgent CTA.
+  const pilotStep        = setup.steps.find(s => s.key === 'pilot')
+  const pilotActionable  = pilotStep?.status === 'needs_your_action'
+  const reviewLocked     = !pilotActionable && draftCount > 0
+
+  const stats: Array<{
+    label:    string
+    value:    number
+    href:     string | null
+    numColor: string
+    accent:   string
+    desc:     string
+  }> = [
     {
       label:   'Leads Imported',
       value:   importCount,
@@ -265,14 +282,23 @@ export default async function DealerDashboardPage() {
       accent:  '#e5e7eb',
       desc:    'Total leads in your pipeline',
     },
-    {
-      label:   'Campaigns Awaiting Review',
-      value:   draftCount,
-      href:    '/dealer/batches',
-      numColor: draftCount > 0 ? '#1d4ed8' : '#9ca3af',
-      accent:  draftCount > 0 ? '#3b82f6' : '#e5e7eb',
-      desc:    'Draft campaigns ready for your approval',
-    },
+    reviewLocked
+      ? {
+          label:   'Prepared Campaigns',
+          value:   draftCount,
+          href:    null,
+          numColor: '#6b7280',
+          accent:  '#e5e7eb',
+          desc:    'Review unlocks after payment.',
+        }
+      : {
+          label:   'Campaigns Awaiting Review',
+          value:   draftCount,
+          href:    '/dealer/batches',
+          numColor: draftCount > 0 ? '#1d4ed8' : '#9ca3af',
+          accent:  draftCount > 0 ? '#3b82f6' : '#e5e7eb',
+          desc:    'Draft campaigns ready for your approval',
+        },
     {
       label:   'Approved Campaigns',
       value:   activeCount,
@@ -434,22 +460,28 @@ export default async function DealerDashboardPage() {
 
       {/* ── Stats grid ────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 gap-3 md:gap-4">
-        {stats.map(({ label, value, href, numColor, accent, desc }) => (
-          <a
-            key={label}
-            href={href}
-            className="bg-white border border-gray-200 rounded-xl px-4 md:px-5 py-4 md:py-5 shadow-sm hover:shadow-md transition-shadow block overflow-hidden relative"
-          >
-            {/* Colored top accent bar */}
-            <div
-              className="absolute top-0 left-0 right-0 h-0.5 rounded-t-xl"
-              style={{ backgroundColor: accent }}
-            />
-            <p className="text-3xl font-bold mt-1" style={{ color: numColor }}>{value}</p>
-            <p className="text-sm font-semibold text-gray-700 mt-1">{label}</p>
-            <p className="text-xs text-gray-400 mt-0.5 leading-snug">{desc}</p>
-          </a>
-        ))}
+        {stats.map(({ label, value, href, numColor, accent, desc }) => {
+          const cardClass =
+            'bg-white border border-gray-200 rounded-xl px-4 md:px-5 py-4 md:py-5 shadow-sm transition-shadow block overflow-hidden relative'
+            + (href ? ' hover:shadow-md' : '')
+          const inner = (
+            <>
+              {/* Colored top accent bar */}
+              <div
+                className="absolute top-0 left-0 right-0 h-0.5 rounded-t-xl"
+                style={{ backgroundColor: accent }}
+              />
+              <p className="text-3xl font-bold mt-1" style={{ color: numColor }}>{value}</p>
+              <p className="text-sm font-semibold text-gray-700 mt-1">{label}</p>
+              <p className="text-xs text-gray-400 mt-0.5 leading-snug">{desc}</p>
+            </>
+          )
+          return href ? (
+            <a key={label} href={href} className={cardClass}>{inner}</a>
+          ) : (
+            <div key={label} className={cardClass}>{inner}</div>
+          )
+        })}
       </div>
 
       {/* Reassurance when everything is zero AND setup isn't done */}
