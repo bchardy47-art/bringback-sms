@@ -83,3 +83,13 @@ test_age_buckets.csv
 test_lead_validation.csv
 scripts/live-smoke-test.csv
 scripts/test-leads-smoke.csv
+
+# Cleanup archives — local only, never commit
+archive/
+
+# Ad-hoc QA/demo audit docs kept at root during development
+dlr_dealer_comprehension_qa_may19.md
+*_qa_*.md
+
+# Git lock file backup left by sandbox rename workaround
+.git/index.lock.bak*
