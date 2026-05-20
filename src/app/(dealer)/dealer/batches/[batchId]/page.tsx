@@ -42,7 +42,7 @@ export default async function DealerBatchReviewPage({ params }: RouteContext) {
   })
   if (!batch) notFound()
 
-  const [workflow, batchLeadRows] = await Promise.all([
+  const [workflow, batchLeadRowsRaw] = await Promise.all([
     db.query.workflows.findFirst({ where: eq(workflows.id, batch.workflowId ?? '') }),
     db
       .select()
@@ -51,12 +51,20 @@ export default async function DealerBatchReviewPage({ params }: RouteContext) {
   ])
 
   // Load lead records
-  const leadIds = batchLeadRows.map(r => r.leadId)
-  const leadRecords = leadIds.length > 0
+  const allLeadIds = batchLeadRowsRaw.map(r => r.leadId)
+  const leadRecordsRaw = allLeadIds.length > 0
     ? await Promise.all(
-        leadIds.map(id => db.query.leads.findFirst({ where: eq(leads.id, id) }))
+        allLeadIds.map(id => db.query.leads.findFirst({ where: eq(leads.id, id) }))
       ).then(all => all.filter((l): l is NonNullable<typeof l> => !!l))
     : []
+
+  // Dealer-only filter: drop leads flagged is_test=true and the
+  // pilot_batch_leads rows that reference them. Mirrors the filter applied
+  // on /dealer/batches so a card whose leads are all test fixtures looks
+  // consistent everywhere. Admin views are unaffected.
+  const leadRecords = leadRecordsRaw.filter(l => !l.isTest)
+  const visibleLeadIds = new Set(leadRecords.map(l => l.id))
+  const batchLeadRows = batchLeadRowsRaw.filter(r => visibleLeadIds.has(r.leadId))
 
   const leadMap = new Map(leadRecords.map(l => [l.id, l]))
 
@@ -70,6 +78,7 @@ export default async function DealerBatchReviewPage({ params }: RouteContext) {
   const isDraft    = batch.status === 'draft'
   const isApproved = batch.status === 'approved'
   const totalLeads = batchLeadRows.length
+  const hasVisibleLeads = totalLeads > 0
 
   let fallbackCount = 0
   for (const bl of batchLeadRows) {
@@ -162,6 +171,16 @@ export default async function DealerBatchReviewPage({ params }: RouteContext) {
         </div>
       </div>
 
+      {!hasVisibleLeads && (
+        <div className="border border-amber-200 bg-amber-50 rounded-xl px-5 py-4">
+          <p className="text-sm font-semibold text-amber-900">No eligible leads in this campaign yet.</p>
+          <p className="text-xs text-amber-700 mt-1">
+            Upload more leads in this age window and DLR will prepare them for review here.
+          </p>
+        </div>
+      )}
+
+      {hasVisibleLeads && (<>
       {/* Consent summary */}
       <div className="border border-gray-200 rounded-xl px-5 py-4">
         <h2 className="text-sm font-semibold text-gray-900 mb-3">Consent Summary</h2>
@@ -263,8 +282,10 @@ export default async function DealerBatchReviewPage({ params }: RouteContext) {
         </div>
       </div>
 
-      {/* Dealer checklist + approve action */}
-      {isDraft && (
+      </>)}
+
+      {/* Dealer checklist + approve action — only when there's something to approve. */}
+      {isDraft && hasVisibleLeads && (
         <DealerBatchChecklist
           batchId={params.batchId}
           totalLeads={totalLeads}

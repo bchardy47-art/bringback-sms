@@ -91,7 +91,7 @@ export function computeDealerSetupStatus(p: DealerSetupInputs): DealerSetupStatu
     status: paid ? 'done' : 'needs_your_action',
     detail: paid
       ? null
-      : 'Complete payment in the intake link DLR sent you so setup can continue.',
+      : 'Complete payment using your DLR setup link so setup can continue.',
   }
 
   const stage2Done = !!intake?.submittedAt
@@ -101,7 +101,7 @@ export function computeDealerSetupStatus(p: DealerSetupInputs): DealerSetupStatu
     detail: stage2Done
       ? null
       : paid
-        ? 'Finish the setup form in your intake link to share your dealership details.'
+        ? 'Finish the setup form via your DLR setup link to share your dealership details.'
         : 'Available after payment.',
   }
 

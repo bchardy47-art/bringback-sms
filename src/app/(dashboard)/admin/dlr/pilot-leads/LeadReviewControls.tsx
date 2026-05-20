@@ -145,7 +145,16 @@ const RECOMMENDATION_STYLE = {
   blocked:       { bar: 'bg-red-500',     text: 'text-red-700',     label: '✗ Blocked — resolve issues first' },
 }
 
-export function DryRunReportPanel({ tenantId, apiBase = '/api/admin/dlr/pilot-leads' }: { tenantId: string; apiBase?: string }) {
+export function DryRunReportPanel({
+  tenantId,
+  apiBase = '/api/admin/dlr/pilot-leads',
+  title = 'Dry-Run Report',
+}: {
+  tenantId: string
+  apiBase?: string
+  /** Override the panel heading. Defaults to admin wording; dealer pages pass "Preview Report". */
+  title?: string
+}) {
   const [report, setReport]   = useState<PilotImportDryRunReport | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState<string | null>(null)
@@ -171,7 +180,7 @@ export function DryRunReportPanel({ tenantId, apiBase = '/api/admin/dlr/pilot-le
     <div className="border border-gray-200 rounded-xl overflow-hidden">
       <div className="bg-gray-50 px-5 py-3 border-b border-gray-200 flex items-center justify-between">
         <div>
-          <h2 className="text-sm font-semibold text-gray-900">Dry-Run Report</h2>
+          <h2 className="text-sm font-semibold text-gray-900">{title}</h2>
           <p className="text-xs text-gray-500 mt-0.5">
             Generates a read-only report of current import status. No sends, no enrollments.
           </p>
@@ -446,12 +455,15 @@ export function CreateBatchButton({
   bucketPlan,
   compact = false,
   apiBase = '/api/admin/dlr/pilot-leads',
+  bucketSectionTitle = 'Auto-assigned bucket workflows',
 }: {
   tenantId:   string
   importIds:  string[]
   bucketPlan: BucketPlanItem[]
   compact?:   boolean
   apiBase?:   string
+  /** Override the bucket-plan section heading. Defaults to admin wording; dealer pages pass "Auto-assigned campaign groups". */
+  bucketSectionTitle?: string
 }) {
   const [stage,   setStage]   = useState<'idle' | 'confirming' | 'loading'>('idle')
   const [error,   setError]   = useState<string | null>(null)
@@ -538,7 +550,7 @@ export function CreateBatchButton({
       {/* Bucket plan summary */}
       <div className="rounded-lg border border-gray-200 overflow-hidden">
         <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
-          <p className="text-xs font-semibold text-gray-700">Auto-assigned bucket workflows</p>
+          <p className="text-xs font-semibold text-gray-700">{bucketSectionTitle}</p>
         </div>
         <table className="w-full text-xs">
           <tbody className="divide-y divide-gray-100">

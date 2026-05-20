@@ -281,6 +281,7 @@ export default async function DealerDashboardPage() {
   const pilotStep        = setup.steps.find(s => s.key === 'pilot')
   const pilotActionable  = pilotStep?.status === 'needs_your_action'
   const reviewLocked     = !pilotActionable && draftCount > 0
+  const paymentPending   = setup.steps.find(s => s.key === 'payment')?.status === 'needs_your_action'
 
   const stats: Array<{
     label:    string
@@ -441,25 +442,45 @@ export default async function DealerDashboardPage() {
                   </p>
                 )}
               </div>
-              {/* Progress percentage */}
+              {/* Progress indicator. When payment is the dealer's
+                  current action, the percentage looks misleading
+                  (downstream "carrier verification" and "sending number
+                  assigned" can already be 'done' for admin-provisioned
+                  tenants, lifting the count toward ~63% before payment
+                  has even been collected). Show a step counter and a
+                  "Payment required" hint instead until payment clears. */}
               <div className="flex-shrink-0 text-right">
-                <p
-                  className="text-2xl font-bold"
-                  style={{ color: setup.overall === 'blocked' ? '#dc2626' : progressPct === 100 ? '#059669' : '#111827' }}
-                >
-                  {progressPct}%
-                </p>
-                <p className="text-xs text-gray-400 mt-0.5">complete</p>
+                {paymentPending ? (
+                  <>
+                    <p className="text-2xl font-bold text-gray-700">
+                      Step 2 of {setup.steps.length}
+                    </p>
+                    <p className="text-xs text-amber-700 mt-0.5 font-medium">Payment required</p>
+                  </>
+                ) : (
+                  <>
+                    <p
+                      className="text-2xl font-bold"
+                      style={{ color: setup.overall === 'blocked' ? '#dc2626' : progressPct === 100 ? '#059669' : '#111827' }}
+                    >
+                      {progressPct}%
+                    </p>
+                    <p className="text-xs text-gray-400 mt-0.5">complete</p>
+                  </>
+                )}
               </div>
             </div>
 
-            {/* Progress bar */}
+            {/* Progress bar — gray fill while payment is pending so the
+                visual doesn't suggest the dealer is mostly done. */}
             <div className="mt-3 h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: '#e5e7eb' }}>
               <div
                 className="h-full rounded-full transition-all duration-500"
                 style={{
                   width: `${progressPct}%`,
-                  background: setup.overall === 'blocked'
+                  background: paymentPending
+                    ? '#d1d5db'
+                    : setup.overall === 'blocked'
                     ? '#ef4444'
                     : progressPct === 100
                     ? '#10b981'

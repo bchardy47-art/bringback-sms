@@ -313,6 +313,7 @@ export default async function DealerImportPage({
                 bucketPlan={bucketPlan}
                 compact
                 apiBase={apiBase}
+                bucketSectionTitle="Auto-assigned campaign groups"
               />
             </div>
           )}
@@ -596,7 +597,7 @@ export default async function DealerImportPage({
       )}
 
       {/* Dry-run */}
-      {allLeads.length > 0 && <DryRunReportPanel tenantId={tenantId} apiBase={apiBase} />}
+      {allLeads.length > 0 && <DryRunReportPanel tenantId={tenantId} apiBase={apiBase} title="Preview Report" />}
 
       {/* Step 3: Create batch */}
       {allLeads.length > 0 && (
@@ -634,6 +635,7 @@ export default async function DealerImportPage({
                   importIds={selectedImportIds}
                   bucketPlan={bucketPlan}
                   apiBase={apiBase}
+                  bucketSectionTitle="Auto-assigned campaign groups"
                 />
               ) : (
                 <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">
