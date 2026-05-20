@@ -133,11 +133,6 @@ export default async function DealerBatchReviewPage({ params }: RouteContext) {
           }`}>
             {batch.status}
           </span>
-          {batch.isFirstPilot && (
-            <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-purple-100 text-purple-700">
-              First Pilot
-            </span>
-          )}
         </div>
 
         <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">

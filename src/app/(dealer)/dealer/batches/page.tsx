@@ -340,11 +340,6 @@ export default async function DealerBatchesPage() {
                       <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${info.chip}`}>
                         {info.label}
                       </span>
-                      {batch.isFirstPilot && (
-                        <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-700">
-                          First Pilot
-                        </span>
-                      )}
                     </div>
                     <p className="text-xs text-gray-400">
                       {bucket ? `${BUCKET_LABEL[bucket]} · ` : ''}

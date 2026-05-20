@@ -64,11 +64,6 @@ export default function CampaignReportView({
             <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold ${STATUS_COLOR[report.status] ?? 'bg-gray-100'}`}>
               {report.status}
             </span>
-            {report.isFirstPilot && (
-              <span className="inline-flex px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-700">
-                First Pilot
-              </span>
-            )}
           </div>
           <p className="text-sm text-gray-600 mt-1">
             {showTenant && <span className="font-semibold">{report.tenantName} · </span>}
