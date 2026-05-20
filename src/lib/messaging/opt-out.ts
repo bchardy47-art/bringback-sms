@@ -56,10 +56,37 @@ export async function isOptedOut(tenantId: string, phone: string): Promise<boole
   return !!row
 }
 
+// Opt-out source provenance:
+//   inbound_stop              — STOP / STOPALL / UNSUBSCRIBE / CANCEL / END /
+//                               QUIT / OPTOUT / REMOVE keyword matched by the
+//                               token-based classifier in this file.
+//   inbound_natural_language  — terminal "not_interested" classification from
+//                               classify-reply.ts (covers "don't text me",
+//                               "remove me", "leave me alone", "do not contact",
+//                               "take me off", "not in the market", etc.).
+//                               Promoted by handle-reply.ts after the reply was
+//                               classified — keeps the canonical opt-out list
+//                               in sync with the natural-language detector so
+//                               future re-uploads of the same phone are caught
+//                               by pilot/eligibility.ts + send-guard.ts.
+//   inbound_wrong_number      — terminal "wrong_number" classification. The
+//                               phone belongs to someone other than the lead;
+//                               suppress so a future lead with the same phone
+//                               is not contacted either.
+//   manual                    — operator-recorded suppression from admin tools.
+//
+// DB column is plain text (no enum), so the union is purely a TS-level guard
+// against typos in calling code.
+export type OptOutSource =
+  | 'inbound_stop'
+  | 'inbound_natural_language'
+  | 'inbound_wrong_number'
+  | 'manual'
+
 export async function recordOptOut(
   tenantId: string,
   phone: string,
-  source: 'inbound_stop' | 'manual' = 'inbound_stop'
+  source: OptOutSource = 'inbound_stop'
 ): Promise<void> {
   await db
     .insert(optOuts)

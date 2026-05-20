@@ -22,7 +22,30 @@ import { and, eq } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { leads, workflowEnrollments } from '@/lib/db/schema'
 import { classifyReply, HANDOFF_CLASSIFICATIONS, type ReplyClassification } from './classify-reply'
+import { recordOptOut, type OptOutSource } from './opt-out'
 import { transition, type LeadState } from '@/lib/lead/state-machine'
+
+// Terminal classifications whose detection should ALSO promote the lead's
+// phone into the canonical opt_outs table so future uploads of the same
+// phone for this tenant are blocked at preview / send-guard / final-mile
+// the same way an explicit STOP would be.
+//
+// Without this, a natural-language opt-out only cancels the current
+// enrollment + transitions the lead state — the next CSV upload that
+// happens to include the same phone (as a different lead record) would
+// pass the eligibility check, because the opt_outs table lookup would
+// miss. This list closes that gap.
+//
+// `not_interested` and `wrong_number` are the only safe-to-promote
+// classifications today: both terminal, both unambiguous about wanting
+// no further contact. `angry_or_complaint` is NOT in this set on purpose
+// — "this is terrible" is a complaint, not an opt-out request, and a
+// dealer may legitimately need to follow up with an apology. STOP-style
+// suppression for anger should be done by an operator, not auto-promoted.
+const SUPPRESSION_SOURCES: ReadonlyMap<ReplyClassification, OptOutSource> = new Map<ReplyClassification, OptOutSource>([
+  ['not_interested', 'inbound_natural_language'],
+  ['wrong_number',   'inbound_wrong_number'],
+])
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -81,6 +104,29 @@ export async function handleReply(params: {
     eq(workflowEnrollments.status, 'active'),
   )).returning({ id: workflowEnrollments.id })
   const enrollmentsCancelled = cancelled.length
+
+  // ── 4b. Promote terminal natural-language opt-outs to opt_outs ─────────────
+  //
+  // Mirrors what the STOP-keyword path in inbound.ts already does: when a
+  // reply is classified as a terminal "no more contact" intent, write a row
+  // to opt_outs so future CSV uploads of the same phone (for this same
+  // tenant) are blocked by pilot/eligibility.ts + send-guard.ts at the
+  // earliest possible point. recordOptOut() is idempotent via the
+  // (tenantId, phone) unique index; first-source-wins for the audit trail.
+  // Failure is swallowed — suppression promotion must not break the rest
+  // of the reply handling (state transitions + handoff alerts still need
+  // to fire).
+  const suppressionSource = SUPPRESSION_SOURCES.get(classification)
+  if (suppressionSource && lead.phone) {
+    try {
+      await recordOptOut(lead.tenantId, lead.phone, suppressionSource)
+    } catch (err) {
+      console.error(
+        `[handle-reply] recordOptOut(${suppressionSource}) failed for lead ${leadId}:`,
+        err,
+      )
+    }
+  }
 
   // ── 5 & 6. State transitions ───────────────────────────────────────────────
   //
