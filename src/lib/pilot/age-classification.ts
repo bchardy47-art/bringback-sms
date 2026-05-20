@@ -122,8 +122,7 @@ export function classifyLeadAge(
       leadAgeDays:    null,
       enrollAfter:    null,
       warning:
-        'Needs lead date — re-upload with a Lead Date, Created Date, or Inquiry Date column. ' +
-        'DLR cannot safely choose a campaign group without a lead date.',
+        'Missing contact date — re-upload this lead with a contact date to include it.',
     }
   }
 

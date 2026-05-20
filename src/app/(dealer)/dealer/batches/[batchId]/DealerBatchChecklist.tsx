@@ -24,7 +24,7 @@ export function DealerBatchChecklist({ batchId, totalLeads, maxLeads }: Props) {
     'No leads have opted out or revoked consent',
     'Fallback message copy (for leads without a vehicle on file) is acceptable',
     'Each message sequence includes an opt-out instruction',
-    `Lead count is within the pilot limit of ${maxLeads} (current: ${totalLeads})`,
+    `Lead count is within the initial launch limit of ${maxLeads} (current: ${totalLeads})`,
   ]
 
   const [checked, setChecked] = useState<boolean[]>(checkItems.map(() => false))
@@ -52,7 +52,7 @@ export function DealerBatchChecklist({ batchId, totalLeads, maxLeads }: Props) {
   return (
     <div className="border-2 border-blue-200 rounded-xl overflow-hidden">
       <div className="bg-blue-50 px-5 py-3 border-b border-blue-200">
-        <h2 className="text-sm font-semibold text-blue-900">Ready to Approve This Batch?</h2>
+        <h2 className="text-sm font-semibold text-blue-900">Ready to Approve This Campaign?</h2>
         <p className="text-xs text-blue-700 mt-0.5">
           Confirm each item below, then approve. Approving does <strong>not</strong> send messages —
           that requires a live-send activation step that we complete together.
@@ -92,7 +92,7 @@ export function DealerBatchChecklist({ batchId, totalLeads, maxLeads }: Props) {
             disabled={isPending}
             className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isPending ? 'Approving…' : 'Approve this batch →'}
+            {isPending ? 'Approving…' : 'Approve this campaign →'}
           </button>
         ) : (
           <button
@@ -100,12 +100,12 @@ export function DealerBatchChecklist({ batchId, totalLeads, maxLeads }: Props) {
             className="px-5 py-2.5 bg-gray-200 text-gray-400 text-sm font-bold rounded-lg cursor-not-allowed"
             title="Confirm all items above to approve"
           >
-            Approve this batch →
+            Approve this campaign →
           </button>
         )}
 
         <p className="text-xs text-gray-400">
-          After approval, our team will complete final 10DLC verification before any messages are sent.
+          After approval, our team will complete final carrier verification before any messages are sent.
         </p>
       </div>
     </div>

@@ -201,19 +201,21 @@ export default async function DealerDashboardPage() {
     if (status !== 'needs_your_action') return null
     switch (stepKey) {
       case 'payment':
-        // Billing settings page exposes the "Finish payment setup →" recovery
-        // button that deep-links into the intake/payment flow.
-        return { label: 'Finish payment setup →', href: '/dealer/settings' }
+        // Billing settings page exposes the "Finish payment setup" recovery
+        // button that deep-links into the intake/payment flow. Labels are
+        // bare text — renderers append the trailing arrow themselves so
+        // CTAs that already pin "→" can't produce a double-arrow.
+        return { label: 'Finish payment setup', href: '/dealer/settings' }
       case 'form':
         // Stage 2 onboarding form lives at /intake/<token>. If no token (rare,
         // admin-provisioned tenant), drop to settings as a soft fallback.
         return intakeToken
-          ? { label: 'Open setup form →',     href: `/intake/${intakeToken}` }
-          : { label: 'Finish payment setup →', href: '/dealer/settings' }
+          ? { label: 'Open setup form',     href: `/intake/${intakeToken}` }
+          : { label: 'Finish payment setup', href: '/dealer/settings' }
       case 'leads':
-        return { label: 'Upload leads →',  href: '/dealer/import' }
+        return { label: 'Upload leads',  href: '/dealer/import' }
       case 'pilot':
-        return { label: 'Review campaign →', href: '/dealer/batches' }
+        return { label: 'Review campaign', href: '/dealer/batches' }
       default:
         return null
     }
@@ -575,7 +577,7 @@ function SetupStepRow({
               href={action.href}
               className="inline-flex items-center rounded-md bg-gray-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-gray-700 transition-colors"
             >
-              {action.label}
+              {action.label} →
             </a>
           </div>
         )}

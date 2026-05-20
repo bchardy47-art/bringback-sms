@@ -524,7 +524,7 @@ export function CreateBatchButton({
           >
             {stage === 'loading'
               ? 'Creating…'
-              : `Create ${bucketPlan.length === 1 ? 'Pilot Campaign' : 'Pilot Campaigns'} (${totalLeads} lead${totalLeads !== 1 ? 's' : ''}) →`}
+              : `Create ${bucketPlan.length === 1 ? 'Campaign' : 'Campaigns'} (${totalLeads} lead${totalLeads !== 1 ? 's' : ''}) →`}
           </button>
         )}
         {error && <p className="text-sm text-red-600 font-medium">⚠ {error}</p>}
@@ -590,7 +590,7 @@ export function CreateBatchButton({
           >
             {stage === 'loading'
               ? 'Creating…'
-              : `Create ${bucketPlan.length === 1 ? 'Pilot Campaign' : 'Pilot Campaigns'} (${totalLeads} lead${totalLeads !== 1 ? 's' : ''}) →`
+              : `Create ${bucketPlan.length === 1 ? 'Campaign' : 'Campaigns'} (${totalLeads} lead${totalLeads !== 1 ? 's' : ''}) →`
             }
           </button>
         </>

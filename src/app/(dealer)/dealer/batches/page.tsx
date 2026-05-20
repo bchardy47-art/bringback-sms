@@ -91,7 +91,7 @@ const CAMPAIGN_BUCKETS: Array<{
 }> = [
   { key: 'a', label: '14–30 Day Follow-Up', description: 'Recently quiet leads — a short re-engagement window.',  recommended: false },
   { key: 'b', label: '31–60 Day Follow-Up', description: 'Cooling leads — a gentle nudge back to the dealership.', recommended: false },
-  { key: 'c', label: '61–90 Day Revival',   description: 'Aging leads — the sweet spot for a first pilot.',        recommended: true  },
+  { key: 'c', label: '61–90 Day Revival',   description: 'Aging leads — the best place to start.',                recommended: true  },
   { key: 'd', label: '91+ Day Revival',     description: 'Long-cold leads — last-chance outreach.',                recommended: false },
 ]
 
@@ -246,7 +246,7 @@ export default async function DealerBatchesPage() {
                     <h3 className="text-sm font-semibold text-gray-900">{bucket.label}</h3>
                     {bucket.recommended && (
                       <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-700 whitespace-nowrap">
-                        Recommended first pilot
+                        Start here
                       </span>
                     )}
                   </div>
@@ -284,7 +284,7 @@ export default async function DealerBatchesPage() {
                 ) : (
                   <div className="w-full text-center px-4 py-2 text-sm font-medium rounded-lg bg-gray-50 text-gray-500 border border-dashed border-gray-200">
                     {bucket.recommended
-                      ? 'Upload leads here to start your first pilot'
+                      ? 'Upload leads here to start your first campaign'
                       : `Upload leads in this age window to use this campaign`}
                   </div>
                 )}

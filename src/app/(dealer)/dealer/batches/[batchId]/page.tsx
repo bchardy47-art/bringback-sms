@@ -118,7 +118,7 @@ export default async function DealerBatchReviewPage({ params }: RouteContext) {
             {batch.approvedAt ? ` on ${new Date(batch.approvedAt).toLocaleDateString()}` : ''}.
           </p>
           <p className="text-xs text-emerald-700 mt-0.5">
-            Our team will complete 10DLC verification before any messages are sent. We&apos;ll be in touch.
+            Our team will complete carrier verification before any messages are sent. We&apos;ll be in touch.
           </p>
         </div>
       )}

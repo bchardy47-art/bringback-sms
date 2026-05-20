@@ -72,7 +72,7 @@ const CONSENT_STYLE: Record<string, string> = {
 const CONSENT_LABEL: Record<string, string> = {
   explicit: 'explicit',
   implied:  'implied',
-  unknown:  'unknown ⛔ first-pilot blocked',
+  unknown:  'unknown ⛔ first-launch blocked',
   revoked:  'revoked ⛔ hard block',
 }
 
@@ -182,7 +182,7 @@ export default async function DealerImportPage({
         <h1 className="text-2xl font-bold text-gray-900">Upload Leads</h1>
         <p className="mt-1 text-sm text-gray-500">
           Upload a CSV of prior dealership leads. DLR will validate the file,
-          bucket leads by age, and prepare a pilot campaign for admin review before
+          bucket leads by age, and prepare a campaign for review before
           any messages are sent.
         </p>
       </div>
@@ -583,7 +583,7 @@ export default async function DealerImportPage({
               */}
               <h2 className={`text-sm font-semibold ${selectedCount > 0 ? 'text-blue-900' : 'text-gray-500'}`}>
                 {(() => {
-                  const noun = bucketPlan.length > 1 ? 'Create Pilot Campaigns' : 'Create Pilot Campaign'
+                  const noun = bucketPlan.length > 1 ? 'Create Campaigns' : 'Create Campaign'
                   if (selectedCount === 0) return `${noun} — select leads above first`
                   const groupSuffix = bucketPlan.length > 1 ? ` across ${bucketPlan.length} groups` : ''
                   const leadWord    = selectedCount === 1 ? 'lead' : 'leads'
