@@ -97,7 +97,7 @@ export function ImportForm({ tenantId, apiBase = '/api/admin/dlr/pilot-leads' }:
     const file = e.target.files?.[0]
     if (!file) return
     const csv = await file.text()
-    await submitImport({ csv })
+    await submitImport({ csv, fileName: file.name })
   }
 
   async function handleCSVPaste(e: React.FormEvent<HTMLFormElement>) {
@@ -105,7 +105,9 @@ export function ImportForm({ tenantId, apiBase = '/api/admin/dlr/pilot-leads' }:
     const form = e.currentTarget
     const csv  = (form.elements.namedItem('csvText') as HTMLTextAreaElement).value
     if (!csv.trim()) return
-    await submitImport({ csv })
+    // Paste mode has no real filename — annotate so the audit row shows
+    // a non-null fileName indicating the input origin.
+    await submitImport({ csv, fileName: 'pasted-csv' })
   }
 
   // ── Drag and drop ────────────────────────────────────────────────────────────
@@ -115,7 +117,7 @@ export function ImportForm({ tenantId, apiBase = '/api/admin/dlr/pilot-leads' }:
     const file = e.dataTransfer.files?.[0]
     if (!file || !file.name.endsWith('.csv')) return
     const csv = await file.text()
-    await submitImport({ csv })
+    await submitImport({ csv, fileName: file.name })
   }
 
   // ── Manual import ────────────────────────────────────────────────────────────
@@ -131,10 +133,14 @@ export function ImportForm({ tenantId, apiBase = '/api/admin/dlr/pilot-leads' }:
     setResult(null)
 
     try {
+      // C-2: surface the attestation state to the server. The server-side
+      // route rejects when attested !== true so a forged client can't
+      // bypass the UI gate. fileName is included whenever known so the
+      // compliance_attestations row records the source of the upload.
       const res = await fetch(`${apiBase}/import`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tenantId, ...payload }),
+        body: JSON.stringify({ tenantId, attested, ...payload }),
       })
       const data = await res.json() as ImportResponse
 

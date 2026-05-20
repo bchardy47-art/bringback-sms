@@ -357,6 +357,53 @@ export const smsConsentEvents = pgTable('sms_consent_events', {
   createdIdx:     index('sms_consent_events_created_idx').on(t.createdAt),
 }))
 
+// ── Compliance attestations ───────────────────────────────────────────────────
+// Append-only audit record for dealer-facing compliance gates:
+//
+//   type='lead_upload_certification'  — dealer ticked "I certify the leads
+//                                       were lawfully collected, consent
+//                                       exists, etc." before submitting a CSV
+//                                       import. resourceId is a synthetic
+//                                       uploadId (UUID minted at request time)
+//                                       since pilot_lead_imports doesn't have
+//                                       a per-upload grouping today.
+//   type='campaign_launch_approval'   — dealer ticked "I approve DLR to begin
+//                                       sending…" before approving a pilot
+//                                       batch. resourceId is pilot_batches.id.
+//
+// Strict-write policy: if the row can't be persisted, the upstream action
+// (upload / approve) aborts. The whole point is the audit trail.
+//
+// Polymorphic-by-type — `type` discriminates the row; `resource_type` +
+// `resource_id` point at the upload or the pilot batch. Fields that only
+// apply to one type (fileName / leadCount / messageTemplateVersion) are
+// nullable. Append-only by convention; no UPDATE / DELETE in app code.
+export const complianceAttestations = pgTable('compliance_attestations', {
+  id:                     uuid('id').primaryKey().defaultRandom(),
+  tenantId:               uuid('tenant_id')
+                            .references(() => tenants.id, { onDelete: 'cascade' })
+                            .notNull(),
+  // Dealing-user that performed the action. SET NULL on user delete so the
+  // audit row survives even if the user account is later removed.
+  userId:                 uuid('user_id')
+                            .references(() => users.id, { onDelete: 'set null' }),
+  type:                   text('type').notNull(),          // 'lead_upload_certification' | 'campaign_launch_approval'
+  resourceType:           text('resource_type').notNull(), // 'lead_import' | 'pilot_batch'
+  resourceId:             text('resource_id').notNull(),
+  textVersion:            text('text_version').notNull(),
+  attestationText:        text('attestation_text').notNull(),
+  fileName:               text('file_name'),
+  leadCount:              integer('lead_count'),
+  messageTemplateVersion: text('message_template_version'),
+  ipAddress:              text('ip_address'),
+  userAgent:              text('user_agent'),
+  metadata:               jsonb('metadata'),
+  createdAt:              timestamp('created_at').defaultNow().notNull(),
+}, (t) => ({
+  tenantCreatedIdx: index('compliance_attestations_tenant_created_idx').on(t.tenantId, t.createdAt),
+  resourceIdx:      index('compliance_attestations_resource_idx').on(t.resourceType, t.resourceId),
+}))
+
 // ── Phase 10 types ────────────────────────────────────────────────────────────
 
 /** Consent status for SMS outreach */
