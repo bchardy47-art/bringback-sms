@@ -12,6 +12,7 @@
  */
 
 import { useState, useRef } from 'react'
+import { LEAD_UPLOAD_CERT_TEXT } from '@/lib/compliance/attestation-text'
 
 type Props = {
   tenantId: string
@@ -176,9 +177,19 @@ export function ImportForm({ tenantId, apiBase = '/api/admin/dlr/pilot-leads' }:
           <p className={`text-xs font-semibold ${attested ? 'text-emerald-800' : 'text-amber-800'}`}>
             {attested ? '✓ Attestation confirmed' : 'TCPA / Consent attestation required'}
           </p>
+          {/* Audit-accurate attestation text. This MUST match
+              LEAD_UPLOAD_CERT_TEXT verbatim — that's the exact string
+              snapshotted into compliance_attestations when the dealer
+              ticks this box. Edit the constant (and bump its VERSION)
+              if you change the wording. */}
           <p className="text-xs text-gray-600 mt-0.5 leading-relaxed">
-            I confirm that all leads in this import have given consent as indicated, are covered by this
-            dealer&apos;s TCR-approved SMS campaign, and that this import complies with TCPA requirements.
+            {LEAD_UPLOAD_CERT_TEXT}
+          </p>
+          {/* Operational reminder — separate sentence, not part of the
+              audited attestation paragraph. Lives below the certified text
+              so the audit row never claims the dealer agreed to anything
+              beyond the constant. */}
+          <p className="text-xs text-gray-500 mt-1 leading-relaxed">
             Leads with <strong>unknown</strong> or <strong>revoked</strong> consent cannot be selected for the campaign.
           </p>
         </div>
