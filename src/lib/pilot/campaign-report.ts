@@ -458,7 +458,7 @@ type ManagerSummaryInput = {
 function buildManagerSummary(p: ManagerSummaryInput): string {
   const parts: string[] = []
 
-  const label = p.isFirstPilot ? 'first pilot' : 'campaign'
+  const label = p.isFirstPilot ? 'initial campaign' : 'campaign'
   parts.push(`This ${label} ran "${p.workflowName}" against ${p.totalLeadsInBatch} ${pl(p.totalLeadsInBatch, 'lead', 'leads')}.`)
 
   if (p.messagesSent === 0 && p.messagesFailed === 0) {
