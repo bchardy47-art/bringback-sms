@@ -82,6 +82,12 @@ const CAMPAIGN_BUCKETS: Array<{
 // labels from DEALER_BATCH_STATUS.
 const DEALER_STATUS_LABEL: Record<string, string> = {
   draft:     'Ready for your review',
+  // 'previewed' is an internal pipeline state. Without an entry here
+  // the bucket card's fallback renders the raw lowercase status, which
+  // QA flagged as confusing ("did DLR preview it? did I? was it sent?").
+  // Mirrors the Preview only mapping used by the Campaign history map
+  // below so both surfaces speak the same dealer-facing language.
+  previewed: 'Preview only',
   approved:  'Approved',
   sending:   'Sending',
   active:    'Sending',
