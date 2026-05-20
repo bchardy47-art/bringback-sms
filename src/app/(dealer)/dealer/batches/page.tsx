@@ -123,11 +123,27 @@ export default async function DealerBatchesPage() {
   const tenantId = session.user.tenantId
 
   // Load all batches for this tenant
-  const batches = await db.query.pilotBatches.findMany({
+  const batchesRaw = await db.query.pilotBatches.findMany({
     where: (pb, { eq: eq_ }) => eq_(pb.tenantId, tenantId),
-    with:  { leads: true },
+    with:  { leads: { with: { lead: { columns: { isTest: true } } } } },
     orderBy: (pb) => [desc(pb.createdAt)],
   })
+
+  // Dealer-only filter: drop pilot_batch_leads rows whose linked lead is
+  // flagged is_test=true. Demo-data hygiene only — the batch itself stays
+  // (admin can still see it), and downstream code that reads batch.leads
+  // sees only the production-visible lead set.
+  const batches = batchesRaw.map(b => ({
+    ...b,
+    leads: b.leads.filter(bl => !bl.lead?.isTest),
+  }))
+
+  // Campaign-history list excludes unsent draft/previewed rows — internal
+  // pipeline states that clutter the dealer view with prep-stage noise.
+  // The bucket cards above still surface the current draft for review.
+  const historyBatches = batches.filter(b =>
+    !(b.liveSendCount === 0 && (b.status === 'draft' || b.status === 'previewed')),
+  )
 
   // Load workflow names
   const workflowIds = batches.map(b => b.workflowId).filter((id): id is string => !!id)
@@ -295,18 +311,18 @@ export default async function DealerBatchesPage() {
       )}
 
       {/* Campaign history — every batch, compact list, demoted below the cards */}
-      {batches.length > 0 && (
+      {historyBatches.length > 0 && (
         <section className="bg-white border border-gray-200 rounded-xl overflow-hidden">
           <div className="bg-gray-50 px-4 md:px-5 py-2.5 border-b border-gray-200">
             <p className="text-sm font-semibold text-gray-900">
-              Campaign history ({batches.length})
+              Campaign history ({historyBatches.length})
             </p>
             <p className="text-xs text-gray-500 mt-0.5">
               Only campaigns marked Live, Sending, or Completed have sent messages.
             </p>
           </div>
           <ul className="divide-y divide-gray-100">
-            {batches.map(batch => {
+            {historyBatches.map(batch => {
               const wf     = batch.workflowId ? workflowMap.get(batch.workflowId) : null
               const bucket = wf?.ageBucket ?? null
               const info   = DEALER_BATCH_STATUS[batch.status] ?? {

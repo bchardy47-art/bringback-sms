@@ -29,7 +29,7 @@ export default async function DealerInboxLayout({ children }: { children: React.
   if (!session) redirect('/login')
   if (session.user.role !== 'dealer') redirect('/dashboard')
 
-  const convos = await db.query.conversations.findMany({
+  const convosRaw = await db.query.conversations.findMany({
     where: eq(conversations.tenantId, session.user.tenantId),
     orderBy: [desc(conversations.updatedAt)],
     limit: 200,
@@ -42,7 +42,7 @@ export default async function DealerInboxLayout({ children }: { children: React.
     },
     with: {
       lead: {
-        columns: { id: true, firstName: true, lastName: true, phone: true, state: true },
+        columns: { id: true, firstName: true, lastName: true, phone: true, state: true, isTest: true },
       },
       messages: {
         orderBy: (m, { desc }) => [desc(m.createdAt)],
@@ -51,6 +51,10 @@ export default async function DealerInboxLayout({ children }: { children: React.
       },
     },
   })
+
+  // Dealer-only filter: hide conversations whose lead is flagged
+  // is_test=true. Admin inbox surfaces all conversations.
+  const convos = convosRaw.filter(c => !c.lead?.isTest)
 
   const sidebar = (
     <ConversationListSidebar

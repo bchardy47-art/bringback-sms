@@ -9,7 +9,7 @@
  */
 
 import { db } from '@/lib/db'
-import { pilotLeadImports, workflows } from '@/lib/db/schema'
+import { pilotLeadImports, workflows, leads } from '@/lib/db/schema'
 import { eq, and, ne, inArray } from 'drizzle-orm'
 import { getServerSession } from 'next-auth'
 import { redirect } from 'next/navigation'
@@ -109,8 +109,20 @@ export default async function DealerImportPage({
     .where(eq(workflows.tenantId, tenantId))
     .orderBy(workflows.name)
 
-  // All non-excluded leads
-  const allLeads = await db
+  // Dealer-only filter: rows with import_status IN ('warning','held') are
+  // admin-actionable probe/triage rows the dealer can't act on, and rows
+  // linked to leads flagged is_test=true are demo fixtures that should be
+  // hidden once flagged. Admin views are unchanged — this filter lives
+  // only in the dealer route.
+  const testLeadIds = new Set(
+    (await db
+      .select({ id: leads.id })
+      .from(leads)
+      .where(and(eq(leads.tenantId, tenantId), eq(leads.isTest, true)))
+    ).map(r => r.id),
+  )
+
+  const allLeadsRaw = await db
     .select()
     .from(pilotLeadImports)
     .where(and(
@@ -118,6 +130,12 @@ export default async function DealerImportPage({
       ne(pilotLeadImports.importStatus, 'excluded'),
     ))
     .orderBy(pilotLeadImports.createdAt)
+
+  const allLeads = allLeadsRaw.filter(r =>
+    r.importStatus !== 'warning' &&
+    r.importStatus !== 'held' &&
+    !(r.leadId && testLeadIds.has(r.leadId)),
+  )
 
   const displayLeads = statusFilter
     ? allLeads.filter(r => r.importStatus === statusFilter)

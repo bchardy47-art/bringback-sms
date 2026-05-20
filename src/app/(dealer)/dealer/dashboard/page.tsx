@@ -1,7 +1,7 @@
 import { getServerSession } from 'next-auth'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
-import { eq, and, count, inArray } from 'drizzle-orm'
+import { eq, and, count, inArray, notInArray, or, isNull } from 'drizzle-orm'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 import {
@@ -10,6 +10,7 @@ import {
   conversations,
   tenants,
   dealerIntakes,
+  leads,
 } from '@/lib/db/schema'
 import {
   computeDealerSetupStatus,
@@ -80,9 +81,20 @@ export default async function DealerDashboardPage() {
       complianceBlocked:  tenants.complianceBlocked,
     }).from(tenants).where(eq(tenants.id, tenantId)).then(r => r[0] ?? null),
 
+    // Dealer-visible "Leads Imported" count. Excludes:
+    //   - import rows linked to a lead flagged is_test=true (demo fixtures)
+    //   - import_status IN ('warning','held') probe rows that the dealer
+    //     can't act on (kept for admin only).
+    // Mirrors the filter applied on /dealer/import so the count and the
+    // table can never disagree.
     db.select({ count: count() })
       .from(pilotLeadImports)
-      .where(eq(pilotLeadImports.tenantId, tenantId))
+      .leftJoin(leads, eq(pilotLeadImports.leadId, leads.id))
+      .where(and(
+        eq(pilotLeadImports.tenantId, tenantId),
+        notInArray(pilotLeadImports.importStatus, ['warning', 'held']),
+        or(isNull(pilotLeadImports.leadId), eq(leads.isTest, false)),
+      ))
       .then(r => r[0]?.count ?? 0),
 
     db.select({ count: count() })
@@ -126,13 +138,17 @@ export default async function DealerDashboardPage() {
       where: and(eq(conversations.tenantId, tenantId), eq(conversations.status, 'open')),
       columns: { id: true, humanTookOverAt: true },
       with: {
+        // isTest pulled in to mirror the dealer-inbox UI filter so the
+        // dashboard's open-conversation count never disagrees with the
+        // inbox sidebar's visible-conversation count.
+        lead: { columns: { isTest: true } },
         messages: {
           orderBy: (m, { desc }) => [desc(m.createdAt)],
           limit: 1,
           columns: { direction: true },
         },
       },
-    }),
+    }).then(rows => rows.filter(c => !c.lead?.isTest)),
 
     db.query.dealerIntakes.findFirst({
       where: eq(dealerIntakes.tenantId, tenantId),
