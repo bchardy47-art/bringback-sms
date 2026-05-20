@@ -53,22 +53,24 @@ export default async function DealerLayout({ children }: { children: React.React
 
         {/* Logo — new PNG ships with its own dark background baked in
             (3:1 aspect, 2172×724 source). Drop it directly on the dark
-            sidebar without the prior white container so the brand mark
-            blends cleanly. object-contain keeps it sharp at the 150px
-            display width on desktop. */}
+            sidebar without a container so the brand mark fills the
+            available width. width=100% lets the image grow to the
+            sidebar width (220px) minus the small horizontal padding;
+            object-contain keeps it crisp regardless of intrinsic
+            display size. */}
         <div
-          className="px-5 py-6 flex-shrink-0 flex items-center justify-center"
+          className="px-3 py-4 flex-shrink-0 flex items-center justify-center"
           style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}
         >
           <Image
             src="/brand/dlr-logo.png"
             alt="DLR — Dead Lead Revival"
-            width={150}
-            height={50}
+            width={200}
+            height={67}
             priority
             unoptimized
             className="object-contain"
-            style={{ width: '100%', maxWidth: 150, height: 'auto', display: 'block' }}
+            style={{ width: '100%', height: 'auto', display: 'block' }}
           />
         </div>
 
