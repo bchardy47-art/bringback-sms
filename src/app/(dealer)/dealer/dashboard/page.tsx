@@ -512,25 +512,43 @@ export default async function DealerDashboardPage() {
             <span className="text-gray-300 group-hover:text-gray-500 transition-colors text-lg leading-none ml-4">→</span>
           </a>
 
-          <a
-            href="/dealer/batches"
-            className="flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors group"
-          >
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-gray-800">Review Campaigns</p>
-                <p className="text-xs text-gray-500 mt-0.5">
-                  Preview message sequences and approve campaigns before anything sends.
-                </p>
+          {reviewLocked ? (
+            <div className="flex items-center justify-between px-5 py-4">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-gray-500">Prepared Campaigns</p>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    Review unlocks after payment is complete.
+                  </p>
+                </div>
+                {draftCount > 0 && (
+                  <span className="flex-shrink-0 px-2 py-0.5 bg-gray-100 text-gray-500 text-xs font-bold rounded-full">
+                    {draftCount} prepared
+                  </span>
+                )}
               </div>
-              {draftCount > 0 && (
-                <span className="flex-shrink-0 px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-bold rounded-full">
-                  {draftCount} pending
-                </span>
-              )}
             </div>
-            <span className="text-gray-300 group-hover:text-gray-500 transition-colors text-lg leading-none ml-4">→</span>
-          </a>
+          ) : (
+            <a
+              href="/dealer/batches"
+              className="flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors group"
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-gray-800">Review Campaigns</p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Preview message sequences and approve campaigns before anything sends.
+                  </p>
+                </div>
+                {draftCount > 0 && (
+                  <span className="flex-shrink-0 px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-bold rounded-full">
+                    {draftCount} pending
+                  </span>
+                )}
+              </div>
+              <span className="text-gray-300 group-hover:text-gray-500 transition-colors text-lg leading-none ml-4">→</span>
+            </a>
+          )}
 
           <a
             href={inboxHref}
