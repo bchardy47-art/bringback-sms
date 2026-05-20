@@ -72,8 +72,20 @@ const CONSENT_STYLE: Record<string, string> = {
 const CONSENT_LABEL: Record<string, string> = {
   explicit: 'explicit',
   implied:  'implied',
-  unknown:  'unknown ⛔ first-launch blocked',
+  unknown:  'unknown ⛔ not eligible yet',
   revoked:  'revoked ⛔ hard block',
+}
+
+// Re-render stored warning strings in dealer-friendly wording. Historical
+// pilot_lead_imports rows include engineering-speak warnings from earlier
+// versions of the import pipeline ("imported before age classification was
+// wired"). We can't backfill those rows during demo prep, so we map known
+// phrasings to plain-English equivalents at render time.
+function friendlyWarning(raw: string): string {
+  if (raw.startsWith('Contact date missing — imported before age classification was wired')) {
+    return 'Missing contact date — re-upload this lead with a contact date to include it.'
+  }
+  return raw
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────
@@ -182,7 +194,7 @@ export default async function DealerImportPage({
         <h1 className="text-2xl font-bold text-gray-900">Upload Leads</h1>
         <p className="mt-1 text-sm text-gray-500">
           Upload a CSV of prior dealership leads. DLR will validate the file,
-          bucket leads by age, and prepare a campaign for review before
+          group leads by age, and prepare a campaign for review before
           any messages are sent.
         </p>
       </div>
@@ -479,7 +491,7 @@ export default async function DealerImportPage({
                       </td>
                       <td className="px-4 py-3 max-w-xs">
                         {(lead.warnings as string[] | null)?.map((w, i) => (
-                          <p key={i} className="text-amber-600 leading-snug">⚠ {w}</p>
+                          <p key={i} className="text-amber-600 leading-snug">⚠ {friendlyWarning(w)}</p>
                         ))}
                         {!(lead.warnings as string[] | null)?.length && (
                           <span className="text-gray-300">—</span>

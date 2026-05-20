@@ -55,7 +55,7 @@ export function DealerBatchChecklist({ batchId, totalLeads, maxLeads }: Props) {
         <h2 className="text-sm font-semibold text-blue-900">Ready to Approve This Campaign?</h2>
         <p className="text-xs text-blue-700 mt-0.5">
           Confirm each item below, then approve. Approving does <strong>not</strong> send messages —
-          that requires a live-send activation step that we complete together.
+          that requires a final activation step that we complete together.
         </p>
       </div>
 

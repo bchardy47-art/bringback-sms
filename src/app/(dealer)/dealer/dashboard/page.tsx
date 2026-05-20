@@ -224,14 +224,14 @@ export default async function DealerDashboardPage() {
   // we just lift it above the fold so a returning dealer never has to
   // hunt for it. Picks the earliest `needs_your_action` step that maps
   // to a clickable action (payment > form > leads > pilot).
-  const nextStep: { label: string; href: string; stepLabel: string } | null = (() => {
+  const nextStep: { label: string; href: string; stepLabel: string; stepKey: string } | null = (() => {
     const ACTION_ORDER = ['payment', 'form', 'leads', 'pilot'] as const
     for (const key of ACTION_ORDER) {
       const step = setup.steps.find((s) => s.key === key)
       if (!step) continue
       const action = actionForStep(step.key, step.status)
       if (!action) continue
-      return { ...action, stepLabel: step.label }
+      return { ...action, stepLabel: step.label, stepKey: step.key }
     }
     return null
   })()
@@ -299,14 +299,23 @@ export default async function DealerDashboardPage() {
           accent:  draftCount > 0 ? '#3b82f6' : '#e5e7eb',
           desc:    'Draft campaigns ready for your approval',
         },
-    {
-      label:   'Approved Campaigns',
-      value:   activeCount,
-      href:    '/dealer/batches',
-      numColor: '#065f46',
-      accent:  '#10b981',
-      desc:    'Campaigns you have approved',
-    },
+    reviewLocked
+      ? {
+          label:   'Approved Campaigns',
+          value:   activeCount,
+          href:    null,
+          numColor: '#6b7280',
+          accent:  '#e5e7eb',
+          desc:    'Activation happens after payment.',
+        }
+      : {
+          label:   'Approved Campaigns',
+          value:   activeCount,
+          href:    '/dealer/batches',
+          numColor: '#065f46',
+          accent:  '#10b981',
+          desc:    'Campaigns you have approved',
+        },
     {
       label:   isLive ? 'Active Conversations' : 'Prepared Message Previews',
       value:   inboxCount,
@@ -444,14 +453,20 @@ export default async function DealerDashboardPage() {
             </div>
           </div>
 
-          {/* Step list */}
+          {/* Step list — the row CTA is suppressed for the step already
+              shown in the top "Your Next Step" card to avoid duplicating
+              the same red Complete-payment button twice on one page. */}
           <ol className="divide-y divide-gray-100">
             {setup.steps.map((step, idx) => (
               <SetupStepRow
                 key={step.key}
                 index={idx + 1}
                 step={step}
-                action={actionForStep(step.key, step.status)}
+                action={
+                  nextStep?.stepKey === step.key
+                    ? null
+                    : actionForStep(step.key, step.status)
+                }
               />
             ))}
           </ol>
@@ -829,7 +844,7 @@ function DealerAutomationStatusCard({
   } else {
     dotColor   = '#d1d5db'
     statusText = 'Not live yet'
-    detail     = 'Automation will start once campaign review and live-send activation are complete.'
+    detail     = 'Automation will start once campaign review and the final activation step are complete.'
     button     = null
   }
 

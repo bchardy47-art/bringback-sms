@@ -181,7 +181,7 @@ export default function CampaignReportView({
       <section>
         <h2 className="text-sm font-semibold text-gray-700 mb-3">Reply Classification</h2>
         {noReplies ? (
-          <EmptyState text="No replies yet — buckets will populate as leads respond." />
+          <EmptyState text="No replies yet — groups will populate as leads respond." />
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
             <StatCard label="Hot"             value={report.classification.hot}             color="text-orange-600" />
