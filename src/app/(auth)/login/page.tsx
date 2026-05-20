@@ -3,7 +3,6 @@
 import { useState, FormEvent, Suspense } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import Image from 'next/image'
 
 function InviteBanner() {
   const searchParams = useSearchParams()
@@ -88,21 +87,37 @@ export default function LoginPage() {
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
           <div className="flex justify-center mb-5">
-            <Image
-              src="/dlr-logo.svg"
-              alt="DLR — Dead Lead Revival"
-              width={160}
-              height={48}
-              priority
-              style={{ width: 160, height: 'auto' }}
-            />
+            <div
+              className="flex flex-col items-center justify-center rounded-2xl px-6 py-4"
+              style={{
+                background: 'linear-gradient(135deg, #111827, #0c0e13)',
+                boxShadow: '0 1px 0 rgba(255,255,255,0.06) inset, 0 12px 30px -12px rgba(220,38,38,0.35)',
+                border: '1px solid rgba(255,255,255,0.06)',
+              }}
+            >
+              <p
+                className="text-2xl font-black tracking-[0.18em] text-white leading-none"
+                style={{ textShadow: '0 1px 0 rgba(0,0,0,0.6)' }}
+              >
+                DLR
+              </p>
+              <p
+                className="text-[10px] font-semibold uppercase tracking-[0.22em] mt-1"
+                style={{ color: 'rgba(255,255,255,0.55)' }}
+              >
+                Dead Lead Revival
+              </p>
+            </div>
           </div>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400 mb-2">
+            Dealer Revival Portal
+          </p>
           <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">
-            Sign in to Dead Lead Revival
+            Sign in to your Revival Center
           </h1>
           <p className="mt-2 text-sm text-gray-500 leading-relaxed">
-            Access your dealership&apos;s DLR setup, campaign reviews, and revived
-            lead conversations.
+            Access your dealership&apos;s lead revival campaigns, approvals,
+            and conversations.
           </p>
         </div>
 

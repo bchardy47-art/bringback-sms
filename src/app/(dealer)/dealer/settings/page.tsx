@@ -56,7 +56,7 @@ export default async function DealerSettingsPage() {
     <div className="min-h-full bg-gray-50">
       <div className="bg-white border-b border-gray-200 px-8 py-5">
         <h1 className="text-xl font-bold text-gray-900">Settings</h1>
-        <p className="text-sm text-gray-500 mt-0.5">Manage your dealer account</p>
+        <p className="text-sm text-gray-500 mt-0.5">Manage your Revival Center account</p>
       </div>
 
       <div className="px-8 py-6 max-w-3xl space-y-5">

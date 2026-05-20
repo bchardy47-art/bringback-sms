@@ -1,7 +1,6 @@
 import { getServerSession } from 'next-auth'
 import { redirect } from 'next/navigation'
 import { eq } from 'drizzle-orm'
-import Image from 'next/image'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { tenants } from '@/lib/db/schema'
@@ -42,7 +41,7 @@ export default async function DealerLayout({ children }: { children: React.React
           borderRight: '1px solid rgba(255,255,255,0.06)',
         }}
       >
-        {/* DLR brand accent line at top */}
+        {/* Red brand accent line at top */}
         <div
           style={{
             height: 3,
@@ -51,58 +50,46 @@ export default async function DealerLayout({ children }: { children: React.React
           }}
         />
 
-        {/* Logo — new PNG ships with its own dark background baked in
-            (3:1 aspect, 2172×724 source). Drop it directly on the dark
-            sidebar without a container so the brand mark fills the
-            available width. width=100% lets the image grow to the
-            sidebar width (220px) minus the small horizontal padding;
-            object-contain keeps it crisp regardless of intrinsic
-            display size. */}
+        {/* Dealer-first identity block. The dealership name is the primary
+            brand for the dealer workspace; the small "by DLR" line keeps
+            vendor context without dominating the surface. Replaces the
+            full-width DLR logo that previously made the sidebar feel like
+            a billboard. */}
         <div
-          className="px-3 py-4 flex-shrink-0 flex items-center justify-center"
+          className="px-4 py-5 flex items-center gap-3 flex-shrink-0"
           style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}
         >
-          <Image
-            src="/brand/dlr-logo.png"
-            alt="DLR — Dead Lead Revival"
-            width={200}
-            height={67}
-            priority
-            unoptimized
-            className="object-contain"
-            style={{ width: '100%', height: 'auto', display: 'block' }}
-          />
+          <div
+            className="w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center text-white font-black"
+            style={{
+              background: 'linear-gradient(135deg, #991b1b, #dc2626)',
+              fontSize: 13,
+              letterSpacing: '0.04em',
+              boxShadow: '0 1px 0 rgba(255,255,255,0.08) inset',
+            }}
+          >
+            {tenantInitials}
+          </div>
+          <div className="min-w-0">
+            <p className="text-white text-sm font-bold truncate leading-tight">{tenantName}</p>
+            <p
+              className="text-[11px] truncate leading-tight mt-0.5"
+              style={{ color: 'rgba(255,255,255,0.55)' }}
+            >
+              Revival Center
+            </p>
+            <p
+              className="text-[9px] uppercase tracking-[0.18em] mt-1 leading-tight"
+              style={{ color: 'rgba(255,255,255,0.28)' }}
+            >
+              by DLR
+            </p>
+          </div>
         </div>
 
         {/* Navigation */}
         <div className="flex-1 overflow-y-auto py-4">
           <DealerNav />
-        </div>
-
-        {/* Dealership card */}
-        <div
-          className="mx-3 mb-3 rounded-xl overflow-hidden flex-shrink-0"
-          style={{
-            backgroundColor: 'rgba(255,255,255,0.04)',
-            border: '1px solid rgba(255,255,255,0.08)',
-          }}
-        >
-          {/* Red accent stripe */}
-          <div style={{ height: 2, background: 'linear-gradient(90deg, #dc2626, #ef4444)' }} />
-          <div className="flex items-center gap-2.5 px-3 py-3">
-            <div
-              className="w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center text-white font-bold"
-              style={{ backgroundColor: '#991b1b', fontSize: 11, letterSpacing: '0.02em' }}
-            >
-              {tenantInitials}
-            </div>
-            <div className="min-w-0">
-              <p className="text-white text-xs font-bold truncate leading-tight">{tenantName}</p>
-              <p className="text-xs truncate" style={{ color: 'rgba(255,255,255,0.35)' }}>
-                Powered by DLR
-              </p>
-            </div>
-          </div>
         </div>
 
         {/* User row */}
@@ -145,19 +132,26 @@ export default async function DealerLayout({ children }: { children: React.React
           className="flex-shrink-0 bg-white flex items-center gap-3 px-4 md:px-6"
           style={{ borderBottom: '1px solid #e5e7eb', height: 56 }}
         >
-          {/* Mobile logo — top bar is white, so we use the SVG (which is
-              transparent / dark-on-light) rather than the dark-baked PNG
-              that lives in the desktop dark sidebar. Aspect 3.3:1 matches
-              the SVG's natural ratio (160×48). */}
-          <div className="flex md:hidden flex-shrink-0">
-            <Image
-              src="/dlr-logo.svg"
-              alt="DLR"
-              width={120}
-              height={36}
-              priority
-              style={{ maxWidth: 120, width: '100%', height: 'auto', display: 'block' }}
-            />
+          {/* Mobile dealer identity — replaces the prior DLR logo so the
+              mobile top bar leads with the dealership, not the vendor. */}
+          <div className="flex md:hidden items-center gap-2 flex-shrink-0 min-w-0">
+            <span
+              className="inline-flex items-center justify-center rounded-lg text-white font-black"
+              style={{
+                background: 'linear-gradient(135deg, #991b1b, #dc2626)',
+                width: 28,
+                height: 28,
+                fontSize: 11,
+                letterSpacing: '0.03em',
+                flexShrink: 0,
+              }}
+            >
+              {tenantInitials}
+            </span>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-gray-800 truncate leading-tight">{tenantName}</p>
+              <p className="text-[10px] text-gray-400 truncate leading-tight">Revival Center</p>
+            </div>
           </div>
 
           <div className="flex-1" />
@@ -168,16 +162,21 @@ export default async function DealerLayout({ children }: { children: React.React
               className="inline-flex items-center justify-center rounded font-bold text-white"
               style={{
                 backgroundColor: '#dc2626',
-                width: 20,
-                height: 20,
-                fontSize: 9,
+                width: 22,
+                height: 22,
+                fontSize: 10,
                 letterSpacing: '0.02em',
                 flexShrink: 0,
               }}
             >
               {tenantInitials}
             </span>
-            <span className="text-sm font-semibold text-gray-700">{tenantName}</span>
+            <div className="leading-tight">
+              <span className="text-sm font-semibold text-gray-800 block">{tenantName}</span>
+              <span className="text-[10px] text-gray-400 block uppercase tracking-wider">
+                Revival Center
+              </span>
+            </div>
           </div>
 
           {/* Account menu */}

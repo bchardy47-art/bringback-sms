@@ -81,7 +81,7 @@ export default async function DealerInboxPage() {
 
         {state === 'mid_launch' && (
           <>
-            <h2 className="text-base font-semibold text-gray-800">DLR is preparing your first sends</h2>
+            <h2 className="text-base font-semibold text-gray-800">Your first sends are being prepared</h2>
             <p className="text-sm text-gray-600 mt-1.5 leading-relaxed">
               Replies will appear here once leads respond — usually within 24–72 hours
               of the first send.

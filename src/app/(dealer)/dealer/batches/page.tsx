@@ -178,7 +178,7 @@ export default async function DealerBatchesPage() {
         <div className="min-w-0">
           <h1 className="text-xl md:text-2xl font-bold text-gray-900">Campaigns</h1>
           <p className="mt-1 text-sm text-gray-500">
-            DLR groups your uploaded leads into ready-to-review campaigns.
+            Your uploaded leads are grouped into ready-to-review campaigns.
             Review the message previews before anything is sent.
           </p>
         </div>

@@ -211,9 +211,9 @@ export default async function DealerImportPage({
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Upload Leads</h1>
         <p className="mt-1 text-sm text-gray-500">
-          Upload a CSV of prior dealership leads. DLR will validate the file,
-          group leads by age, and prepare a campaign for review before
-          any messages are sent.
+          Upload a CSV of prior dealership leads. The file is validated,
+          grouped by age, and prepared for campaign review before any
+          messages are sent.
         </p>
       </div>
 
@@ -383,7 +383,7 @@ export default async function DealerImportPage({
         <div className="rounded-xl border-2 border-dashed border-gray-200 py-10 px-6 text-center space-y-2">
           <h3 className="text-base font-semibold text-gray-700">No leads yet</h3>
           <p className="text-sm text-gray-600 max-w-md mx-auto">
-            Upload a CSV above. After upload, DLR validates each row, groups leads by age,
+            Upload a CSV above. After upload, each row is validated and grouped by age,
             and prepares preview campaigns for your review.
           </p>
           <p className="text-xs text-gray-400 max-w-md mx-auto">

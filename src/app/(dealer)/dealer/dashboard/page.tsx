@@ -356,18 +356,17 @@ export default async function DealerDashboardPage() {
     <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-5 md:space-y-6">
 
       {/* ── Page header ─────────────────────────────────────────────────
-          Dealership-branded framing: dealership owns the workspace, DLR
-          is the engine. Powered-by line keeps DLR visible without
-          implying the dealership built the software. */}
+          Dealership-branded framing: the dealership owns this workspace.
+          The previously-prominent "POWERED BY DLR" line was removed so
+          the hero leads with the dealership. Vendor/support context still
+          lives in the persistent footer ("Need help? Contact DLR Support"). */}
       <div className="pb-1">
         <h1 className="text-xl md:text-2xl font-bold text-gray-900">
           {dealershipName} Revival Center
         </h1>
-        <p className="mt-0.5 text-xs font-medium uppercase tracking-widest text-gray-400">
-          Powered by DLR
-        </p>
         <p className="mt-2 text-sm text-gray-500">
-          Review prepared campaigns, message previews, and revived lead conversations.
+          Review prepared campaigns, approve message previews, and manage
+          revived conversations for {dealershipName}.
         </p>
         <p className="mt-1 text-xs text-gray-400">Hey {firstName} — here&apos;s where things stand.</p>
       </div>
@@ -558,7 +557,7 @@ export default async function DealerDashboardPage() {
             <div>
               <p className="text-sm font-semibold text-gray-800">Upload Leads</p>
               <p className="text-xs text-gray-500 mt-0.5">
-                Upload a CSV from your CRM — DLR classifies and prepares each lead automatically.
+                Upload a CSV from your CRM — each lead is classified and prepared automatically.
               </p>
             </div>
             <span className="text-gray-300 group-hover:text-gray-500 transition-colors text-lg leading-none ml-4">→</span>
@@ -638,8 +637,9 @@ export default async function DealerDashboardPage() {
           </div>
           <p className="text-base font-bold text-gray-800 mb-1">Start your first revival</p>
           <p className="text-sm text-gray-500 max-w-sm mx-auto leading-relaxed">
-            Upload a CSV of stale leads from your CRM. DLR classifies them by age, builds
-            message sequences, and lets you review everything before a single text is sent.
+            Upload a CSV of stale leads from your CRM. Each lead is classified by age,
+            paired with a message sequence, and surfaced for your review before a single
+            text is sent.
           </p>
           <a
             href="/dealer/import"
