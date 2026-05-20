@@ -235,7 +235,7 @@ export default async function DealerImportPage({
         <ul className="text-xs text-gray-600 space-y-1.5">
           <li>
             <span className="font-semibold text-violet-700">Held:</span>{' '}
-            contacted less than 14 days ago — too fresh for revival messaging.
+            contacted less than 14 days ago — too fresh for campaign messaging.
           </li>
           <li>
             <span className="font-semibold text-orange-700">Needs Date:</span>{' '}
@@ -324,7 +324,7 @@ export default async function DealerImportPage({
           {heldCount > 0 && (
             <div className="rounded-lg border border-violet-200 bg-violet-50 px-4 py-2.5 text-xs text-violet-800">
               <span className="font-semibold">⏳ {heldCount} held lead{heldCount !== 1 ? 's' : ''}:</span>{' '}
-              held because {heldCount === 1 ? 'this lead is' : 'these leads are'} too fresh for revival messaging.
+              held because {heldCount === 1 ? 'this lead is' : 'these leads are'} too fresh for campaign messaging.
               {heldCount === 1 ? ' It' : ' They'}&apos;ll become eligible at the 14-day mark.
             </div>
           )}

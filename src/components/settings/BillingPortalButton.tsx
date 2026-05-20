@@ -90,7 +90,7 @@ export function BillingPortalButton({
           </p>
           <p className="text-sm text-gray-600">
             Add a payment method so DLR can continue carrier setup, number
-            assignment, and pilot preparation.
+            assignment, and campaign preparation.
           </p>
           {recoveryHref ? (
             <a

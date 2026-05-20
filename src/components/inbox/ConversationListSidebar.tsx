@@ -147,7 +147,18 @@ export function ConversationListSidebar({
 
   const isDealer = basePath.startsWith('/dealer')
   const TABS = isDealer ? DEALER_TABS : ADMIN_TABS
-  const defaultTab = isDealer ? 'needs_review' : 'open'
+  // Default-tab pick for dealers: land on Needs Review when there's
+  // something to act on; otherwise fall back to Automated if that tab
+  // has rows. Avoids stranding the dealer on an empty Needs Review tab
+  // when activity actually lives under Automated. Admin default
+  // (`'open'`) is unchanged. Explicit `?tab=`/`?status=` URL params
+  // always win — see the useState initializer below.
+  const defaultTab = isDealer
+    ? (applyTabFilter(conversations, 'needs_review').length === 0
+        && applyTabFilter(conversations, 'automated').length > 0
+        ? 'automated'
+        : 'needs_review')
+    : 'open'
 
   // Tab state is owned client-side after first render. The URL is read
   // once for the initial value (so deep links / shared URLs work) and then
