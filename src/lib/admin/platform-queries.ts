@@ -245,7 +245,7 @@ function computeNextAction(p: NextActionInput): { label: string; href: string } 
     return { label: 'Review pilot batch', href: `/admin/dlr/pilot/${tenantPilotBatch.id}` }
   }
   if (intake.launchStatus === 'provisioned' || intake.launchStatus === 'pilot_ready') {
-    return { label: 'Run first pilot', href: '/admin/dlr/first-pilot' }
+    return { label: 'Run first pilot', href: '/admin/dlr/live-pilot' }
   }
   if (intake.launchStatus === 'live') {
     return { label: 'Live — no action needed', href: detailHref }

@@ -78,9 +78,6 @@ export default async function PilotListPage({
             <Link href="/admin/dlr/pilot-leads" className="text-xs font-semibold text-indigo-600 hover:underline">
               Go to Pilot Leads →
             </Link>
-            <Link href="/admin/dlr/pilot-pack" className="text-xs font-semibold text-blue-600 hover:underline">
-              Open Pilot Pack →
-            </Link>
           </div>
         </div>
       ) : (

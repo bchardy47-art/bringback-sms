@@ -114,9 +114,7 @@ function NextActionPanel({ status, batchId }: { status: LivePilotStatus; batchId
           🚫 {status.goNoGoBlockerCount} Go/No-Go blocker{status.goNoGoBlockerCount !== 1 ? 's' : ''} — cannot proceed
         </p>
         <p className="text-xs text-red-700 mt-1">
-          Resolve all blockers in the{' '}
-          <a href="/admin/dlr/go-no-go" className="underline">Go / No-Go report</a>{' '}
-          before confirming.
+          Resolve all blockers before confirming.
         </p>
       </div>
     )
@@ -555,7 +553,6 @@ export default async function LivePilotPage() {
           </p>
           <div className="flex items-center justify-center gap-4 pt-1">
             <a href="/admin/dlr/pilot-leads" className="text-xs font-semibold text-blue-600 hover:underline">Import leads →</a>
-            <a href="/admin/dlr/pilot-pack"  className="text-xs font-semibold text-blue-600 hover:underline">Open Pilot Pack →</a>
           </div>
         </div>
       )}
@@ -571,8 +568,6 @@ export default async function LivePilotPage() {
       <div className="rounded-lg bg-gray-50 border border-gray-200 px-5 py-4 text-xs text-gray-500 space-y-1">
         <p className="font-semibold text-gray-700">Related pages:</p>
         <p>
-          <a href="/admin/dlr/go-no-go" className="text-blue-600 underline">Go / No-Go Report</a>{' — '}
-          <a href="/admin/dlr/production" className="text-blue-600 underline">Production Config</a>{' — '}
           <a href="/admin/dlr/messages" className="text-blue-600 underline">Message Audit</a>{' — '}
           <a href="/admin/dlr/handoffs" className="text-blue-600 underline">Handoff Queue</a>{' — '}
           <a href="/admin/dlr/suppression" className="text-blue-600 underline">Suppression</a>
