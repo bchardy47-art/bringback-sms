@@ -376,8 +376,8 @@ export default async function DealerImportPage({
                   </span>
                 </h2>
                 <p className="text-xs text-gray-500">
-                  Check each lead, then add it to your first pilot selection.
-                  DLR caps each first pilot group at {FIRST_PILOT_CAP} leads so
+                  Check each lead, then add it to your first campaign selection.
+                  DLR caps each first campaign group at {FIRST_PILOT_CAP} leads so
                   you can review safely. No messages send from this page.
                 </p>
               </div>

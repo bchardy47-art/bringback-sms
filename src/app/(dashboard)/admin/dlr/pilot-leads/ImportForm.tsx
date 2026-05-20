@@ -173,7 +173,7 @@ export function ImportForm({ tenantId, apiBase = '/api/admin/dlr/pilot-leads' }:
           <p className="text-xs text-gray-600 mt-0.5 leading-relaxed">
             I confirm that all leads in this import have given consent as indicated, are covered by this
             dealer&apos;s TCR-approved SMS campaign, and that this import complies with TCPA requirements.
-            Leads with <strong>unknown</strong> or <strong>revoked</strong> consent cannot be selected for the pilot campaign.
+            Leads with <strong>unknown</strong> or <strong>revoked</strong> consent cannot be selected for the campaign.
           </p>
         </div>
       </label>

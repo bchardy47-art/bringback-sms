@@ -47,7 +47,7 @@ export function DealerConsentGate({ children }: Props) {
             covered by our approved SMS campaign.
           </span>{' '}
           <span className="text-gray-600">
-            Leads with unknown or revoked consent cannot be selected for pilot
+            Leads with unknown or revoked consent cannot be selected for campaign
             messaging.
           </span>
         </span>

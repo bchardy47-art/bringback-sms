@@ -108,28 +108,28 @@ export function computeDealerSetupStatus(p: DealerSetupInputs): DealerSetupStatu
   const tendlcStatus = tenant?.tenDlcStatus ?? null
   let tendlc: DealerSetupStep
   if (tendlcStatus === 'approved' || tendlcStatus === 'exempt') {
-    tendlc = { key: 'tendlc', label: 'Carrier registration / 10DLC', status: 'done', detail: null }
+    tendlc = { key: 'tendlc', label: 'Carrier verification', status: 'done', detail: null }
   } else if (tendlcStatus === 'pending') {
     tendlc = {
-      key: 'tendlc', label: 'Carrier registration / 10DLC',
+      key: 'tendlc', label: 'Carrier verification',
       status: 'in_progress',
-      detail: 'Carrier registration is in progress. This usually takes 1–3 weeks.',
+      detail: 'Carrier verification is in progress. This usually takes 1–3 weeks.',
     }
   } else if (tendlcStatus === 'rejected') {
     tendlc = {
-      key: 'tendlc', label: 'Carrier registration / 10DLC',
+      key: 'tendlc', label: 'Carrier verification',
       status: 'waiting_on_dlr',
       detail: 'Carrier feedback received. DLR is preparing a resubmission.',
     }
   } else if (stage2Done) {
     tendlc = {
-      key: 'tendlc', label: 'Carrier registration / 10DLC',
+      key: 'tendlc', label: 'Carrier verification',
       status: 'waiting_on_dlr',
       detail: 'DLR will submit your dealership to the carriers for SMS approval.',
     }
   } else {
     tendlc = {
-      key: 'tendlc', label: 'Carrier registration / 10DLC',
+      key: 'tendlc', label: 'Carrier verification',
       status: 'not_started',
       detail: 'Starts after the setup form is in.',
     }
@@ -177,22 +177,22 @@ export function computeDealerSetupStatus(p: DealerSetupInputs): DealerSetupStatu
 
   let pilot: DealerSetupStep
   if (counts.completedBatches > 0) {
-    pilot = { key: 'pilot', label: 'First pilot review', status: 'done', detail: null }
+    pilot = { key: 'pilot', label: 'Campaign review', status: 'done', detail: null }
   } else if (counts.draftBatches > 0) {
     pilot = {
-      key: 'pilot', label: 'First pilot review',
+      key: 'pilot', label: 'Campaign review',
       status: 'needs_your_action',
-      detail: 'A pilot campaign is waiting for your review and approval.',
+      detail: 'A campaign is waiting for your review and approval.',
     }
   } else if (counts.approvedBatches > 0) {
     pilot = {
-      key: 'pilot', label: 'First pilot review',
+      key: 'pilot', label: 'Campaign review',
       status: 'waiting_on_dlr',
-      detail: 'You approved a pilot campaign — DLR will start sending after final compliance checks.',
+      detail: 'You approved a campaign — DLR will start sending after final compliance checks.',
     }
   } else {
     pilot = {
-      key: 'pilot', label: 'First pilot review',
+      key: 'pilot', label: 'Campaign review',
       status: 'not_started',
       detail: 'Available after you upload leads and DLR prepares your campaigns.',
     }
@@ -205,7 +205,7 @@ export function computeDealerSetupStatus(p: DealerSetupInputs): DealerSetupStatu
     launch = {
       key: 'launch', label: 'Launch ready',
       status: 'waiting_on_dlr',
-      detail: 'First pilot complete — DLR is enabling ongoing live sends.',
+      detail: 'First campaign complete — DLR is enabling ongoing live sends.',
     }
   } else {
     launch = { key: 'launch', label: 'Launch ready', status: 'not_started', detail: null }
@@ -275,7 +275,7 @@ export function computeDealerSetupStatus(p: DealerSetupInputs): DealerSetupStatu
     title = 'DLR Setup Progress'
     subtitle =
       'We’re preparing your dealership for SMS launch. No messages will be sent ' +
-      'until your campaign is approved and you review your first batch.'
+      'until your campaign is approved and you review your first campaign.'
 
     // Surface a single concrete "next" line so the dealer knows what to do.
     const firstAction =

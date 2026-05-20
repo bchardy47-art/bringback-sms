@@ -201,17 +201,15 @@ export default async function DealerDashboardPage() {
     if (status !== 'needs_your_action') return null
     switch (stepKey) {
       case 'payment':
-        // Billing settings page exposes the "Finish payment setup" recovery
-        // button that deep-links into the intake/payment flow. Labels are
-        // bare text — renderers append the trailing arrow themselves so
-        // CTAs that already pin "→" can't produce a double-arrow.
-        return { label: 'Finish payment setup', href: '/dealer/settings' }
+        // Billing settings page exposes the "Finish payment setup →" recovery
+        // button that deep-links into the intake/payment flow.
+        return { label: 'Complete payment', href: '/dealer/settings' }
       case 'form':
         // Stage 2 onboarding form lives at /intake/<token>. If no token (rare,
         // admin-provisioned tenant), drop to settings as a soft fallback.
         return intakeToken
           ? { label: 'Open setup form',     href: `/intake/${intakeToken}` }
-          : { label: 'Finish payment setup', href: '/dealer/settings' }
+          : { label: 'Complete payment', href: '/dealer/settings' }
       case 'leads':
         return { label: 'Upload leads',  href: '/dealer/import' }
       case 'pilot':
@@ -238,32 +236,7 @@ export default async function DealerDashboardPage() {
     return null
   })()
 
-  // ── Messaging-state safety banner ────────────────────────────────────────
-  //
-  // Dealer-facing live status must be conservative. Internal readiness
-  // flags should not imply messages are actively sending.
-  //
-  // The previous version trusted `tenants.sms_live_approved` alone as the
-  // green-"live" trigger, which broke trust during QA: an admin can flip
-  // that flag before the dealer has reached payment / setup form / pilot
-  // review, and a dealer who is still mid-onboarding would see the green
-  // banner while the setup panel below it screamed "Action needed" on
-  // multiple steps (Janet @ Test Motors Honda).
-  //
-  // The fix: green requires *strong evidence of actual sending* — at
-  // least one pilot batch in 'sending' or 'completed' state — AND the
-  // live flag still set. Approved-only or draft-only batches stay amber,
-  // and the smsLiveApproved-without-sends case gets its own amber
-  // "in_setup" copy so the dealer knows internal prep is in motion but
-  // customer messages are not flowing.
-  //
-  // Suppressed entirely when the account is blocked or paused — the
-  // existing setup panel already alerts in red for those cases.
-  //
-  // Hoisted above the stat-card array so the conversations card can
-  // derive its label/color/helper from the same `safetyBannerState` —
-  // keeps the card's "Active vs Prepared" framing in lockstep with the
-  // banner. Single source of truth, no drift between the two surfaces.
+  // ── Messaging-state safety banner ─────────────────────────────────────────
   const safetyBlocked     = !!(tenantRow?.complianceBlocked || tenantRow?.automationPaused)
   const liveSendsCount    = liveSendsRow as number
   const hasLiveSends      = liveSendsCount > 0
@@ -277,65 +250,65 @@ export default async function DealerDashboardPage() {
                                           'not_live'
   const isLive = safetyBannerState === 'live'
 
+  // ── Setup progress percentage ─────────────────────────────────────────────
+  const doneCount   = setup.steps.filter(s => s.status === 'done').length
+  const progressPct = setup.steps.length > 0
+    ? Math.round((doneCount / setup.steps.length) * 100)
+    : 0
+
   const stats = [
     {
-      label: 'Leads Imported',
-      value: importCount,
-      href:  '/dealer/import',
-      color: 'text-gray-900',
-      bg:    'bg-white',
-      desc:  'Total leads in your pipeline',
+      label:   'Leads Imported',
+      value:   importCount,
+      href:    '/dealer/import',
+      numColor: '#111827',
+      accent:  '#e5e7eb',
+      desc:    'Total leads in your pipeline',
     },
     {
-      label: 'Campaigns Awaiting Review',
-      value: draftCount,
-      href:  '/dealer/batches',
-      color: draftCount > 0 ? 'text-blue-700' : 'text-gray-300',
-      bg:    draftCount > 0 ? 'bg-blue-50'    : 'bg-white',
-      desc:  'Draft campaigns ready for your approval',
+      label:   'Campaigns Awaiting Review',
+      value:   draftCount,
+      href:    '/dealer/batches',
+      numColor: draftCount > 0 ? '#1d4ed8' : '#9ca3af',
+      accent:  draftCount > 0 ? '#3b82f6' : '#e5e7eb',
+      desc:    'Draft campaigns ready for your approval',
     },
     {
-      label: 'Approved Campaigns',
-      value: activeCount,
-      href:  '/dealer/batches',
-      color: 'text-emerald-700',
-      bg:    'bg-white',
-      desc:  'Campaigns you have approved',
+      label:   'Approved Campaigns',
+      value:   activeCount,
+      href:    '/dealer/batches',
+      numColor: '#065f46',
+      accent:  '#10b981',
+      desc:    'Campaigns you have approved',
     },
     {
-      // Conservative pre-launch framing: when the safety banner isn't in
-      // the 'live' state, "Active Conversations" reads as "DLR is texting
-      // customers right now" even though the count covers prepared/test
-      // threads. Swap to "Prepared Conversations" + a calmer blue tint
-      // (matching the "Batches Awaiting Review" sibling card's review
-      // semantics) until actual sends begin. Count and inbox deep-link
-      // are unchanged — only label, helper, and color tier.
-      label: isLive ? 'Active Conversations' : 'Prepared Message Previews',
-      value: inboxCount,
-      href:  inboxHref,
-      color: isLive
-        ? (inboxCount > 0 ? 'text-orange-600' : 'text-gray-300')
-        : (inboxCount > 0 ? 'text-blue-600'   : 'text-gray-300'),
-      bg:    isLive
-        ? (inboxCount > 0 ? 'bg-orange-50' : 'bg-white')
-        : (inboxCount > 0 ? 'bg-blue-50'   : 'bg-white'),
-      desc:  isLive
+      label:   isLive ? 'Active Conversations' : 'Prepared Message Previews',
+      value:   inboxCount,
+      href:    inboxHref,
+      numColor: isLive
+        ? (inboxCount > 0 ? '#9a3412' : '#9ca3af')
+        : (inboxCount > 0 ? '#1e40af' : '#9ca3af'),
+      accent:  isLive
+        ? (inboxCount > 0 ? '#f97316' : '#e5e7eb')
+        : (inboxCount > 0 ? '#60a5fa' : '#e5e7eb'),
+      desc:    isLive
         ? 'Customer replies and live conversations.'
         : 'Draft message previews only — nothing sent to customers yet.',
     },
   ]
 
-  const allStatsZero = importCount + draftCount + activeCount + inboxCount === 0
+  const allStatsZero   = importCount + draftCount + activeCount + inboxCount === 0
   const showReassurance = allStatsZero && setup.showPanel
 
   return (
-    <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-6 md:space-y-8">
+    <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-5 md:space-y-6">
 
-      {/* Welcome header — dealership-branded framing: dealership owns
-          the workspace, DLR is the engine. "Powered by DLR" keeps DLR
-          visible without implying the dealership built the software. */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">
+      {/* ── Page header ─────────────────────────────────────────────────
+          Dealership-branded framing: dealership owns the workspace, DLR
+          is the engine. Powered-by line keeps DLR visible without
+          implying the dealership built the software. */}
+      <div className="pb-1">
+        <h1 className="text-xl md:text-2xl font-bold text-gray-900">
           {dealershipName} Revival Center
         </h1>
         <p className="mt-0.5 text-xs font-medium uppercase tracking-widest text-gray-400">
@@ -366,13 +339,8 @@ export default async function DealerDashboardPage() {
         />
       )}
 
-      {/* ── DLR Automation Status card ───────────────────────────────────
-          Dealer-side live-ops surface. Three states:
-            - not_live  → informational, no action button
-            - running   → live + not paused, "Pause all automation" button
-            - paused    → automationPaused true, "Resume automation" button
-          Hidden when the account is compliance-blocked (the setup panel
-          below already alerts in red and the dealer can't override). */}
+      {/* ── System Status card (compact) ─────────────────────────────────
+          Suppressed when compliance-blocked (setup panel already alerts). */}
       {!tenantRow?.complianceBlocked && (
         <DealerAutomationStatusCard
           isLive={isLive}
@@ -382,43 +350,76 @@ export default async function DealerDashboardPage() {
         />
       )}
 
-      {/* ── DLR Setup Progress panel ───────────────────────────────────── */}
+      {/* ── DLR Setup Progress ────────────────────────────────────────── */}
       {setup.showPanel && (
-        <section
-          className={`rounded-xl border-2 p-4 md:p-6 ${
-            setup.overall === 'blocked' ? 'border-red-300 bg-red-50' : 'border-blue-200 bg-blue-50'
-          }`}
-        >
-          <div className="flex items-start justify-between gap-3 flex-wrap">
-            <div className="min-w-0">
-              <p className={`text-xs font-semibold uppercase tracking-widest ${
-                setup.overall === 'blocked' ? 'text-red-700' : 'text-blue-700'
-              }`}>
-                {setup.overall === 'blocked' ? 'Account paused' : 'Setup Progress'}
-              </p>
-              <h2 className="text-lg md:text-xl font-bold text-gray-900 mt-0.5">
-                {/* Render-site rename: setup-status.ts pure function
-                    keeps its own 'DLR Setup Progress' return value; the
-                    dealer surface re-titles it as the dealership's own
-                    setup. Blocked-state alerts keep the loud
-                    'Account paused' label — branding doesn't override a
-                    compliance alert. */}
-                {setup.overall === 'blocked'
-                  ? (setup.title || 'Account paused')
-                  : `${dealershipName} Setup Progress`}
-              </h2>
-              <p className="text-sm text-gray-700 mt-1 max-w-2xl">
-                {setup.subtitle}
-              </p>
-              {setup.nextHint && (
-                <p className="text-sm font-medium text-gray-900 mt-3">
-                  Next: <span className="font-normal">{setup.nextHint}</span>
+        <section className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+
+          {/* Card header with progress */}
+          <div
+            className="px-5 py-4"
+            style={{
+              background: setup.overall === 'blocked' ? '#fef2f2' : '#f9fafb',
+              borderBottom: `1px solid ${setup.overall === 'blocked' ? '#fecaca' : '#f3f4f6'}`,
+            }}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p
+                  className="text-xs font-semibold uppercase tracking-widest"
+                  style={{ color: setup.overall === 'blocked' ? '#dc2626' : '#6b7280' }}
+                >
+                  {setup.overall === 'blocked' ? 'Account Paused' : 'Setup Progress'}
                 </p>
-              )}
+                <h2 className="text-base font-bold text-gray-900 mt-0.5">
+                  {/* Render-site rename: setup-status.ts pure function
+                      keeps its own copy ('DLR Setup Progress', 'Account
+                      paused', etc.); the dealer surface re-titles it as
+                      the dealership's workspace. Blocked-state alerts
+                      keep the loud 'Account paused' label — branding
+                      doesn't override a compliance alert. */}
+                  {setup.overall === 'blocked'
+                    ? (setup.title || 'Account paused')
+                    : `${dealershipName} Setup Progress`}
+                </h2>
+                {setup.subtitle && (
+                  <p className="text-xs text-gray-500 mt-1 max-w-lg">{setup.subtitle}</p>
+                )}
+                {setup.nextHint && (
+                  <p className="text-xs text-gray-700 mt-1.5 font-medium">
+                    Next: <span className="font-normal">{setup.nextHint}</span>
+                  </p>
+                )}
+              </div>
+              {/* Progress percentage */}
+              <div className="flex-shrink-0 text-right">
+                <p
+                  className="text-2xl font-bold"
+                  style={{ color: setup.overall === 'blocked' ? '#dc2626' : progressPct === 100 ? '#059669' : '#111827' }}
+                >
+                  {progressPct}%
+                </p>
+                <p className="text-xs text-gray-400 mt-0.5">complete</p>
+              </div>
+            </div>
+
+            {/* Progress bar */}
+            <div className="mt-3 h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: '#e5e7eb' }}>
+              <div
+                className="h-full rounded-full transition-all duration-500"
+                style={{
+                  width: `${progressPct}%`,
+                  background: setup.overall === 'blocked'
+                    ? '#ef4444'
+                    : progressPct === 100
+                    ? '#10b981'
+                    : 'linear-gradient(90deg, #dc2626, #ef4444)',
+                }}
+              />
             </div>
           </div>
 
-          <ol className="mt-4 space-y-2">
+          {/* Step list */}
+          <ol className="divide-y divide-gray-100">
             {setup.steps.map((step, idx) => (
               <SetupStepRow
                 key={step.key}
@@ -431,94 +432,117 @@ export default async function DealerDashboardPage() {
         </section>
       )}
 
-      {/* Stats grid */}
-      <div className="grid grid-cols-2 gap-4">
-        {stats.map(({ label, value, href, color, bg, desc }) => (
+      {/* ── Stats grid ────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 gap-3 md:gap-4">
+        {stats.map(({ label, value, href, numColor, accent, desc }) => (
           <a
             key={label}
             href={href}
-            className={`${bg} border border-gray-200 rounded-xl px-4 md:px-6 py-4 md:py-5 shadow-sm hover:shadow transition-shadow block`}
+            className="bg-white border border-gray-200 rounded-xl px-4 md:px-5 py-4 md:py-5 shadow-sm hover:shadow-md transition-shadow block overflow-hidden relative"
           >
-            <p className={`text-3xl font-bold ${color}`}>{value}</p>
+            {/* Colored top accent bar */}
+            <div
+              className="absolute top-0 left-0 right-0 h-0.5 rounded-t-xl"
+              style={{ backgroundColor: accent }}
+            />
+            <p className="text-3xl font-bold mt-1" style={{ color: numColor }}>{value}</p>
             <p className="text-sm font-semibold text-gray-700 mt-1">{label}</p>
-            <p className="text-xs text-gray-400 mt-0.5">{desc}</p>
+            <p className="text-xs text-gray-400 mt-0.5 leading-snug">{desc}</p>
           </a>
         ))}
       </div>
 
       {/* Reassurance when everything is zero AND setup isn't done */}
       {showReassurance && (
-        <div className="rounded-xl border border-dashed border-gray-200 px-5 py-3 text-center">
-          <p className="text-sm text-gray-600">
-            Nothing is broken — your account is waiting for the next setup step.
+        <div className="rounded-xl border border-dashed border-gray-200 px-5 py-3.5 text-center">
+          <p className="text-sm text-gray-500">
+            Nothing is broken — your account is working through setup. Stats will appear here as each step completes.
           </p>
         </div>
       )}
 
-      {/* Quick actions */}
-      <div className="border border-gray-200 rounded-xl overflow-hidden">
-        <div className="bg-gray-50 px-5 py-3 border-b border-gray-200">
-          <p className="text-sm font-semibold text-gray-900">Quick Actions</p>
+      {/* ── Quick actions ─────────────────────────────────────────────── */}
+      <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+        <div className="px-5 py-3.5" style={{ borderBottom: '1px solid #f3f4f6' }}>
+          <p className="text-xs font-semibold uppercase tracking-widest text-gray-500">Quick Actions</p>
         </div>
         <div className="divide-y divide-gray-100">
           <a
             href="/dealer/import"
-            className="flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors"
+            className="flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors group"
           >
             <div>
               <p className="text-sm font-semibold text-gray-800">Upload Leads</p>
-              <p className="text-xs text-gray-500">Upload a CSV of prior dealership leads — DLR will prepare them for admin review.</p>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Upload a CSV from your CRM — DLR classifies and prepares each lead automatically.
+              </p>
             </div>
-            <span className="text-gray-400 text-sm">→</span>
+            <span className="text-gray-300 group-hover:text-gray-500 transition-colors text-lg leading-none ml-4">→</span>
           </a>
+
           <a
             href="/dealer/batches"
-            className="flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors"
+            className="flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors group"
           >
-            <div className="flex items-center gap-3">
-              <div>
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="min-w-0">
                 <p className="text-sm font-semibold text-gray-800">Review Campaigns</p>
-                <p className="text-xs text-gray-500">Preview message sequences and approve pilot campaigns</p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Preview message sequences and approve campaigns before anything sends.
+                </p>
               </div>
               {draftCount > 0 && (
-                <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-bold rounded-full">
+                <span className="flex-shrink-0 px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-bold rounded-full">
                   {draftCount} pending
                 </span>
               )}
             </div>
-            <span className="text-gray-400 text-sm">→</span>
+            <span className="text-gray-300 group-hover:text-gray-500 transition-colors text-lg leading-none ml-4">→</span>
           </a>
+
           <a
             href={inboxHref}
-            className="flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors"
+            className="flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors group"
           >
-            <div className="flex items-center gap-3">
-              <div>
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="min-w-0">
                 <p className="text-sm font-semibold text-gray-800">Open Inbox</p>
-                <p className="text-xs text-gray-500">See replies and hand off hot leads to your team</p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  See customer replies and take over hot conversations for your sales team.
+                </p>
               </div>
               {inboxCount > 0 && (
-                <span className="px-2 py-0.5 bg-orange-100 text-orange-700 text-xs font-bold rounded-full">
+                <span className="flex-shrink-0 px-2 py-0.5 bg-orange-100 text-orange-700 text-xs font-bold rounded-full">
                   {inboxCount} active
                 </span>
               )}
             </div>
-            <span className="text-gray-400 text-sm">→</span>
+            <span className="text-gray-300 group-hover:text-gray-500 transition-colors text-lg leading-none ml-4">→</span>
           </a>
         </div>
       </div>
 
       {/* Empty-state CTA — only when zero leads AND dealer can actually act */}
       {importCount === 0 && canUploadNow && (
-        <div className="rounded-xl border-2 border-dashed border-gray-200 py-10 px-8 text-center">
-          <p className="text-base font-semibold text-gray-700 mb-2">Start your first revival</p>
-          <p className="text-sm text-gray-500 max-w-sm mx-auto">
-            Upload a CSV of dead leads from your CRM. DLR will classify them, build message sequences,
-            and let you review everything before a single text is sent.
+        <div
+          className="rounded-xl border-2 border-dashed py-10 px-8 text-center"
+          style={{ borderColor: '#e5e7eb' }}
+        >
+          <div
+            className="w-10 h-10 rounded-full mx-auto mb-3 flex items-center justify-center text-white font-bold text-lg"
+            style={{ background: 'linear-gradient(135deg, #dc2626, #991b1b)' }}
+          >
+            ↑
+          </div>
+          <p className="text-base font-bold text-gray-800 mb-1">Start your first revival</p>
+          <p className="text-sm text-gray-500 max-w-sm mx-auto leading-relaxed">
+            Upload a CSV of stale leads from your CRM. DLR classifies them by age, builds
+            message sequences, and lets you review everything before a single text is sent.
           </p>
           <a
             href="/dealer/import"
-            className="mt-5 inline-block px-5 py-2.5 bg-gray-900 text-white text-sm font-semibold rounded-xl hover:bg-gray-700 transition-colors"
+            className="mt-5 inline-block px-6 py-2.5 text-white text-sm font-bold rounded-xl transition-colors"
+            style={{ background: 'linear-gradient(135deg, #dc2626, #991b1b)' }}
           >
             Upload your first leads →
           </a>
@@ -528,7 +552,7 @@ export default async function DealerDashboardPage() {
   )
 }
 
-// ── Step row component ──────────────────────────────────────────────────────
+// ── Setup step row ──────────────────────────────────────────────────────────
 
 function SetupStepRow({
   index,
@@ -543,43 +567,51 @@ function SetupStepRow({
   const isActive = step.status === 'in_progress' || step.status === 'needs_your_action'
 
   return (
-    <li className="flex items-start gap-3 bg-white border border-gray-200 rounded-lg px-3 py-2.5">
+    <li className="flex items-start gap-3.5 px-5 py-3.5">
+      {/* Step indicator */}
       <span
-        className={`flex-shrink-0 w-6 h-6 rounded-full inline-flex items-center justify-center text-xs font-bold ${
-          isDone   ? 'bg-emerald-500 text-white' :
-          isActive ? 'bg-blue-600    text-white' :
-                     'bg-gray-200    text-gray-500'
-        }`}
+        className="flex-shrink-0 w-6 h-6 rounded-full inline-flex items-center justify-center text-xs font-bold mt-0.5"
+        style={{
+          backgroundColor: isDone ? '#10b981' : isActive ? '#dc2626' : '#f3f4f6',
+          color:           isDone ? '#ffffff' : isActive ? '#ffffff' : '#9ca3af',
+        }}
         aria-hidden="true"
       >
         {isDone ? '✓' : index}
       </span>
 
+      {/* Content */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-2 flex-wrap">
-          <p className={`text-sm font-semibold ${isDone ? 'text-gray-500' : 'text-gray-900'}`}>
+          <p
+            className="text-sm font-semibold"
+            style={{
+              color:          isDone ? '#9ca3af' : '#111827',
+              textDecoration: isDone ? 'line-through' : 'none',
+              textDecorationColor: '#d1d5db',
+            }}
+          >
             {step.label}
           </p>
           <span
-            className={`px-2 py-0.5 rounded-full text-xs font-bold whitespace-nowrap ${
-              DEALER_STEP_STATUS_CLASS[step.status]
-            }`}
+            className={`px-2 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap ${DEALER_STEP_STATUS_CLASS[step.status]}`}
           >
             {DEALER_STEP_STATUS_LABEL[step.status]}
           </span>
         </div>
+
         {step.detail && (
-          <p className="text-xs text-gray-600 mt-0.5">{step.detail}</p>
+          <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{step.detail}</p>
         )}
+
         {action && (
-          <div className="mt-2 flex justify-start sm:justify-end">
-            <a
-              href={action.href}
-              className="inline-flex items-center rounded-md bg-gray-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-gray-700 transition-colors"
-            >
-              {action.label} →
-            </a>
-          </div>
+          <a
+            href={action.href}
+            className="inline-flex items-center mt-2 px-3.5 py-1.5 text-xs font-bold text-white rounded-lg transition-colors"
+            style={{ background: 'linear-gradient(135deg, #dc2626, #991b1b)' }}
+          >
+            {action.label} →
+          </a>
         )}
       </div>
     </li>
@@ -635,43 +667,9 @@ function NextStepCard({
 
 // ── Messaging safety banner ─────────────────────────────────────────────────
 //
-// Top-of-dashboard reassurance about whether DLR is actually sending
-// customer messages right now. Three states; suppressed when the account
-// is blocked or paused (the setup panel already alerts in red for those).
-//
-// Calm, dealer-friendly copy. Red is reserved for actual problems; the
-// "not yet" and "in review" states use blue and amber respectively so a
-// new dealer doesn't see scary colors during normal onboarding.
-
-const BANNER_TONE_CLASS: Record<'blue' | 'amber' | 'emerald', {
-  bg:     string
-  border: string
-  title:  string
-  detail: string
-  icon:   string
-}> = {
-  blue: {
-    bg:     'bg-blue-50',
-    border: 'border-blue-200',
-    title:  'text-blue-900',
-    detail: 'text-blue-800',
-    icon:   'bg-blue-100 text-blue-700',
-  },
-  amber: {
-    bg:     'bg-amber-50',
-    border: 'border-amber-200',
-    title:  'text-amber-900',
-    detail: 'text-amber-800',
-    icon:   'bg-amber-100 text-amber-700',
-  },
-  emerald: {
-    bg:     'bg-emerald-50',
-    border: 'border-emerald-200',
-    title:  'text-emerald-900',
-    detail: 'text-emerald-800',
-    icon:   'bg-emerald-100 text-emerald-700',
-  },
-}
+// Compact, professional status strip. Four states; suppressed when the
+// account is blocked or paused (setup panel already alerts in red for those).
+// Calm, dealer-friendly copy — red is reserved for actual problems.
 
 function MessagingSafetyBanner({
   state,
@@ -682,101 +680,75 @@ function MessagingSafetyBanner({
       which dealership is (or isn't) sending. */
   dealershipName: string
 }) {
-  let tone:  'blue' | 'amber' | 'emerald'
   let icon:  string
   let title: string
   let detail: string
+  let bg:     string
+  let border: string
+  let iconBg: string
+  let titleColor: string
 
   if (state === 'live') {
-    tone   = 'emerald'
     icon   = '✓'
-    title  = `${dealershipName} messaging is live.`
-    detail = 'Customer replies will appear in Inbox. You stay in control — take over conversations anytime.'
+    title  = `${dealershipName} messaging is live`
+    detail = 'Customer replies will appear in Inbox. You stay in control — take over any conversation anytime.'
+    bg     = '#f0fdf4'
+    border = '#bbf7d0'
+    iconBg = '#22c55e'
+    titleColor = '#14532d'
   } else if (state === 'in_setup') {
-    // smsLiveApproved is true internally, but no batches have actually
-    // sent or are sending yet. Dealer must finish payment / setup / pilot
-    // review before customers see messages.
-    tone   = 'amber'
     icon   = '⏳'
-    title  = 'Campaigns are in setup — not sending yet.'
+    title  = 'Setup mode — messages are paused'
     detail = `No customer messages will send from ${dealershipName} until payment, campaign review, and final launch approval are complete.`
+    bg     = '#fffbeb'
+    border = '#fde68a'
+    iconBg = '#f59e0b'
+    titleColor = '#78350f'
   } else if (state === 'in_review') {
-    tone   = 'amber'
     icon   = '⏳'
-    title  = 'Campaigns are in review — not live.'
+    title  = 'Campaigns in review — not live yet'
     detail = `Approving a campaign prepares it for final review. No messages send from ${dealershipName} until DLR activates your account.`
+    bg     = '#fffbeb'
+    border = '#fde68a'
+    iconBg = '#f59e0b'
+    titleColor = '#78350f'
   } else {
-    tone   = 'blue'
     icon   = 'ℹ'
-    title  = 'Not sending yet.'
+    title  = 'Not sending yet'
     detail = `No customer messages will send from ${dealershipName} until your first campaign is reviewed and DLR completes activation with you.`
+    bg     = '#eff6ff'
+    border = '#bfdbfe'
+    iconBg = '#3b82f6'
+    titleColor = '#1e3a8a'
   }
 
-  const t = BANNER_TONE_CLASS[tone]
-
   return (
-    <section
+    <div
       role="status"
       aria-live="polite"
-      className={`rounded-xl border-2 ${t.border} ${t.bg} p-4 md:p-5`}
+      className="flex items-start gap-3 rounded-lg px-4 py-3"
+      style={{ backgroundColor: bg, border: `1px solid ${border}` }}
     >
-      <div className="flex items-start gap-3">
-        <span
-          className={`flex-shrink-0 w-7 h-7 rounded-full inline-flex items-center justify-center text-sm font-bold ${t.icon}`}
-          aria-hidden="true"
-        >
-          {icon}
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className={`text-sm md:text-base font-bold ${t.title}`}>{title}</p>
-          <p className={`text-xs md:text-sm mt-1 leading-relaxed ${t.detail}`}>{detail}</p>
-        </div>
+      <span
+        className="flex-shrink-0 w-5 h-5 rounded-full inline-flex items-center justify-center text-white text-xs font-bold mt-0.5"
+        style={{ backgroundColor: iconBg }}
+        aria-hidden="true"
+      >
+        {icon}
+      </span>
+      <div className="min-w-0">
+        <p className="text-sm font-bold" style={{ color: titleColor }}>{title}</p>
+        <p className="text-xs mt-0.5 text-gray-600 leading-relaxed">{detail}</p>
       </div>
-    </section>
+    </div>
   )
 }
 
 // ── Dealer automation status card ──────────────────────────────────────────
 //
-// Dealer-side live-ops surface for pause/resume. Three states:
-//   - not_live  → informational ("Automation is not live yet"), no button
-//   - running   → live + not paused, shows "Pause all automation" with
-//                 ConfirmingForm gate
-//   - paused    → automationPaused=true, shows "Resume automation" with
-//                 ConfirmingForm gate
-//
-// All copy is dealer-friendly: "your dealership", "pause automation",
-// "approved/live workflows" — no internal terms (tenant, worker, queue).
-
-const AUTOMATION_TONE: Record<'gray' | 'emerald' | 'amber', {
-  bg:     string
-  border: string
-  title:  string
-  detail: string
-  icon:   string
-}> = {
-  gray: {
-    bg:     'bg-gray-50',
-    border: 'border-gray-200',
-    title:  'text-gray-900',
-    detail: 'text-gray-600',
-    icon:   'bg-gray-200 text-gray-700',
-  },
-  emerald: {
-    bg:     'bg-emerald-50',
-    border: 'border-emerald-200',
-    title:  'text-emerald-900',
-    detail: 'text-emerald-800',
-    icon:   'bg-emerald-100 text-emerald-700',
-  },
-  amber: {
-    bg:     'bg-amber-50',
-    border: 'border-amber-200',
-    title:  'text-amber-900',
-    detail: 'text-amber-800',
-    icon:   'bg-amber-100 text-amber-700',
-  },
-}
+// Compact "System Status" pill card — intentionally smaller and less alarming
+// than the old bordered section. Three states: not_live (gray, no action),
+// running (green, pause button), paused (amber, resume button).
 
 function DealerAutomationStatusCard({
   isLive,
@@ -789,87 +761,74 @@ function DealerAutomationStatusCard({
   pauseAction:  () => Promise<void>
   resumeAction: () => Promise<void>
 }) {
-  // State derivation — paused trumps live/not-live framing.
-  let tone:   'gray' | 'emerald' | 'amber'
-  let icon:   string
-  let title:  string
-  let detail: string
-  let button: 'pause' | 'resume' | null
+  let dotColor:   string
+  let statusText: string
+  let detail:     string
+  let button:     'pause' | 'resume' | null
 
   if (paused) {
-    tone   = 'amber'
-    icon   = '⏸'
-    title  = 'Automation is paused'
-    detail = 'No automated follow-up is running. Existing human-owned conversations remain available in Inbox.'
-    button = 'resume'
+    dotColor   = '#f59e0b'
+    statusText = 'Paused'
+    detail     = 'No automated follow-up is running. Existing conversations remain in Inbox.'
+    button     = 'resume'
   } else if (isLive) {
-    tone   = 'emerald'
-    icon   = '✓'
-    title  = 'Automation is running'
-    detail = 'DLR is managing approved live conversations. You can pause automation if something looks wrong.'
-    button = 'pause'
+    dotColor   = '#22c55e'
+    statusText = 'Running'
+    detail     = 'DLR is managing approved live conversations for your dealership.'
+    button     = 'pause'
   } else {
-    tone   = 'gray'
-    icon   = 'ℹ'
-    title  = 'Automation is not live yet'
-    detail = 'DLR will not send customer messages until campaign review and live-send activation are complete.'
-    button = null
+    dotColor   = '#d1d5db'
+    statusText = 'Not live yet'
+    detail     = 'Automation will start once campaign review and live-send activation are complete.'
+    button     = null
   }
 
-  const t = AUTOMATION_TONE[tone]
-
   return (
-    <section
-      role="status"
-      aria-live="polite"
-      className={`rounded-xl border-2 ${t.border} ${t.bg} p-4 md:p-5`}
+    <div
+      className="bg-white border border-gray-200 rounded-xl shadow-sm px-4 py-3.5 flex items-center gap-4"
     >
-      <div className="flex items-start gap-3">
-        <span
-          className={`flex-shrink-0 w-7 h-7 rounded-full inline-flex items-center justify-center text-sm font-bold ${t.icon}`}
-          aria-hidden="true"
-        >
-          {icon}
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-0.5">
-            DLR Automation Status
-          </p>
-          <p className={`text-sm md:text-base font-bold ${t.title}`}>{title}</p>
-          <p className={`text-xs md:text-sm mt-1 leading-relaxed ${t.detail}`}>{detail}</p>
+      {/* Status dot */}
+      <span
+        className="flex-shrink-0 w-2 h-2 rounded-full"
+        style={{ backgroundColor: dotColor }}
+      />
 
-          {button === 'pause' && (
-            <div className="mt-3">
-              <ConfirmingForm
-                action={pauseAction}
-                confirmMessage={PAUSE_CONFIRM_PROMPT}
-              >
-                <button
-                  type="submit"
-                  className="inline-flex items-center rounded-md bg-red-600 px-4 py-2 text-xs font-bold text-white hover:bg-red-700 transition-colors"
-                >
-                  Pause all automation
-                </button>
-              </ConfirmingForm>
-            </div>
-          )}
-          {button === 'resume' && (
-            <div className="mt-3">
-              <ConfirmingForm
-                action={resumeAction}
-                confirmMessage={RESUME_CONFIRM_PROMPT}
-              >
-                <button
-                  type="submit"
-                  className="inline-flex items-center rounded-md bg-emerald-600 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-700 transition-colors"
-                >
-                  Resume automation
-                </button>
-              </ConfirmingForm>
-            </div>
-          )}
+      {/* Label + detail */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">System Status</p>
+          <span className="text-xs text-gray-300">·</span>
+          <p
+            className="text-xs font-semibold"
+            style={{ color: paused ? '#d97706' : isLive ? '#16a34a' : '#6b7280' }}
+          >
+            {statusText}
+          </p>
         </div>
+        <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{detail}</p>
       </div>
-    </section>
+
+      {/* Pause / Resume button */}
+      {button === 'pause' && (
+        <ConfirmingForm action={pauseAction} confirmMessage={PAUSE_CONFIRM_PROMPT}>
+          <button
+            type="submit"
+            className="flex-shrink-0 px-3 py-1.5 text-xs font-semibold text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
+          >
+            Pause
+          </button>
+        </ConfirmingForm>
+      )}
+      {button === 'resume' && (
+        <ConfirmingForm action={resumeAction} confirmMessage={RESUME_CONFIRM_PROMPT}>
+          <button
+            type="submit"
+            className="flex-shrink-0 px-3 py-1.5 text-xs font-semibold text-emerald-600 border border-emerald-200 rounded-lg hover:bg-emerald-50 transition-colors"
+          >
+            Resume
+          </button>
+        </ConfirmingForm>
+      )}
+    </div>
   )
 }
