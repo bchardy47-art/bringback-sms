@@ -105,7 +105,7 @@ export default async function DealerBatchReviewPage({ params }: RouteContext) {
             href="/dealer/batches"
             className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-xs font-medium text-gray-600"
           >
-            ← All Batches
+            ← All Campaigns
           </a>
         </div>
       </div>
@@ -114,7 +114,7 @@ export default async function DealerBatchReviewPage({ params }: RouteContext) {
       {isApproved && (
         <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-4">
           <p className="text-sm font-semibold text-emerald-900">
-            ✓ You approved this batch
+            ✓ You approved this campaign
             {batch.approvedAt ? ` on ${new Date(batch.approvedAt).toLocaleDateString()}` : ''}.
           </p>
           <p className="text-xs text-emerald-700 mt-0.5">
@@ -279,7 +279,7 @@ export default async function DealerBatchReviewPage({ params }: RouteContext) {
 
       {/* Footer nav */}
       <div className="text-xs text-gray-400 space-x-3">
-        <a href="/dealer/batches" className="text-blue-600 underline">← All Batches</a>
+        <a href="/dealer/batches" className="text-blue-600 underline">← All Campaigns</a>
         <a href="/dealer/dashboard" className="text-blue-600 underline">Dashboard</a>
         <a href="/dealer/inbox" className="text-blue-600 underline">Inbox</a>
       </div>

@@ -3,6 +3,7 @@
 import { useState, FormEvent, Suspense } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import Image from 'next/image'
 
 function InviteBanner() {
   const searchParams = useSearchParams()
@@ -83,11 +84,26 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
+    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-10">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
-          <h1 className="text-2xl font-semibold text-gray-900">Dead Lead Revival</h1>
-          <p className="mt-1 text-sm text-gray-500">Sign in to your dealership account</p>
+          <div className="flex justify-center mb-5">
+            <Image
+              src="/dlr-logo.svg"
+              alt="DLR — Dead Lead Revival"
+              width={160}
+              height={48}
+              priority
+              style={{ width: 160, height: 'auto' }}
+            />
+          </div>
+          <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">
+            Sign in to Dead Lead Revival
+          </h1>
+          <p className="mt-2 text-sm text-gray-500 leading-relaxed">
+            Access your dealership&apos;s DLR setup, campaign reviews, and revived
+            lead conversations.
+          </p>
         </div>
 
         <Suspense>

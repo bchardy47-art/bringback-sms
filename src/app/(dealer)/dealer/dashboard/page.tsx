@@ -213,11 +213,28 @@ export default async function DealerDashboardPage() {
       case 'leads':
         return { label: 'Upload leads →',  href: '/dealer/import' }
       case 'pilot':
-        return { label: 'Review batches →', href: '/dealer/batches' }
+        return { label: 'Review campaign →', href: '/dealer/batches' }
       default:
         return null
     }
   }
+
+  // ── Next step — the single most important thing for the dealer to do
+  // right now. Same source of truth as the setup-progress panel below;
+  // we just lift it above the fold so a returning dealer never has to
+  // hunt for it. Picks the earliest `needs_your_action` step that maps
+  // to a clickable action (payment > form > leads > pilot).
+  const nextStep: { label: string; href: string; stepLabel: string } | null = (() => {
+    const ACTION_ORDER = ['payment', 'form', 'leads', 'pilot'] as const
+    for (const key of ACTION_ORDER) {
+      const step = setup.steps.find((s) => s.key === key)
+      if (!step) continue
+      const action = actionForStep(step.key, step.status)
+      if (!action) continue
+      return { ...action, stepLabel: step.label }
+    }
+    return null
+  })()
 
   // ── Messaging-state safety banner ────────────────────────────────────────
   //
@@ -268,20 +285,20 @@ export default async function DealerDashboardPage() {
       desc:  'Total leads in your pipeline',
     },
     {
-      label: 'Batches Awaiting Review',
+      label: 'Campaigns Awaiting Review',
       value: draftCount,
       href:  '/dealer/batches',
       color: draftCount > 0 ? 'text-blue-700' : 'text-gray-300',
       bg:    draftCount > 0 ? 'bg-blue-50'    : 'bg-white',
-      desc:  'Draft batches ready for your approval',
+      desc:  'Draft campaigns ready for your approval',
     },
     {
-      label: 'Approved Batches',
+      label: 'Approved Campaigns',
       value: activeCount,
       href:  '/dealer/batches',
       color: 'text-emerald-700',
       bg:    'bg-white',
-      desc:  'Batches you have approved',
+      desc:  'Campaigns you have approved',
     },
     {
       // Conservative pre-launch framing: when the safety banner isn't in
@@ -291,7 +308,7 @@ export default async function DealerDashboardPage() {
       // (matching the "Batches Awaiting Review" sibling card's review
       // semantics) until actual sends begin. Count and inbox deep-link
       // are unchanged — only label, helper, and color tier.
-      label: isLive ? 'Active Conversations' : 'Prepared Conversations',
+      label: isLive ? 'Active Conversations' : 'Prepared Message Previews',
       value: inboxCount,
       href:  inboxHref,
       color: isLive
@@ -302,7 +319,7 @@ export default async function DealerDashboardPage() {
         : (inboxCount > 0 ? 'bg-blue-50'   : 'bg-white'),
       desc:  isLive
         ? 'Customer replies and live conversations.'
-        : 'Preview/test conversations only — not live customer messaging.',
+        : 'Draft message previews only — nothing sent to customers yet.',
     },
   ]
 
@@ -324,6 +341,20 @@ export default async function DealerDashboardPage() {
 
       {/* ── Messaging-state safety banner ─────────────────────────────── */}
       {safetyBannerState && <MessagingSafetyBanner state={safetyBannerState} />}
+
+      {/* ── Next Step card ────────────────────────────────────────────────
+          Lifted above the setup-progress panel so the dealer never has
+          to hunt for the single action that unblocks their account.
+          Hidden when the account is paused/blocked (setup panel handles
+          that case) or when there's no actionable next step (e.g. all
+          dealer-side work is done and we're waiting on DLR ops). */}
+      {nextStep && !tenantRow?.complianceBlocked && !tenantRow?.automationPaused && (
+        <NextStepCard
+          stepLabel={nextStep.stepLabel}
+          actionLabel={nextStep.label}
+          href={nextStep.href}
+        />
+      )}
 
       {/* ── DLR Automation Status card ───────────────────────────────────
           Dealer-side live-ops surface. Three states:
@@ -428,8 +459,8 @@ export default async function DealerDashboardPage() {
           >
             <div className="flex items-center gap-3">
               <div>
-                <p className="text-sm font-semibold text-gray-800">Review Batches</p>
-                <p className="text-xs text-gray-500">Preview message sequences and approve pilot batches</p>
+                <p className="text-sm font-semibold text-gray-800">Review Campaigns</p>
+                <p className="text-xs text-gray-500">Preview message sequences and approve pilot campaigns</p>
               </div>
               {draftCount > 0 && (
                 <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-bold rounded-full">
@@ -537,6 +568,53 @@ function SetupStepRow({
   )
 }
 
+// ── Next step card ──────────────────────────────────────────────────────────
+//
+// Single, unmissable "do this next" CTA. Driven by computeDealerSetupStatus
+// (via actionForStep above) so it never drifts from the setup panel below.
+
+function NextStepCard({
+  stepLabel,
+  actionLabel,
+  href,
+}: {
+  stepLabel:   string
+  actionLabel: string
+  href:        string
+}) {
+  return (
+    <a
+      href={href}
+      className="block rounded-xl border border-red-200 bg-gradient-to-r from-red-50 to-white px-5 py-4 shadow-sm hover:shadow-md transition-shadow"
+    >
+      <div className="flex items-center gap-4">
+        <span
+          className="flex-shrink-0 w-9 h-9 rounded-full inline-flex items-center justify-center text-white text-base font-bold"
+          style={{ background: 'linear-gradient(135deg, #dc2626, #991b1b)' }}
+          aria-hidden="true"
+        >
+          →
+        </span>
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-semibold uppercase tracking-widest text-red-700">
+            Your next step
+          </p>
+          <p className="text-base font-bold text-gray-900 mt-0.5 truncate">
+            {actionLabel}
+          </p>
+          <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">
+            Completes the &ldquo;{stepLabel}&rdquo; step in your setup.
+          </p>
+        </div>
+        <span className="hidden sm:inline-flex flex-shrink-0 items-center px-3.5 py-2 text-xs font-bold text-white rounded-lg"
+          style={{ background: 'linear-gradient(135deg, #dc2626, #991b1b)' }}>
+          {actionLabel} →
+        </span>
+      </div>
+    </a>
+  )
+}
+
 // ── Messaging safety banner ─────────────────────────────────────────────────
 //
 // Top-of-dashboard reassurance about whether DLR is actually sending
@@ -604,7 +682,7 @@ function MessagingSafetyBanner({
     tone   = 'amber'
     icon   = '⏳'
     title  = 'Campaigns are in review — not live.'
-    detail = 'Approving a batch prepares it for final launch review. It does not start sending by itself.'
+    detail = 'Approving a campaign prepares it for final launch review. It does not start sending by itself.'
   } else {
     tone   = 'blue'
     icon   = 'ℹ'

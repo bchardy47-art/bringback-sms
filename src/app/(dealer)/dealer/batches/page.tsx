@@ -46,6 +46,25 @@ const DEALER_BATCH_STATUS: Record<string, DealerBatchStatusInfo> = {
   cancelled: { chip: 'bg-red-100 text-red-700',         label: 'Cancelled' },
 }
 
+// Dealer-facing legend explaining what each status chip actually means.
+// Surfaces beneath the bucket cards so a first-time dealer can decode the
+// chips without asking. Order matches the lifecycle (preview → approved →
+// live).
+const STATUS_LEGEND: Array<{ label: string; chip: string; meaning: string }> = [
+  { label: 'Preview only',
+    chip:  'bg-gray-100 text-gray-600',
+    meaning: 'Draft campaign, not ready for approval yet.' },
+  { label: 'Ready for review',
+    chip:  'bg-blue-100 text-blue-700',
+    meaning: 'Review messages before approval.' },
+  { label: 'Approved — not sending yet',
+    chip:  'bg-blue-100 text-blue-700',
+    meaning: 'Approved by you; still paused until final launch.' },
+  { label: 'Live / Sending',
+    chip:  'bg-emerald-100 text-emerald-700',
+    meaning: 'Messages are going out to your leads.' },
+]
+
 // Mirrors AGE_BUCKET_LABELS from schema.ts. Kept inline because this page
 // renders a simple string lookup against workflow.ageBucket. Aligned to
 // the actual classifier range so it matches the workflow name shown to
@@ -141,7 +160,7 @@ export default async function DealerBatchesPage() {
       {/* Header — secondary 'Upload more leads' link, not a big black button */}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="text-xl md:text-2xl font-bold text-gray-900">Recommended Campaigns</h1>
+          <h1 className="text-xl md:text-2xl font-bold text-gray-900">Campaigns</h1>
           <p className="mt-1 text-sm text-gray-500">
             DLR groups your uploaded leads into ready-to-review campaigns.
             Review the message previews before anything is sent.
@@ -154,6 +173,28 @@ export default async function DealerBatchesPage() {
           Upload more leads →
         </a>
       </div>
+
+      {/* Status legend — quick decoder for the chips below so a
+          first-time dealer never has to guess what "Preview only" or
+          "Approved — not sending yet" mean. Suppressed in the empty
+          state (no chips to decode there). */}
+      {batches.length > 0 && (
+        <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+          <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">
+            Campaign statuses
+          </p>
+          <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-1.5">
+            {STATUS_LEGEND.map((row) => (
+              <li key={row.label} className="flex items-start gap-2 text-xs text-gray-600">
+                <span className={`flex-shrink-0 px-2 py-0.5 rounded-full font-bold ${row.chip}`}>
+                  {row.label}
+                </span>
+                <span className="leading-relaxed">{row.meaning}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* Empty state */}
       {batches.length === 0 && (

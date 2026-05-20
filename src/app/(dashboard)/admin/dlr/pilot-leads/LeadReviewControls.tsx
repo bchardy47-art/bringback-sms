@@ -496,10 +496,10 @@ export function CreateBatchButton({
         {stage === 'confirming' ? (
           <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 space-y-2">
             <p className="text-xs font-semibold text-blue-900">
-              Ready to create {bucketPlan.length} draft batch{bucketPlan.length !== 1 ? 'es' : ''} for {totalLeads} lead{totalLeads !== 1 ? 's' : ''}.
+              Ready to create {bucketPlan.length} draft campaign{bucketPlan.length !== 1 ? 's' : ''} for {totalLeads} lead{totalLeads !== 1 ? 's' : ''}.
             </p>
             <p className="text-xs text-blue-700">
-              No messages will be sent — batches are draft only until you approve each one.
+              No messages will be sent — campaigns are draft only until you approve each one.
             </p>
             <div className="flex items-center gap-3 pt-1">
               <button
@@ -524,7 +524,7 @@ export function CreateBatchButton({
           >
             {stage === 'loading'
               ? 'Creating…'
-              : `Create ${bucketPlan.length === 1 ? 'Pilot Batch' : 'Pilot Batches'} (${totalLeads} lead${totalLeads !== 1 ? 's' : ''}) →`}
+              : `Create ${bucketPlan.length === 1 ? 'Pilot Campaign' : 'Pilot Campaigns'} (${totalLeads} lead${totalLeads !== 1 ? 's' : ''}) →`}
           </button>
         )}
         {error && <p className="text-sm text-red-600 font-medium">⚠ {error}</p>}
@@ -558,8 +558,8 @@ export function CreateBatchButton({
       {stage === 'confirming' ? (
         <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 space-y-2">
           <p className="text-xs font-semibold text-blue-900">
-            This will create {bucketPlan.length} draft batch{bucketPlan.length !== 1 ? 'es' : ''}.
-            No messages will be sent until each batch is reviewed and approved.
+            This will create {bucketPlan.length} draft campaign{bucketPlan.length !== 1 ? 's' : ''}.
+            No messages will be sent until each campaign is reviewed and approved.
           </p>
           <div className="flex items-center gap-3 pt-1">
             <button
@@ -590,7 +590,7 @@ export function CreateBatchButton({
           >
             {stage === 'loading'
               ? 'Creating…'
-              : `Create ${bucketPlan.length === 1 ? 'Pilot Batch' : 'Pilot Batches'} (${totalLeads} lead${totalLeads !== 1 ? 's' : ''}) →`
+              : `Create ${bucketPlan.length === 1 ? 'Pilot Campaign' : 'Pilot Campaigns'} (${totalLeads} lead${totalLeads !== 1 ? 's' : ''}) →`
             }
           </button>
         </>

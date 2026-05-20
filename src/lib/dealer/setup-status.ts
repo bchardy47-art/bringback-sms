@@ -182,13 +182,13 @@ export function computeDealerSetupStatus(p: DealerSetupInputs): DealerSetupStatu
     pilot = {
       key: 'pilot', label: 'First pilot review',
       status: 'needs_your_action',
-      detail: 'A pilot batch is waiting for your review and approval.',
+      detail: 'A pilot campaign is waiting for your review and approval.',
     }
   } else if (counts.approvedBatches > 0) {
     pilot = {
       key: 'pilot', label: 'First pilot review',
       status: 'waiting_on_dlr',
-      detail: 'You approved a pilot batch — DLR will start sending after final compliance checks.',
+      detail: 'You approved a pilot campaign — DLR will start sending after final compliance checks.',
     }
   } else {
     pilot = {

@@ -182,7 +182,7 @@ export default async function DealerImportPage({
         <h1 className="text-2xl font-bold text-gray-900">Upload Dead Leads</h1>
         <p className="mt-1 text-sm text-gray-500">
           Upload a CSV of prior dealership leads. DLR will validate the file,
-          bucket leads by age, and prepare a pilot batch for admin review before
+          bucket leads by age, and prepare a pilot campaign for admin review before
           any messages are sent.
         </p>
       </div>
@@ -264,7 +264,7 @@ export default async function DealerImportPage({
                   Ready — {selectedCount} lead{selectedCount !== 1 ? 's' : ''} across {bucketPlan.length} age window{bucketPlan.length !== 1 ? 's' : ''}
                 </p>
                 <p className="text-xs text-blue-700">
-                  No messages sent yet — you&apos;ll review and approve each batch separately.
+                  No messages sent yet — you&apos;ll review and approve each campaign separately.
                 </p>
                 <div className="flex flex-wrap gap-2 pt-1">
                   {bucketPlan.map(b => (
@@ -337,7 +337,7 @@ export default async function DealerImportPage({
           <span className="flex items-center justify-center w-6 h-6 rounded-full bg-gray-800 text-white text-xs font-bold shrink-0">1</span>
           <div>
             <h2 className="text-sm font-semibold text-gray-900">Upload your CSV</h2>
-            <p className="text-xs text-gray-500">Each row is validated immediately. Nothing is sent until you and DLR admin approve a batch.</p>
+            <p className="text-xs text-gray-500">Each row is validated immediately. Nothing is sent until you and DLR admin approve a campaign.</p>
           </div>
         </div>
         <div className="p-5">
@@ -583,7 +583,7 @@ export default async function DealerImportPage({
               */}
               <h2 className={`text-sm font-semibold ${selectedCount > 0 ? 'text-blue-900' : 'text-gray-500'}`}>
                 {(() => {
-                  const noun = bucketPlan.length > 1 ? 'Create Pilot Batches' : 'Create Pilot Batch'
+                  const noun = bucketPlan.length > 1 ? 'Create Pilot Campaigns' : 'Create Pilot Campaign'
                   if (selectedCount === 0) return `${noun} — select leads above first`
                   const groupSuffix = bucketPlan.length > 1 ? ` across ${bucketPlan.length} groups` : ''
                   const leadWord    = selectedCount === 1 ? 'lead' : 'leads'
@@ -591,7 +591,7 @@ export default async function DealerImportPage({
                 })()}
               </h2>
               <p className={`text-xs mt-0.5 ${selectedCount > 0 ? 'text-blue-700' : 'text-gray-400'}`}>
-                Creates a <strong>draft batch only</strong>. You&apos;ll review each batch before anything is sent.
+                Creates a <strong>draft campaign only</strong>. You&apos;ll review each campaign before anything is sent.
               </p>
             </div>
           </div>
