@@ -84,48 +84,82 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-10">
-      <div className="w-full max-w-sm">
+    /*
+     * Premium login shell — visual redesign only.
+     * Auth logic (signIn, safeCallbackUrl, destinationForRole) is untouched.
+     *
+     * Layout layers:
+     *   1. Full-screen gradient background with a very faint red halo at top
+     *   2. Content column (max-w-md) — logo header + elevated card + footer
+     *   3. Card — white, strong layered shadow, rounded-2xl
+     */
+    <div
+      className="flex min-h-screen items-center justify-center px-4 py-12"
+      style={{
+        background:
+          'radial-gradient(ellipse 130% 50% at 50% -8%, rgba(220,38,38,0.07) 0%, transparent 62%),' +
+          'linear-gradient(180deg, #f4f4f5 0%, #eaeaea 100%)',
+      }}
+    >
+      <div className="w-full max-w-md">
+
+        {/* ── Logo + header copy ───────────────────────────────────────── */}
         <div className="mb-8 text-center">
-          <div className="flex justify-center mb-5">
-            {/* Real DLR logo — PNG has a dark solid background, so we clip it
-                with rounded corners and keep the red glow shadow for depth. */}
+          <div className="flex justify-center mb-6">
+            {/* DLR logo — dark-bg PNG clipped to rounded card.
+                Wrapper div drives responsive width via clamp(); Image fills it. */}
             <div
               className="rounded-2xl overflow-hidden"
               style={{
-                boxShadow: '0 1px 0 rgba(255,255,255,0.06) inset, 0 12px 30px -12px rgba(220,38,38,0.35)',
-                border: '1px solid rgba(255,255,255,0.06)',
+                width: 'clamp(180px, 28vw, 252px)',
+                boxShadow:
+                  '0 1px 0 rgba(255,255,255,0.08) inset,' +
+                  '0 20px 50px -12px rgba(220,38,38,0.40),' +
+                  '0 4px 14px -4px rgba(0,0,0,0.20)',
               }}
             >
               <Image
                 src="/brand/dlr-logo.png"
                 alt="Dead Lead Revival"
-                width={168}
-                height={56}
+                width={252}
+                height={84}
                 priority
+                style={{ width: '100%', height: 'auto', display: 'block' }}
               />
             </div>
           </div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400 mb-2">
+
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-gray-400 mb-3">
             Dealer Revival Portal
           </p>
-          <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">
             Sign in to your Revival Center
           </h1>
-          <p className="mt-2 text-sm text-gray-500 leading-relaxed">
-            Access your dealership&apos;s lead revival campaigns, approvals,
-            and conversations.
+          <p className="mt-2.5 text-sm text-gray-500 leading-relaxed">
+            Access your dealership&apos;s lead revival campaigns,
+            approvals, and conversations.
           </p>
         </div>
 
+        {/* ── Invite banner (query-param driven, usually hidden) ────────── */}
         <Suspense>
           <InviteBanner />
         </Suspense>
 
-        <div className="rounded-lg border border-gray-200 bg-white px-8 py-8 shadow-sm">
+        {/* ── Login card ──────────────────────────────────────────────── */}
+        <div
+          className="rounded-2xl bg-white px-8 py-8"
+          style={{
+            boxShadow:
+              '0 0 0 1px rgba(0,0,0,0.06),' +
+              '0 4px 8px -2px rgba(0,0,0,0.06),' +
+              '0 18px 50px -8px rgba(0,0,0,0.14)',
+          }}
+        >
           <form onSubmit={handleSubmit} className="space-y-5">
+
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-1.5">
                 Email
               </label>
               <input
@@ -135,13 +169,13 @@ export default function LoginPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-500"
+                className="block w-full rounded-lg border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 shadow-sm transition-colors focus:border-gray-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-gray-300"
                 placeholder="you@dealership.com"
               />
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="password" className="block text-sm font-semibold text-gray-700 mb-1.5">
                 Password
               </label>
               <input
@@ -151,26 +185,36 @@ export default function LoginPage() {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-500"
+                className="block w-full rounded-lg border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 shadow-sm transition-colors focus:border-gray-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-gray-300"
                 placeholder="••••••••"
               />
             </div>
 
             {error && (
-              <p className="text-sm text-red-600" role="alert">
-                {error}
-              </p>
+              <div className="flex items-start gap-2.5 rounded-lg border border-red-100 bg-red-50 px-3.5 py-2.5">
+                <span className="text-red-400 text-sm mt-px select-none">⚠</span>
+                <p className="text-sm text-red-600 leading-snug" role="alert">
+                  {error}
+                </p>
+              </div>
             )}
 
             <button
               type="submit"
               disabled={submitting}
-              className="w-full rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="mt-1 w-full rounded-lg bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all duration-150 hover:bg-gray-700 active:bg-gray-800 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
             >
               {submitting ? 'Signing in…' : 'Sign in'}
             </button>
+
           </form>
         </div>
+
+        {/* ── Microcopy footer ─────────────────────────────────────────── */}
+        <p className="mt-6 text-center text-xs text-gray-400 tracking-wide">
+          Secure dealer access · Managed by DLR
+        </p>
+
       </div>
     </div>
   )
