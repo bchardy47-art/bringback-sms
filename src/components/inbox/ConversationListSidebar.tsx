@@ -401,7 +401,7 @@ function EmptyTabState({
       : 'No conversations need review right now.'
     detail = otherTabsTotal > 0
       ? 'Automated and taken-over conversations are in the other tabs.'
-      : 'Customer replies that need attention will appear here.'
+      : 'When customers reply to your campaign messages, their conversations will appear here for your team to review.'
   } else if (isDealer && activeTab === 'automated') {
     title = 'No automated conversations right now.'
     detail = otherTabsTotal > 0

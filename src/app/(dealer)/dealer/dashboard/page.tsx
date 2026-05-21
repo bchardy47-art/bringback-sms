@@ -1,7 +1,7 @@
 import { getServerSession } from 'next-auth'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
-import { eq, and, count, inArray, notInArray, or, isNull } from 'drizzle-orm'
+import { eq, ne, and, count, inArray, notInArray, or, isNull, isNotNull } from 'drizzle-orm'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 import {
@@ -81,19 +81,26 @@ export default async function DealerDashboardPage() {
       complianceBlocked:  tenants.complianceBlocked,
     }).from(tenants).where(eq(tenants.id, tenantId)).then(r => r[0] ?? null),
 
-    // Dealer-visible "Leads Imported" count. Excludes:
-    //   - import rows linked to a lead flagged is_test=true (demo fixtures)
-    //   - import_status IN ('warning','held') probe rows that the dealer
-    //     can't act on (kept for admin only).
-    // Mirrors the filter applied on /dealer/import so the count and the
-    // table can never disagree.
+    // Dealer-visible "Leads Imported" count. Mirrors /dealer/import's
+    // filter exactly so the dashboard card and the import table can
+    // never disagree. Excludes:
+    //   - import_status IN ('warning','held','excluded') — admin-only
+    //     triage rows the dealer can't act on
+    //   - import rows whose linked lead is flagged is_test=true (demo
+    //     fixtures hidden from dealers)
+    //   - 'selected' rows with no linked lead — a data inconsistency
+    //     that the import page also filters out
     db.select({ count: count() })
       .from(pilotLeadImports)
       .leftJoin(leads, eq(pilotLeadImports.leadId, leads.id))
       .where(and(
         eq(pilotLeadImports.tenantId, tenantId),
-        notInArray(pilotLeadImports.importStatus, ['warning', 'held']),
+        notInArray(pilotLeadImports.importStatus, ['warning', 'held', 'excluded']),
         or(isNull(pilotLeadImports.leadId), eq(leads.isTest, false)),
+        or(
+          ne(pilotLeadImports.importStatus, 'selected'),
+          isNotNull(pilotLeadImports.leadId),
+        ),
       ))
       .then(r => r[0]?.count ?? 0),
 

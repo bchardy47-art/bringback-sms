@@ -407,7 +407,7 @@ export default async function DealerImportPage({
                   Check each lead, then add it to your first campaign selection.
                   Your first campaign review includes a small starter group so
                   DLR can walk through the launch safely with you. No messages
-                  send from this page.
+                  are sent from this page.
                 </p>
               </div>
             </div>
@@ -505,7 +505,9 @@ export default async function DealerImportPage({
                       <span className="text-gray-400 italic">missing date</span>
                     )}
                     {lead.leadAgeDays != null && (
-                      <span className="text-gray-400">{lead.leadAgeDays}d old</span>
+                      <span className="text-gray-400">
+                        {lead.leadAgeDays === 1 ? '1 day ago' : `${lead.leadAgeDays} days ago`}
+                      </span>
                     )}
                     {(lead.warnings as string[] | null)?.map((w, i) => (
                       <span key={i} className="text-amber-600 font-medium">⚠ {friendlyWarning(w)}</span>

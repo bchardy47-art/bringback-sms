@@ -14,10 +14,14 @@ export default async function DealerSettingsPage() {
   if (!session) redirect('/login?callbackUrl=/dealer/settings')
   if (session.user.role !== 'dealer') redirect('/settings')
 
-  const user = await db.query.users.findFirst({
-    where: eq(users.id, session.user.id),
-    columns: { name: true, email: true },
-  })
+  // Same fresh DB lookup pattern the dealer layout uses for the sidebar
+  // display name, so Settings can never disagree with the sidebar. JWT
+  // caches name/email at login and goes stale across profile edits.
+  const [userRow] = await db
+    .select({ name: users.name, email: users.email })
+    .from(users)
+    .where(eq(users.id, session.user.id))
+    .limit(1)
 
   // Billing context: same lookup as the admin settings page — most-recent
   // intake row for this tenant that has a Stripe customer attached.
@@ -49,8 +53,14 @@ export default async function DealerSettingsPage() {
     ? `/intake/${recoveryIntake.token}/payment`
     : null
 
-  const name = user?.name ?? session.user.name ?? ''
-  const email = user?.email ?? session.user.email ?? ''
+  // Prefer DB → session fallback. Treat empty strings as missing so the
+  // input never renders blank when the JWT/DB happens to carry "".
+  const dbName    = userRow?.name?.trim()
+  const dbEmail   = userRow?.email?.trim()
+  const sessName  = session.user.name?.trim()
+  const sessEmail = session.user.email?.trim()
+  const name  = dbName  || sessName  || ''
+  const email = dbEmail || sessEmail || ''
 
   return (
     <div className="min-h-full bg-gray-50">

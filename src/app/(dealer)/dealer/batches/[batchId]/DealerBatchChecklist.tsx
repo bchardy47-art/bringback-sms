@@ -34,7 +34,7 @@ export function DealerBatchChecklist({ batchId, totalLeads }: Props) {
     'No leads have opted out or revoked consent',
     'Fallback message copy (for leads without a vehicle on file) is acceptable',
     'Each message sequence includes an opt-out instruction',
-    `This first review is intentionally small so you can approve the process safely (current: ${totalLeads})`,
+    `This starter campaign includes ${totalLeads} lead${totalLeads === 1 ? '' : 's'} so DLR can walk through launch with you`,
   ]
 
   const [checked,  setChecked]  = useState<boolean[]>(checkItems.map(() => false))

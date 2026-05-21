@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 // Slim profile form for the dealer shell. Dealers don't receive SMS
@@ -15,6 +15,14 @@ export function DealerProfileEditForm({
   email: string
 }) {
   const [name, setName] = useState(initialName)
+  // useState(initialName) captures only the first render. If the parent
+  // re-renders with a refreshed initialName (e.g., after router.refresh()
+  // following a save, or when the server-rendered prop arrives later than
+  // the initial hydration), sync the local state so the input never sticks
+  // on a stale empty value.
+  useEffect(() => {
+    setName(initialName)
+  }, [initialName])
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)

@@ -218,7 +218,7 @@ export default async function DealerBatchReviewPage({ params }: RouteContext) {
         </div>
         <p className="text-xs text-gray-500 mt-2">
           Fallback templates are used when a lead&apos;s vehicle of interest isn&apos;t on file —
-          they&apos;re still personalised to first name and dealership.
+          they&apos;re still personalized to first name and dealership.
         </p>
       </div>
 
