@@ -18,22 +18,10 @@ export async function GET(_req: NextRequest): Promise<NextResponse> {
   const { session, error } = await requireAuth()
   if (error) return error
 
-  // Use a plain .select() rather than db.query.users.findFirst({ columns })
-  // — the relational-query API surfaced an issue where the settings page's
-  // SSR fetch came back undefined for some sessions while the same select()
-  // call elsewhere (dealer layout sidebar) returned the row correctly.
-  const [user] = await db
-    .select({
-      id:       users.id,
-      name:     users.name,
-      email:    users.email,
-      phone:    users.phone,
-      role:     users.role,
-      tenantId: users.tenantId,
-    })
-    .from(users)
-    .where(eq(users.id, session.user.id))
-    .limit(1)
+  const user = await db.query.users.findFirst({
+    where: eq(users.id, session.user.id),
+    columns: { id: true, name: true, email: true, phone: true, role: true, tenantId: true },
+  })
 
   if (!user) return NextResponse.json({ error: 'Not found' }, { status: 404 })
   return NextResponse.json({ user })

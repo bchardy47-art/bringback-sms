@@ -1,12 +1,21 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 // Slim profile form for the dealer shell. Dealers don't receive SMS
 // handoff alerts, so there is no alert-phone field here; tenant id is
 // also not exposed. For the admin/team profile (name + alert phone +
 // tenant id), see ProfileEditForm under components/settings.
+//
+// The name field is intentionally uncontrolled (defaultValue + ref).
+// Verified live: SSR already paints the correct value="<displayName>"
+// into the rendered HTML; a controlled input with a useState mirror was
+// observed to end up blank in practice because any post-mount setState
+// (effect, fetch, autofill interaction) would re-render and could erase
+// the SSR-painted value. Uncontrolled keeps the SSR value in the DOM
+// and lets the user freely edit; we read the current value via ref at
+// submit time.
 export function DealerProfileEditForm({
   initialName,
   email,
@@ -14,40 +23,7 @@ export function DealerProfileEditForm({
   initialName: string
   email: string
 }) {
-  const [name, setName] = useState(initialName)
-  // useState(initialName) captures only the first render. If the parent
-  // re-renders with a refreshed initialName (e.g., after router.refresh()
-  // following a save), sync the local state so the input never sticks
-  // on a stale empty value.
-  useEffect(() => {
-    setName(initialName)
-  }, [initialName])
-
-  // Authoritative client-side fetch on mount. The SSR initialName comes
-  // from the dealer Settings page's session+DB resolution; if the JWT
-  // session.user.id has drifted from the current users row (e.g., the
-  // dealer user was re-provisioned after the JWT was issued), the SSR
-  // value can come through empty even though /api/users/me returns the
-  // correct row. Fetching directly from the API on mount is the single
-  // source of truth — only override when the API actually returns a
-  // non-empty name, and never block typing while the request is in
-  // flight (state stays editable via onChange).
-  useEffect(() => {
-    let cancelled = false
-    fetch('/api/users/me', { cache: 'no-store' })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (cancelled) return
-        const apiName = typeof data?.user?.name === 'string' ? data.user.name.trim() : ''
-        if (apiName) setName(apiName)
-      })
-      .catch(() => { /* silently keep current state */ })
-    return () => { cancelled = true }
-    // Only on mount — onChange handles subsequent edits, and after-save
-    // sync happens via router.refresh() flowing back through initialName.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
+  const nameRef = useRef<HTMLInputElement>(null)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -56,6 +32,7 @@ export function DealerProfileEditForm({
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
     if (saving) return
+    const next = nameRef.current?.value.trim() ?? ''
     setSaving(true)
     setError(null)
     setSaved(false)
@@ -64,7 +41,7 @@ export function DealerProfileEditForm({
       const res = await fetch('/api/users/me', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: name.trim() || undefined }),
+        body: JSON.stringify({ name: next || undefined }),
       })
       if (!res.ok) {
         const data = await res.json().catch(() => null)
@@ -92,10 +69,12 @@ export function DealerProfileEditForm({
           Name
         </label>
         <input
+          ref={nameRef}
           id="dealerName"
+          name="name"
           type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
+          defaultValue={initialName}
+          autoComplete="name"
           className="mt-1 block w-full max-w-sm rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-500"
           placeholder="Your name"
         />
