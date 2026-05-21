@@ -417,173 +417,170 @@ export default async function DealerImportPage({
             </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="border-b border-gray-200 bg-gray-50 text-gray-500 uppercase tracking-wide text-left">
-                  <th className="px-4 py-2.5 w-8">✓</th>
-                  <th className="px-4 py-2.5">Name</th>
-                  <th className="px-4 py-2.5">Phone</th>
-                  <th className="px-4 py-2.5">Consent</th>
-                  <th className="px-4 py-2.5">Vehicle</th>
-                  <th className="px-4 py-2.5">Age</th>
-                  <th className="px-4 py-2.5">Status</th>
-                  <th className="px-4 py-2.5">Issues</th>
-                  <th className="px-4 py-2.5">Preview</th>
-                  <th className="px-4 py-2.5">Review</th>
-                  <th className="px-4 py-2.5 w-8"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
+          {/* ── Lead review cards ─────────────────────────────────────────
+              Replaces the previous 11-column overflow table. Each selected
+              lead gets a full-width card: identity + badges up top, vehicle /
+              campaign group / age in the middle, message previews at the
+              bottom rendered as side-by-side blocks so text is readable.   */}
+          <div className="divide-y divide-gray-100">
 
-                {actionableLeads.map(lead => {
-                  const isSelected       = lead.importStatus === 'selected'
-                  const consentVal       = (lead.consentStatus ?? 'unknown').toLowerCase().trim()
-                  const isUnknownConsent = consentVal === 'unknown' || consentVal === ''
-                  const canSelect        = !isUnknownConsent && (isSelected || selectedCount < FIRST_PILOT_CAP)
-                  const previews         = (lead.previewMessages as PilotPreviewMessage[] | null) ?? []
+            {actionableLeads.map(lead => {
+              const isSelected       = lead.importStatus === 'selected'
+              const consentVal       = (lead.consentStatus ?? 'unknown').toLowerCase().trim()
+              const isUnknownConsent = consentVal === 'unknown' || consentVal === ''
+              const canSelect        = !isUnknownConsent && (isSelected || selectedCount < FIRST_PILOT_CAP)
+              const previews         = (lead.previewMessages as PilotPreviewMessage[] | null) ?? []
+              const bucketColors     = lead.ageBucket ? BUCKET_COLOR[lead.ageBucket as AgeBucket] : null
 
-                  return (
-                    <tr
-                      key={lead.id}
-                      className={`transition-colors ${
-                        isSelected    ? 'bg-blue-50' :
-                        lead.reviewed ? 'bg-emerald-50/40' :
-                        'hover:bg-gray-50'
-                      }`}
-                    >
-                      <td className="px-4 py-3">
-                        <LeadCheckbox
-                          leadId={lead.id}
-                          tenantId={tenantId}
-                          isSelected={isSelected}
-                          canSelect={canSelect}
-                          apiBase={apiBase}
-                        />
-                      </td>
-                      <td className="px-4 py-3">
-                        <p className="font-semibold text-gray-800">{lead.firstName} {lead.lastName}</p>
-                        {lead.email && <p className="text-gray-400">{lead.email}</p>}
-                      </td>
-                      <td className="px-4 py-3 font-mono text-gray-700">{lead.phone ?? '—'}</td>
-                      <td className="px-4 py-3">
-                        <p className={`font-medium ${CONSENT_STYLE[lead.consentStatus] ?? 'text-orange-600 font-semibold'}`}>
-                          {CONSENT_LABEL[lead.consentStatus] ?? `${lead.consentStatus ?? 'unknown'} ⛔`}
+              return (
+                <div
+                  key={lead.id}
+                  className={`px-5 py-4 space-y-3 transition-colors ${
+                    isSelected    ? 'bg-blue-50' :
+                    lead.reviewed ? 'bg-emerald-50/40' :
+                    'bg-white hover:bg-gray-50/50'
+                  }`}
+                >
+                  {/* Top row — identity, badges, actions */}
+                  <div className="flex items-start gap-3">
+                    <div className="mt-0.5 shrink-0">
+                      <LeadCheckbox
+                        leadId={lead.id}
+                        tenantId={tenantId}
+                        isSelected={isSelected}
+                        canSelect={canSelect}
+                        apiBase={apiBase}
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-sm font-semibold text-gray-900 leading-tight">
+                          {lead.firstName} {lead.lastName}
                         </p>
-                      </td>
-                      <td className="px-4 py-3 text-gray-600">
-                        {lead.vehicleOfInterest ?? <span className="text-gray-300 italic">none ⚠</span>}
-                      </td>
-                      <td className="px-4 py-3">
-                        {lead.ageBucket ? (
-                          <div className="space-y-0.5">
-                            <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${BUCKET_COLOR[lead.ageBucket as AgeBucket]?.bg ?? ''} ${BUCKET_COLOR[lead.ageBucket as AgeBucket]?.text ?? ''}`}>
-                              {DEALER_BUCKET_LABEL[lead.ageBucket as AgeBucket]}
-                            </span>
-                            {lead.leadAgeDays != null && (
-                              <p className="text-gray-400 text-xs">{lead.leadAgeDays}d old</p>
-                            )}
-                          </div>
-                        ) : lead.importStatus === 'held' ? (
-                          <div className="space-y-0.5">
-                            <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-violet-100 text-violet-700">&lt; 14d</span>
-                            {lead.leadAgeDays != null && (
-                              <p className="text-gray-400 text-xs">{lead.leadAgeDays}d old</p>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="text-gray-300 italic text-xs">missing date</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
+                        <span className={`text-xs font-medium ${CONSENT_STYLE[lead.consentStatus] ?? 'text-orange-600 font-semibold'}`}>
+                          {CONSENT_LABEL[lead.consentStatus] ?? `${lead.consentStatus ?? 'unknown'} ⛔`}
+                        </span>
                         <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${STATUS_STYLE[lead.importStatus] ?? ''}`}>
                           {STATUS_LABEL[lead.importStatus] ?? lead.importStatus}
                         </span>
-                      </td>
-                      <td className="px-4 py-3 max-w-xs">
-                        {(lead.warnings as string[] | null)?.map((w, i) => (
-                          <p key={i} className="text-amber-600 leading-snug">⚠ {friendlyWarning(w)}</p>
-                        ))}
-                        {!(lead.warnings as string[] | null)?.length && (
-                          <span className="text-gray-300">—</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        {previews.length > 0 ? (
-                          <div className="space-y-1">
-                            {previews.map((p, i) => (
-                              <div key={i} className="text-gray-600 bg-gray-50 border border-gray-200 rounded px-2 py-1 text-xs leading-snug">
-                                <p className="text-gray-400 mb-0.5">Step {p.position}{p.usedFallback ? ' ⚠ fallback' : ''}</p>
-                                {p.rendered?.slice(0, 120)}{(p.rendered?.length ?? 0) > 120 ? '…' : ''}
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <span className="text-gray-300 text-xs italic">none yet</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        <MarkReviewedButton
-                          importId={lead.id}
-                          tenantId={tenantId}
-                          alreadyReviewed={lead.reviewed}
-                          apiBase={apiBase}
-                        />
-                      </td>
-                      <td className="px-4 py-3">
-                        <ExcludeButton leadId={lead.id} tenantId={tenantId} apiBase={apiBase} />
-                      </td>
-                    </tr>
-                  )
-                })}
+                      </div>
+                      <div className="flex flex-wrap gap-x-3 mt-0.5 text-xs text-gray-500">
+                        {lead.email && <span>{lead.email}</span>}
+                        {lead.phone && <span className="font-mono">{lead.phone}</span>}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0">
+                      <MarkReviewedButton
+                        importId={lead.id}
+                        tenantId={tenantId}
+                        alreadyReviewed={lead.reviewed}
+                        apiBase={apiBase}
+                      />
+                      <ExcludeButton leadId={lead.id} tenantId={tenantId} apiBase={apiBase} />
+                    </div>
+                  </div>
 
-                {blockedLeads.length > 0 && (
-                  <>
-                    <tr>
-                      <td colSpan={11} className="px-4 py-2 bg-red-50 border-t border-red-200">
-                        <p className="text-xs font-semibold text-red-600">
-                          ✗ {blockedLeads.length} blocked lead{blockedLeads.length !== 1 ? 's' : ''} — cannot be included
-                        </p>
-                      </td>
-                    </tr>
-                    {blockedLeads.map(lead => (
-                      <tr key={lead.id} className="bg-red-50/60 opacity-70">
-                        <td className="px-4 py-2.5" />
-                        <td className="px-4 py-2.5">
-                          <p className="font-semibold text-gray-700 line-through decoration-red-300">
-                            {lead.firstName} {lead.lastName}
-                          </p>
-                        </td>
-                        <td className="px-4 py-2.5 font-mono text-gray-500 text-xs">{lead.phone ?? '—'}</td>
-                        <td className="px-4 py-2.5">
-                          <p className={`font-medium text-xs ${CONSENT_STYLE[lead.consentStatus] ?? 'text-orange-600 font-semibold'}`}>
-                            {CONSENT_LABEL[lead.consentStatus] ?? (lead.consentStatus ?? 'unknown')}
-                          </p>
-                        </td>
-                        <td className="px-4 py-2.5 text-gray-400 text-xs" colSpan={2}>{lead.vehicleOfInterest ?? '—'}</td>
-                        <td className="px-4 py-2.5">
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${STATUS_STYLE.blocked}`}>
-                            {STATUS_LABEL.blocked}
-                          </span>
-                        </td>
-                        <td className="px-4 py-2.5 max-w-xs">
-                          {(lead.blockedReasons as string[] | null)?.map((r, i) => (
-                            <p key={i} className="text-red-600 text-xs leading-snug">✗ {r}</p>
-                          ))}
-                        </td>
-                        <td className="px-4 py-2.5" colSpan={2}>
-                          <span className="text-gray-300 text-xs italic">—</span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <ExcludeButton leadId={lead.id} tenantId={tenantId} apiBase={apiBase} />
-                        </td>
-                      </tr>
+                  {/* Middle row — vehicle, campaign group, age, warnings */}
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 pl-7 text-xs">
+                    {lead.vehicleOfInterest ? (
+                      <span className="font-medium text-gray-800">{lead.vehicleOfInterest}</span>
+                    ) : (
+                      <span className="text-gray-400 italic">No vehicle on file ⚠</span>
+                    )}
+                    {lead.ageBucket ? (
+                      <span className={`px-2 py-0.5 rounded-full font-semibold border ${bucketColors?.bg ?? ''} ${bucketColors?.text ?? ''} ${bucketColors?.border ?? ''}`}>
+                        {DEALER_BUCKET_LABEL[lead.ageBucket as AgeBucket]}
+                      </span>
+                    ) : lead.importStatus === 'held' ? (
+                      <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-violet-100 text-violet-700 border border-violet-200">
+                        &lt; 14d — held
+                      </span>
+                    ) : (
+                      <span className="text-gray-400 italic">missing date</span>
+                    )}
+                    {lead.leadAgeDays != null && (
+                      <span className="text-gray-400">{lead.leadAgeDays}d old</span>
+                    )}
+                    {(lead.warnings as string[] | null)?.map((w, i) => (
+                      <span key={i} className="text-amber-600 font-medium">⚠ {friendlyWarning(w)}</span>
                     ))}
-                  </>
-                )}
+                  </div>
 
-              </tbody>
-            </table>
+                  {/* Bottom — message preview sequence */}
+                  {previews.length > 0 ? (
+                    <div className="pl-7 space-y-2">
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+                        Message preview sequence
+                      </p>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        {previews.map((p, i) => (
+                          <div
+                            key={i}
+                            className="bg-white border border-gray-200 rounded-lg px-3 py-2.5 text-xs space-y-1.5 shadow-sm"
+                          >
+                            <p className="font-semibold text-gray-500">
+                              Step {p.position}
+                              <span className="font-normal text-gray-400 ml-1">
+                                {p.delayHours
+                                  ? `— ${p.delayHours >= 24
+                                      ? `${Math.round(p.delayHours / 24)}d later`
+                                      : `${p.delayHours}h later`}`
+                                  : '— immediate'}
+                              </span>
+                              {p.usedFallback && (
+                                <span className="ml-1 text-amber-500 font-medium">⚠ fallback</span>
+                              )}
+                            </p>
+                            <p className="text-gray-700 leading-relaxed">{p.rendered}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="pl-7 text-xs text-gray-400 italic">No message previews yet.</p>
+                  )}
+                </div>
+              )
+            })}
+
+            {/* Blocked leads — compact cards */}
+            {blockedLeads.length > 0 && (
+              <div>
+                <div className="px-5 py-2 bg-red-50 border-t border-red-200">
+                  <p className="text-xs font-semibold text-red-600">
+                    ✗ {blockedLeads.length} blocked lead{blockedLeads.length !== 1 ? 's' : ''} — cannot be included
+                  </p>
+                </div>
+                {blockedLeads.map(lead => (
+                  <div
+                    key={lead.id}
+                    className="px-5 py-3 border-t border-red-100 bg-red-50/60 flex items-start gap-3 opacity-75"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-sm font-semibold text-gray-700 line-through decoration-red-300">
+                          {lead.firstName} {lead.lastName}
+                        </p>
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${STATUS_STYLE.blocked}`}>
+                          {STATUS_LABEL.blocked}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap gap-x-3 mt-0.5 text-xs text-gray-500">
+                        {lead.phone && <span className="font-mono">{lead.phone}</span>}
+                        {lead.vehicleOfInterest && <span>{lead.vehicleOfInterest}</span>}
+                      </div>
+                      <div className="mt-1 space-y-0.5">
+                        {(lead.blockedReasons as string[] | null)?.map((r, i) => (
+                          <p key={i} className="text-xs text-red-600">✗ {r}</p>
+                        ))}
+                      </div>
+                    </div>
+                    <ExcludeButton leadId={lead.id} tenantId={tenantId} apiBase={apiBase} />
+                  </div>
+                ))}
+              </div>
+            )}
+
           </div>
         </div>
       )}
