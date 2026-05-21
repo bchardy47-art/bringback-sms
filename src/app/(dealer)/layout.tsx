@@ -1,5 +1,6 @@
 import { getServerSession } from 'next-auth'
 import { redirect } from 'next/navigation'
+import Image from 'next/image'
 import { eq } from 'drizzle-orm'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
@@ -78,12 +79,15 @@ export default async function DealerLayout({ children }: { children: React.React
             >
               Revival Center
             </p>
-            <p
-              className="text-[9px] uppercase tracking-[0.18em] mt-1 leading-tight"
-              style={{ color: 'rgba(255,255,255,0.28)' }}
-            >
-              by DLR
-            </p>
+            {/* DLR logo — small, subtle, replaces "by DLR" text */}
+            <div className="mt-1.5 rounded overflow-hidden flex-shrink-0" style={{ opacity: 0.45 }}>
+              <Image
+                src="/brand/dlr-logo.png"
+                alt="DLR"
+                width={58}
+                height={19}
+              />
+            </div>
           </div>
         </div>
 
@@ -132,8 +136,7 @@ export default async function DealerLayout({ children }: { children: React.React
           className="flex-shrink-0 bg-white flex items-center gap-3 px-4 md:px-6"
           style={{ borderBottom: '1px solid #e5e7eb', height: 56 }}
         >
-          {/* Mobile dealer identity — replaces the prior DLR logo so the
-              mobile top bar leads with the dealership, not the vendor. */}
+          {/* Mobile dealer identity — leads with the dealership, not the vendor. */}
           <div className="flex md:hidden items-center gap-2 flex-shrink-0 min-w-0">
             <span
               className="inline-flex items-center justify-center rounded-lg text-white font-black"
@@ -154,7 +157,40 @@ export default async function DealerLayout({ children }: { children: React.React
             </div>
           </div>
 
+          {/* DLR logo — desktop: left corner of content header (sidebar already
+              carries the dealership identity, so the logo anchors the top bar).
+              PNG has a dark solid background; the rounded dark pill is intentional. */}
+          <div className="hidden md:flex flex-shrink-0 items-center">
+            <div
+              className="rounded-lg overflow-hidden"
+              style={{ padding: '3px 8px', backgroundColor: '#0c0e13' }}
+            >
+              <Image
+                src="/brand/dlr-logo.png"
+                alt="DLR"
+                width={68}
+                height={23}
+              />
+            </div>
+          </div>
+
           <div className="flex-1" />
+
+          {/* DLR logo — mobile: between spacer and account menu so it stays
+              visible on every screen without crowding the dealer identity. */}
+          <div className="flex md:hidden flex-shrink-0 items-center mr-1">
+            <div
+              className="rounded-md overflow-hidden"
+              style={{ padding: '2px 6px', backgroundColor: '#0c0e13' }}
+            >
+              <Image
+                src="/brand/dlr-logo.png"
+                alt="DLR"
+                width={54}
+                height={18}
+              />
+            </div>
+          </div>
 
           {/* Dealership name + badge (desktop) */}
           <div className="hidden md:flex items-center gap-2">

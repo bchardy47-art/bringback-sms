@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, FormEvent, Suspense } from 'react'
+import Image from 'next/image'
 import { signIn } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 
@@ -87,26 +88,22 @@ export default function LoginPage() {
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
           <div className="flex justify-center mb-5">
+            {/* Real DLR logo — PNG has a dark solid background, so we clip it
+                with rounded corners and keep the red glow shadow for depth. */}
             <div
-              className="flex flex-col items-center justify-center rounded-2xl px-6 py-4"
+              className="rounded-2xl overflow-hidden"
               style={{
-                background: 'linear-gradient(135deg, #111827, #0c0e13)',
                 boxShadow: '0 1px 0 rgba(255,255,255,0.06) inset, 0 12px 30px -12px rgba(220,38,38,0.35)',
                 border: '1px solid rgba(255,255,255,0.06)',
               }}
             >
-              <p
-                className="text-2xl font-black tracking-[0.18em] text-white leading-none"
-                style={{ textShadow: '0 1px 0 rgba(0,0,0,0.6)' }}
-              >
-                DLR
-              </p>
-              <p
-                className="text-[10px] font-semibold uppercase tracking-[0.22em] mt-1"
-                style={{ color: 'rgba(255,255,255,0.55)' }}
-              >
-                Dead Lead Revival
-              </p>
+              <Image
+                src="/brand/dlr-logo.png"
+                alt="Dead Lead Revival"
+                width={168}
+                height={56}
+                priority
+              />
             </div>
           </div>
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400 mb-2">
