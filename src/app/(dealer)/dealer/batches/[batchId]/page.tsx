@@ -214,7 +214,7 @@ export default async function DealerBatchReviewPage({ params }: RouteContext) {
       <div className="border border-gray-200 rounded-xl overflow-hidden">
         <div className="bg-gray-50 px-5 py-3 border-b border-gray-200">
           <h2 className="text-sm font-semibold text-gray-900">
-            Message Previews ({totalLeads} leads)
+            Message Previews ({totalLeads} lead{totalLeads !== 1 ? 's' : ''})
           </h2>
           <p className="text-xs text-gray-500 mt-0.5">
             These are the exact messages each lead will receive, in order.

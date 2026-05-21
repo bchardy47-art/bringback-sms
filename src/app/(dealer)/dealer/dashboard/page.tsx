@@ -301,20 +301,20 @@ export default async function DealerDashboardPage() {
     },
     reviewLocked
       ? {
-          label:   'Prepared Campaigns',
-          value:   draftCount,
+          label:   'Campaign Groups',
+          value:   4,
           href:    null,
           numColor: '#6b7280',
           accent:  '#e5e7eb',
-          desc:    'Review unlocks after payment.',
+          desc:    'Grouped by lead age — review unlocks after payment.',
         }
       : {
-          label:   'Campaigns Awaiting Review',
-          value:   draftCount,
+          label:   'Campaign Groups',
+          value:   4,
           href:    '/dealer/batches',
-          numColor: draftCount > 0 ? '#1d4ed8' : '#9ca3af',
-          accent:  draftCount > 0 ? '#3b82f6' : '#e5e7eb',
-          desc:    'Draft campaigns ready for your approval',
+          numColor: '#1d4ed8',
+          accent:  '#3b82f6',
+          desc:    'Lead age groups ready for your review.',
         },
     reviewLocked
       ? {
@@ -574,7 +574,7 @@ export default async function DealerDashboardPage() {
                 </div>
                 {draftCount > 0 && (
                   <span className="flex-shrink-0 px-2 py-0.5 bg-gray-100 text-gray-500 text-xs font-bold rounded-full">
-                    {draftCount} prepared
+                    4 groups
                   </span>
                 )}
               </div>

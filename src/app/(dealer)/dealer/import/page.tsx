@@ -288,7 +288,7 @@ export default async function DealerImportPage({
         <div className="space-y-3">
           {/* Top CTA */}
           {selectedCount > 0 && bucketPlan.length > 0 && (
-            <div className="rounded-xl border-2 border-blue-300 bg-blue-50 px-5 py-4 flex flex-wrap items-start justify-between gap-4">
+            <div className="rounded-xl border-2 border-blue-300 bg-blue-50 px-5 py-4">
               <div className="space-y-1">
                 <p className="text-sm font-semibold text-blue-900">
                   Ready — {selectedCount} lead{selectedCount !== 1 ? 's' : ''} across {bucketPlan.length} age window{bucketPlan.length !== 1 ? 's' : ''}
@@ -307,14 +307,6 @@ export default async function DealerImportPage({
                   ))}
                 </div>
               </div>
-              <CreateBatchButton
-                tenantId={tenantId}
-                importIds={selectedImportIds}
-                bucketPlan={bucketPlan}
-                compact
-                apiBase={apiBase}
-                bucketSectionTitle="Auto-assigned campaign groups"
-              />
             </div>
           )}
 
@@ -401,9 +393,9 @@ export default async function DealerImportPage({
               <span className="flex items-center justify-center w-6 h-6 rounded-full bg-gray-800 text-white text-xs font-bold shrink-0">2</span>
               <div>
                 <h2 className="text-sm font-semibold text-gray-900">
-                  Review &amp; select
+                  Review &amp; select{' '}
                   <span className="ml-1.5 font-normal text-gray-400">
-                    ({displayLeads.length}{statusFilter ? ` of ${allLeads.length}` : ''} leads)
+                    ({displayLeads.length}{statusFilter ? ` of ${allLeads.length}` : ''} lead{displayLeads.length !== 1 ? 's' : ''})
                   </span>
                 </h2>
                 <p className="text-xs text-gray-500">

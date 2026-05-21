@@ -142,7 +142,7 @@ export default async function DealerBatchesPage() {
   // pipeline states that clutter the dealer view with prep-stage noise.
   // The bucket cards above still surface the current draft for review.
   const historyBatches = batches.filter(b =>
-    !(b.liveSendCount === 0 && (b.status === 'draft' || b.status === 'previewed')),
+    !(b.liveSendCount === 0 && (b.status === 'draft' || b.status === 'previewed' || b.status === 'approved')),
   )
 
   // Load workflow names
