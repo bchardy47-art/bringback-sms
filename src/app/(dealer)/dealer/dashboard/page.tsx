@@ -285,7 +285,7 @@ export default async function DealerDashboardPage() {
 
   const stats: Array<{
     label:    string
-    value:    number
+    value:    number | string
     href:     string | null
     numColor: string
     accent:   string
@@ -319,7 +319,7 @@ export default async function DealerDashboardPage() {
     reviewLocked
       ? {
           label:   'Approved Campaigns',
-          value:   activeCount,
+          value:   '—',
           href:    null,
           numColor: '#6b7280',
           accent:  '#e5e7eb',
