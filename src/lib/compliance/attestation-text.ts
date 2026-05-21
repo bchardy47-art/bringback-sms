@@ -21,7 +21,7 @@ export const LEAD_UPLOAD_CERT_TEXT =
 
 // ── Campaign launch approval ───────────────────────────────────────────────
 
-export const CAMPAIGN_APPROVAL_VERSION = 'v1'
+export const CAMPAIGN_APPROVAL_VERSION = 'v2'
 export const CAMPAIGN_APPROVAL_TEXT =
-  'I approve DLR to begin sending the reviewed campaign messages on ' +
-  'behalf of this dealership.'
+  'I approve this campaign. I understand DLR will activate sending only ' +
+  'after completing a final launch step with me.'

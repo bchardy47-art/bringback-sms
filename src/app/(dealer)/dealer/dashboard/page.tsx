@@ -334,18 +334,18 @@ export default async function DealerDashboardPage() {
           desc:    'Campaigns you have approved',
         },
     {
-      label:   isLive ? 'Active Conversations' : 'Prepared Message Previews',
-      value:   inboxCount,
-      href:    inboxHref,
+      label:   isLive ? 'Active Conversations' : 'Message Previews',
+      value:   isLive ? inboxCount : 'Prepared',
+      href:    isLive ? inboxHref : '/dealer/batches',
       numColor: isLive
         ? (inboxCount > 0 ? '#9a3412' : '#9ca3af')
-        : (inboxCount > 0 ? '#1e40af' : '#9ca3af'),
+        : '#065f46',
       accent:  isLive
         ? (inboxCount > 0 ? '#f97316' : '#e5e7eb')
-        : (inboxCount > 0 ? '#60a5fa' : '#e5e7eb'),
+        : '#10b981',
       desc:    isLive
         ? 'Customer replies and live conversations.'
-        : 'Draft message previews only — nothing sent to customers yet.',
+        : 'Visible inside each campaign review.',
     },
   ]
 

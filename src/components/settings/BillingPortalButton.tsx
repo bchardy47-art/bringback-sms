@@ -89,8 +89,8 @@ export function BillingPortalButton({
             No payment method is on file yet.
           </p>
           <p className="text-sm text-gray-600">
-            Add a payment method so DLR can continue carrier setup, number
-            assignment, and campaign preparation.
+            Add a payment method to unlock campaign review and final launch
+            activation.
           </p>
           {recoveryHref ? (
             <a

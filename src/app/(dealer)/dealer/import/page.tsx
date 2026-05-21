@@ -134,7 +134,12 @@ export default async function DealerImportPage({
   const allLeads = allLeadsRaw.filter(r =>
     r.importStatus !== 'warning' &&
     r.importStatus !== 'held' &&
-    !(r.leadId && testLeadIds.has(r.leadId)),
+    !(r.leadId && testLeadIds.has(r.leadId)) &&
+    // A 'selected' row with no linked lead record is a data inconsistency:
+    // it cannot appear in any campaign batch and would contradict the
+    // campaigns page (which shows 0 eligible leads for that bucket).
+    // Treat it as invisible to the dealer until the record is repaired.
+    !(r.importStatus === 'selected' && r.leadId == null),
   )
 
   const displayLeads = statusFilter
@@ -519,7 +524,7 @@ export default async function DealerImportPage({
                             className="bg-white border border-gray-200 rounded-lg px-3 py-2.5 text-xs space-y-1.5 shadow-sm"
                           >
                             <p className="font-semibold text-gray-500">
-                              Step {p.position}
+                              Message {i + 1}
                               <span className="font-normal text-gray-400 ml-1">
                                 {p.delayHours
                                   ? `— ${p.delayHours >= 24
