@@ -556,8 +556,7 @@ export function CreateBatchButton({
           <tbody className="divide-y divide-gray-100">
             {bucketPlan.map(b => (
               <tr key={b.workflowId} className="hover:bg-gray-50">
-                <td className="px-4 py-2.5 font-medium text-gray-700 w-32">{b.bucketLabel}</td>
-                <td className="px-4 py-2.5 text-gray-600">{b.workflowName}</td>
+                <td className="px-4 py-2.5 font-medium text-gray-700">{b.bucketLabel}</td>
                 <td className="px-4 py-2.5 text-right text-gray-500">
                   {b.leadCount} lead{b.leadCount === 1 ? '' : 's'}
                 </td>

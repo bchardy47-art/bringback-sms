@@ -4,7 +4,7 @@ import Image from 'next/image'
 import { eq } from 'drizzle-orm'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { tenants } from '@/lib/db/schema'
+import { tenants, users } from '@/lib/db/schema'
 import { DealerNav } from '@/components/dealer/DealerNav'
 import { DealerMobileNav } from '@/components/dealer/DealerMobileNav'
 import { AccountMenu } from '@/components/layout/AccountMenu'
@@ -14,14 +14,21 @@ export default async function DealerLayout({ children }: { children: React.React
   if (!session) redirect('/login')
   if (session.user.role !== 'dealer') redirect('/dashboard')
 
-  const initials = session.user.name
-    ? session.user.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
-    : 'U'
+  // Re-read user name from DB on every layout render so any Settings update
+  // is immediately reflected in the sidebar — JWT caches the name at login
+  // time and goes stale if the user edits their profile without re-logging in.
+  const [[tenantRow], [userRow]] = await Promise.all([
+    db.select({ name: tenants.name }).from(tenants).where(eq(tenants.id, session.user.tenantId)),
+    db.select({ name: users.name }).from(users).where(eq(users.id, session.user.id)),
+  ])
 
-  const [tenantRow] = await db
-    .select({ name: tenants.name })
-    .from(tenants)
-    .where(eq(tenants.id, session.user.tenantId))
+  const displayName = userRow?.name ?? session.user.name ?? 'User'
+  const initials = displayName
+    .split(' ')
+    .map((n: string) => n[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase()
 
   const tenantName = tenantRow?.name ?? 'My Dealership'
   const tenantInitials = tenantName
@@ -119,7 +126,7 @@ export default async function DealerLayout({ children }: { children: React.React
 
           <div className="flex-1 min-w-0">
             <p className="text-white text-xs font-semibold truncate leading-tight">
-              {session.user.name}
+              {displayName}
             </p>
             <p className="text-xs truncate" style={{ color: 'rgba(255,255,255,0.38)' }}>
               Dealer
@@ -218,7 +225,7 @@ export default async function DealerLayout({ children }: { children: React.React
           {/* Account menu */}
           <div className="flex items-center ml-3 md:ml-0">
             <AccountMenu
-              name={session.user.name ?? 'Account'}
+              name={displayName}
               email={session.user.email ?? ''}
               initials={initials}
               settingsHref="/dealer/settings"

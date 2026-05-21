@@ -16,6 +16,8 @@ import { redirect, notFound } from 'next/navigation'
 import { authOptions } from '@/lib/auth'
 import type { PilotPreviewMessage } from '@/lib/db/schema'
 import { DealerBatchChecklist } from './DealerBatchChecklist'
+import { DEALER_BUCKET_LABEL } from '@/lib/pilot/age-classification'
+import type { AgeBucket } from '@/lib/db/schema'
 
 type RouteContext = { params: { batchId: string } }
 
@@ -146,8 +148,12 @@ export default async function DealerBatchReviewPage({ params }: RouteContext) {
 
         <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
           <div>
-            <p className="text-xs text-gray-500 uppercase tracking-wide">Workflow</p>
-            <p className="font-semibold text-gray-800">{workflow?.name ?? '—'}</p>
+            <p className="text-xs text-gray-500 uppercase tracking-wide">Campaign Group</p>
+            <p className="font-semibold text-gray-800">
+              {workflow?.ageBucket
+                ? (DEALER_BUCKET_LABEL[workflow.ageBucket as AgeBucket] ?? workflow.name ?? '—')
+                : (workflow?.name ?? '—')}
+            </p>
           </div>
           <div>
             <p className="text-xs text-gray-500 uppercase tracking-wide">Leads</p>
@@ -195,7 +201,7 @@ export default async function DealerBatchReviewPage({ params }: RouteContext) {
                 'bg-gray-100 text-gray-600'
               }`}
             >
-              {status}: {count}
+              {count} lead{count !== 1 ? 's' : ''} with {status} consent
             </span>
           ))}
           {fallbackCount > 0 && (
