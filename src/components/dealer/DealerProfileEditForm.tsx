@@ -17,12 +17,37 @@ export function DealerProfileEditForm({
   const [name, setName] = useState(initialName)
   // useState(initialName) captures only the first render. If the parent
   // re-renders with a refreshed initialName (e.g., after router.refresh()
-  // following a save, or when the server-rendered prop arrives later than
-  // the initial hydration), sync the local state so the input never sticks
+  // following a save), sync the local state so the input never sticks
   // on a stale empty value.
   useEffect(() => {
     setName(initialName)
   }, [initialName])
+
+  // Authoritative client-side fetch on mount. The SSR initialName comes
+  // from the dealer Settings page's session+DB resolution; if the JWT
+  // session.user.id has drifted from the current users row (e.g., the
+  // dealer user was re-provisioned after the JWT was issued), the SSR
+  // value can come through empty even though /api/users/me returns the
+  // correct row. Fetching directly from the API on mount is the single
+  // source of truth — only override when the API actually returns a
+  // non-empty name, and never block typing while the request is in
+  // flight (state stays editable via onChange).
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/users/me', { cache: 'no-store' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (cancelled) return
+        const apiName = typeof data?.user?.name === 'string' ? data.user.name.trim() : ''
+        if (apiName) setName(apiName)
+      })
+      .catch(() => { /* silently keep current state */ })
+    return () => { cancelled = true }
+    // Only on mount — onChange handles subsequent edits, and after-save
+    // sync happens via router.refresh() flowing back through initialName.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
