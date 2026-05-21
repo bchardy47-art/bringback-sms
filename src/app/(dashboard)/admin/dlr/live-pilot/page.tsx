@@ -167,7 +167,16 @@ function EmergencyControls({ batchId, state }: { batchId: string; state: FirstPi
         cancelling is permanent. Use these if you see unexpected behavior.
       </p>
       <div className="flex gap-3">
-        <form action={`/api/admin/live-pilot/${batchId}`} method="POST">
+        {/* Both controls wrapped in ConfirmingForm — Cancel is permanent
+            and Pause changes scheduling state, so neither should fire on
+            a single misclick. The wrapper preserves the existing HTTP
+            POST shape (string action + hidden `action` field) so server
+            behavior is unchanged after confirmation. */}
+        <ConfirmingForm
+          action={`/api/admin/live-pilot/${batchId}`}
+          method="POST"
+          confirmMessage="Pause this pilot? Future automated sends will stop until resumed."
+        >
           <input type="hidden" name="action" value="pause" />
           <button
             type="submit"
@@ -175,8 +184,12 @@ function EmergencyControls({ batchId, state }: { batchId: string; state: FirstPi
           >
             ⏸ Pause Pilot
           </button>
-        </form>
-        <form action={`/api/admin/live-pilot/${batchId}`} method="POST">
+        </ConfirmingForm>
+        <ConfirmingForm
+          action={`/api/admin/live-pilot/${batchId}`}
+          method="POST"
+          confirmMessage="Permanently cancel this pilot? This cannot be undone."
+        >
           <input type="hidden" name="action" value="cancel" />
           <button
             type="submit"
@@ -184,7 +197,7 @@ function EmergencyControls({ batchId, state }: { batchId: string; state: FirstPi
           >
             ✗ Cancel Pilot
           </button>
-        </form>
+        </ConfirmingForm>
       </div>
     </div>
   )
