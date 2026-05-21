@@ -137,12 +137,18 @@ export default async function DealerBatchReviewPage({ params }: RouteContext) {
       {/* Batch summary */}
       <div className="bg-white border border-gray-200 rounded-xl px-6 py-4 space-y-3">
         <div className="flex items-center gap-3">
+          {/*
+            Display-only badge. The Campaigns list says "Ready for review" for
+            a draft batch (DEALER_STATUS_LABEL / STATUS_LEGEND); this page used
+            to render the raw "DRAFT" status, which read as a contradiction to
+            the dealer. Backend status values are unchanged.
+          */}
           <span className={`px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${
-            isDraft    ? 'bg-gray-100 text-gray-600'    :
+            isDraft    ? 'bg-blue-100 text-blue-700'    :
             isApproved ? 'bg-blue-100 text-blue-700'    :
             'bg-emerald-100 text-emerald-700'
           }`}>
-            {batch.status}
+            {isDraft ? 'Ready for review' : batch.status}
           </span>
         </div>
 
@@ -295,7 +301,6 @@ export default async function DealerBatchReviewPage({ params }: RouteContext) {
         <DealerBatchChecklist
           batchId={params.batchId}
           totalLeads={totalLeads}
-          maxLeads={batch.maxLeadCount ?? 10}
         />
       )}
 

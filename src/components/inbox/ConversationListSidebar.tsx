@@ -109,7 +109,7 @@ function applyTabFilter(convs: Conversation[], tabKey: string): Conversation[] {
 const DEALER_TABS: Array<{ key: TabKey; label: string }> = [
   { key: 'needs_review', label: 'Needs Review' },
   { key: 'automated',    label: 'Automated' },
-  { key: 'human_owned',  label: 'Human-Owned' },
+  { key: 'human_owned',  label: 'Taken Over' },
   { key: 'opted_out',    label: 'Opted Out' },
   { key: 'closed',       label: 'Closed' },
 ]
@@ -400,7 +400,7 @@ function EmptyTabState({
       ? 'No conversations need review right now.'
       : 'No conversations need review right now.'
     detail = otherTabsTotal > 0
-      ? 'Automated and human-owned conversations are in the other tabs.'
+      ? 'Automated and taken-over conversations are in the other tabs.'
       : 'Customer replies that need attention will appear here.'
   } else if (isDealer && activeTab === 'automated') {
     title = 'No automated conversations right now.'

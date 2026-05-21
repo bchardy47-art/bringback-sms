@@ -175,7 +175,7 @@ export function ImportForm({ tenantId, apiBase = '/api/admin/dlr/pilot-leads' }:
         />
         <div>
           <p className={`text-xs font-semibold ${attested ? 'text-emerald-800' : 'text-amber-800'}`}>
-            {attested ? '✓ Attestation confirmed' : 'TCPA / Consent attestation required'}
+            {attested ? '✓ Attestation confirmed' : 'SMS Consent Certification required'}
           </p>
           {/* Audit-accurate attestation text. This MUST match
               LEAD_UPLOAD_CERT_TEXT verbatim — that's the exact string

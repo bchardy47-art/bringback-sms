@@ -25,17 +25,16 @@ import { CAMPAIGN_APPROVAL_TEXT } from '@/lib/compliance/attestation-text'
 type Props = {
   batchId:    string
   totalLeads: number
-  maxLeads:   number
 }
 
-export function DealerBatchChecklist({ batchId, totalLeads, maxLeads }: Props) {
+export function DealerBatchChecklist({ batchId, totalLeads }: Props) {
   const checkItems = [
     'All leads have confirmed or implied SMS consent',
     'I have reviewed the message previews and they look accurate',
     'No leads have opted out or revoked consent',
     'Fallback message copy (for leads without a vehicle on file) is acceptable',
     'Each message sequence includes an opt-out instruction',
-    `Lead count is within the initial launch limit of ${maxLeads} (current: ${totalLeads})`,
+    `This first review is intentionally small so you can approve the process safely (current: ${totalLeads})`,
   ]
 
   const [checked,  setChecked]  = useState<boolean[]>(checkItems.map(() => false))
