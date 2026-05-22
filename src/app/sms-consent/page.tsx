@@ -40,7 +40,7 @@ export default function SmsConsentPage() {
         <p style={{ margin: '0 0 4px 0' }}><strong>Sender:</strong> BCHardy LLC (Dead Lead Revival / DLR)</p>
         <p style={{ margin: '0 0 4px 0' }}><strong>Address:</strong> 1346 W Fort Rock Dr, Saratoga Springs, UT 84045</p>
         <p style={{ margin: '0 0 4px 0' }}><strong>Phone:</strong> <a href="tel:+18013800445" style={{ color: '#0070f3' }}>+1 (801) 380-0445</a></p>
-        <p style={{ margin: 0 }}><strong>Email:</strong> <a href="mailto:bc.hardy47@gmail.com" style={{ color: '#0070f3' }}>bc.hardy47@gmail.com</a></p>
+        <p style={{ margin: 0 }}><strong>Email:</strong> <a href="mailto:support@dlr-sms.com" style={{ color: '#0070f3' }}>support@dlr-sms.com</a></p>
       </section>
 
       {/* Legal links */}

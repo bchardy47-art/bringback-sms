@@ -275,7 +275,7 @@ export function computeDealerSetupStatus(p: DealerSetupInputs): DealerSetupStatu
     title = 'DLR Setup Progress'
     subtitle =
       'We’re preparing your dealership for SMS launch. No messages will be sent ' +
-      'until your campaign is approved and you review your first campaign.'
+      'until you approve your campaign and complete the final launch step with DLR.'
 
     // Surface a single concrete "next" line so the dealer knows what to do.
     const firstAction =

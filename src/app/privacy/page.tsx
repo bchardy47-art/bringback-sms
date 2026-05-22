@@ -132,7 +132,7 @@ export default function PrivacyPage() {
         <strong>BCHardy LLC</strong><br />
         1346 West Fort Rock Drive<br />
         Saratoga Springs, UT 84045<br />
-        <a href="mailto:bc.hardy47@gmail.com" style={{ color: '#0070f3' }}>bc.hardy47@gmail.com</a>
+        <a href="mailto:support@dlr-sms.com" style={{ color: '#0070f3' }}>support@dlr-sms.com</a>
       </p>
 
       <p style={{ marginTop: 32 }}>

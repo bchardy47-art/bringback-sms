@@ -590,7 +590,7 @@ export function CreateBatchButton({
       ) : (
         <>
           <div className="rounded-lg border border-gray-100 bg-gray-50 px-4 py-3 text-xs text-gray-600 space-y-1">
-            <p>• Every selected lead has <strong>explicit</strong> or <strong>implied</strong> consent on file</p>
+            <p>• Every selected lead has <strong>confirmed</strong> SMS consent on file</p>
             <p>• Each campaign group has correct message templates for this dealer</p>
           </div>
 

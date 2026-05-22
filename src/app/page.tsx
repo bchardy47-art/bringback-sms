@@ -300,7 +300,7 @@ export default function RootPage() {
               </>,
               <>
                 <strong>Automatic STOP / HELP handling.</strong>{' '}
-                The platform honours opt-outs and replies to HELP requests on every send.
+                The platform honors opt-outs and replies to HELP requests on every send.
               </>,
               <>
                 <strong>You approve every message.</strong>{' '}
@@ -332,9 +332,9 @@ export default function RootPage() {
         <div style={container}>
           <h2 style={h2}>Who runs DLR</h2>
           <p style={p}>
-            DLR is operated by <strong>BCHardy LLC</strong> in Saratoga Springs, Utah.
-            We’re a small independent operator — when something breaks, you reach a real
-            person directly.
+            DLR is a purpose-built platform for automotive dealerships, operated by{' '}
+            <strong>BCHardy LLC</strong> in Saratoga Springs, Utah. You’ll have a direct
+            point of contact for setup, launch, and support.
           </p>
           <p style={p}>
             You will always know what messages are being sent under your dealership’s name.
