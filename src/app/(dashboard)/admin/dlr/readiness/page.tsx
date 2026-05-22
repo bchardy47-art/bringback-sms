@@ -7,6 +7,7 @@ import { db } from '@/lib/db'
 import { tenants, workflows, workflowSteps } from '@/lib/db/schema'
 import { runPreflight } from '@/lib/engine/preflight'
 import type { TenDlcStatus } from '@/lib/db/schema'
+import { ConfirmingForm } from '../ConfirmingForm'
 
 // ── Server actions ─────────────────────────────────────────────────────────────
 
@@ -188,13 +189,20 @@ export default async function ReadinessPage() {
           </div>
           <div className="flex items-center gap-2">
             {tenant.complianceBlocked ? (
-              <form action={complianceUnblock}>
+              <ConfirmingForm
+                action={complianceUnblock}
+                confirmMessage="Remove the compliance block? Only continue if the dealer is cleared to proceed."
+              >
                 <button className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-yellow-100 text-yellow-800 hover:bg-yellow-200 transition-colors">
                   Lift Compliance Block
                 </button>
-              </form>
+              </ConfirmingForm>
             ) : (
-              <form action={complianceBlock} className="flex items-center gap-2">
+              <ConfirmingForm
+                action={complianceBlock}
+                confirmMessage="Block this dealer for compliance? Automated sending will remain stopped."
+                className="flex items-center gap-2"
+              >
                 <input
                   name="reason"
                   placeholder="Block reason (required)"
@@ -204,7 +212,7 @@ export default async function ReadinessPage() {
                 <button className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-red-100 text-red-700 hover:bg-red-200 transition-colors">
                   Compliance Block
                 </button>
-              </form>
+              </ConfirmingForm>
             )}
           </div>
         </div>
@@ -273,7 +281,11 @@ export default async function ReadinessPage() {
               )}
             </div>
           ) : (
-            <form action={approveForLive} className="flex items-center gap-3">
+            <ConfirmingForm
+              action={approveForLive}
+              confirmMessage="Approve this dealer for live SMS? This enables the live-send gate and should only be done after payment, carrier readiness, and dealer approval are confirmed."
+              className="flex items-center gap-3"
+            >
               <div className="flex-1">
                 <p className="text-xs text-gray-500">
                   Grants live-SMS permission to this tenant. 10DLC status must be approved, exempt, or dev_override.
@@ -290,7 +302,7 @@ export default async function ReadinessPage() {
               >
                 Approve for Live SMS
               </button>
-            </form>
+            </ConfirmingForm>
           )}
         </div>
       </section>
@@ -433,7 +445,10 @@ function WorkflowActivationCard({
 
         {/* Activate */}
         {!wf.isActive && (
-          <form action={activateWorkflow}>
+          <ConfirmingForm
+            action={activateWorkflow}
+            confirmMessage="Activate this workflow? Future eligible leads may be enrolled according to the live-send guardrails."
+          >
             <input type="hidden" name="workflowId" value={wf.id} />
             <button
               disabled={!canActivate}
@@ -442,17 +457,20 @@ function WorkflowActivationCard({
             >
               Activate
             </button>
-          </form>
+          </ConfirmingForm>
         )}
 
         {/* Pause */}
         {wf.isActive && (
-          <form action={pauseWorkflow}>
+          <ConfirmingForm
+            action={pauseWorkflow}
+            confirmMessage="Pause this workflow? Automated enrollment for this workflow will stop until resumed."
+          >
             <input type="hidden" name="workflowId" value={wf.id} />
             <button className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-yellow-100 text-yellow-800 hover:bg-yellow-200 transition-colors">
               Pause
             </button>
-          </form>
+          </ConfirmingForm>
         )}
 
         {/* Approval metadata */}
