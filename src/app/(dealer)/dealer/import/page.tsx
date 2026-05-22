@@ -216,72 +216,127 @@ export default async function DealerImportPage({
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Upload Leads</h1>
         <p className="mt-1 text-sm text-gray-500">
-          Upload a CSV of prior dealership leads. The file is validated,
-          grouped by age, and prepared for campaign review before any
-          messages are sent.
+          DLR uses the original inquiry date to group leads into safe follow-up
+          campaigns. No messages are sent from this page.
         </p>
       </div>
 
-      {/* Lead age detection helper — keeps the upload flow honest about which
-          date column DLR needs and why some leads get held or flagged. */}
-      <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 md:p-5 space-y-3 text-sm text-gray-700">
-        <div>
-          <p className="text-sm font-semibold text-gray-900">Lead age detection</p>
-          <p className="text-xs text-gray-500 mt-0.5">
+      {/* ── Hero summary — moved above the explainer so the dealer sees the
+            outcome first ("leads are ready") instead of being greeted by a
+            compliance/manual block. Only renders once leads have been selected
+            and grouped; pre-selection states show the AutoSelectEligible CTA
+            below. Pills mirror the existing stat counts; no logic changes. */}
+      {selectedCount > 0 && bucketPlan.length > 0 && (
+        <section className="rounded-2xl border border-gray-200 bg-gradient-to-br from-blue-50 via-white to-white px-5 py-5 md:px-6 md:py-6 shadow-sm">
+          <div className="flex items-start gap-3.5">
+            <span
+              aria-hidden="true"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-700 text-base font-bold"
+            >
+              ✓
+            </span>
+            <div className="min-w-0 flex-1 space-y-2.5">
+              <div>
+                <h2 className="text-lg md:text-xl font-bold text-gray-900 leading-tight">
+                  Leads are ready for review
+                </h2>
+                <p className="text-sm text-gray-600 mt-1 leading-relaxed">
+                  {selectedCount} lead{selectedCount !== 1 ? 's' : ''} validated
+                  and grouped into {bucketPlan.length} campaign group
+                  {bucketPlan.length !== 1 ? 's' : ''}.{' '}
+                  <span className="font-semibold text-gray-800">
+                    No messages are sent from this page.
+                  </span>
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-1.5 pt-0.5">
+                <ImportSummaryPill tone="emerald">{eligibleCount} ready</ImportSummaryPill>
+                <ImportSummaryPill tone={heldCount > 0 ? 'violet' : 'gray'}>
+                  {heldCount} held
+                </ImportSummaryPill>
+                <ImportSummaryPill tone={blockedCount > 0 ? 'red' : 'gray'}>
+                  {blockedCount} blocked
+                </ImportSummaryPill>
+                <ImportSummaryPill tone="blue">{selectedCount} selected</ImportSummaryPill>
+                <ImportSummaryPill tone="blue">
+                  {bucketPlan.length} campaign group{bucketPlan.length !== 1 ? 's' : ''}
+                </ImportSummaryPill>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ── How DLR groups leads (collapsed by default). Replaces the always-
+            visible Lead-age-detection block; the full content is preserved
+            inside <details> so it is one click away when needed but does not
+            dominate the first view. Native <details>/<summary> needs no JS. */}
+      <details className="group rounded-xl border border-gray-200 bg-gray-50 px-4 md:px-5 py-3 md:py-3.5 text-sm text-gray-700">
+        <summary className="cursor-pointer list-none flex items-center justify-between gap-3 text-sm font-semibold text-gray-800 [&::-webkit-details-marker]:hidden">
+          <span>How DLR groups leads by age</span>
+          <span
+            aria-hidden="true"
+            className="text-xs text-gray-400 transition-transform duration-150 group-open:rotate-180"
+          >
+            ▾
+          </span>
+        </summary>
+        <div className="mt-4 space-y-3">
+          <p className="text-xs text-gray-500">
             Nothing is sent from this page — uploading only prepares previews.
           </p>
-        </div>
 
-        <p>
-          Include the date each lead originally contacted your store. DLR uses
-          that date to group leads into safe follow-up campaigns.
-        </p>
+          <p>
+            Include the date each lead originally contacted your store. DLR uses
+            that date to group leads into safe follow-up campaigns.
+          </p>
 
-        <p className="text-xs text-gray-600">
-          Common column names we recognize (case-insensitive):
-        </p>
+          <p className="text-xs text-gray-600">
+            Common column names we recognize (case-insensitive):
+          </p>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-xs">
-          <div>
-            <p className="font-semibold text-gray-800">Preferred — original inquiry date</p>
-            <p className="text-gray-600 leading-snug">
-              <code className="text-gray-700">Lead Date</code>, <code className="text-gray-700">Created Date</code>,{' '}
-              <code className="text-gray-700">Date Created</code>, <code className="text-gray-700">Inquiry Date</code>,{' '}
-              <code className="text-gray-700">Submitted Date</code>, <code className="text-gray-700">Received Date</code>,{' '}
-              <code className="text-gray-700">Prospect Date</code>, <code className="text-gray-700">Created</code>
-            </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-xs">
+            <div>
+              <p className="font-semibold text-gray-800">Preferred — original inquiry date</p>
+              <p className="text-gray-600 leading-snug">
+                <code className="text-gray-700">Lead Date</code>, <code className="text-gray-700">Created Date</code>,{' '}
+                <code className="text-gray-700">Date Created</code>, <code className="text-gray-700">Inquiry Date</code>,{' '}
+                <code className="text-gray-700">Submitted Date</code>, <code className="text-gray-700">Received Date</code>,{' '}
+                <code className="text-gray-700">Prospect Date</code>, <code className="text-gray-700">Created</code>
+              </p>
+            </div>
+            <div>
+              <p className="font-semibold text-gray-800">Fallback — only if no original date</p>
+              <p className="text-gray-600 leading-snug">
+                <code className="text-gray-700">Last Activity Date</code>, <code className="text-gray-700">Last Contacted</code>,{' '}
+                <code className="text-gray-700">Last Contacted Date</code>, bare <code className="text-gray-700">Date</code>
+              </p>
+            </div>
           </div>
-          <div>
-            <p className="font-semibold text-gray-800">Fallback — only if no original date</p>
-            <p className="text-gray-600 leading-snug">
-              <code className="text-gray-700">Last Activity Date</code>, <code className="text-gray-700">Last Contacted</code>,{' '}
-              <code className="text-gray-700">Last Contacted Date</code>, bare <code className="text-gray-700">Date</code>
-            </p>
-          </div>
+
+          <p className="text-xs text-gray-600 leading-relaxed">
+            <span className="font-semibold text-gray-800">Why priority matters:</span>{' '}
+            the original inquiry date tells DLR how cold the lead actually is. A
+            “last activity” date is only used when no original column is present
+            — it can make a long-cold lead look recent.
+          </p>
+
+          <ul className="text-xs text-gray-600 space-y-1.5">
+            <li>
+              <span className="font-semibold text-violet-700">Held:</span>{' '}
+              contacted less than 14 days ago — too fresh for campaign messaging.
+            </li>
+            <li>
+              <span className="font-semibold text-orange-700">Needs Date:</span>{' '}
+              DLR cannot safely choose a campaign group without a lead date. Re-upload with one of the columns above.
+            </li>
+            <li>
+              <span className="font-semibold text-red-600">Blocked:</span>{' '}
+              phone is invalid, opted out, or revoked consent — DLR will not include the row.
+            </li>
+          </ul>
         </div>
-
-        <p className="text-xs text-gray-600 leading-relaxed">
-          <span className="font-semibold text-gray-800">Why priority matters:</span>{' '}
-          the original inquiry date tells DLR how cold the lead actually is. A
-          “last activity” date is only used when no original column is present
-          — it can make a long-cold lead look recent.
-        </p>
-
-        <ul className="text-xs text-gray-600 space-y-1.5">
-          <li>
-            <span className="font-semibold text-violet-700">Held:</span>{' '}
-            contacted less than 14 days ago — too fresh for campaign messaging.
-          </li>
-          <li>
-            <span className="font-semibold text-orange-700">Needs Date:</span>{' '}
-            DLR cannot safely choose a campaign group without a lead date. Re-upload with one of the columns above.
-          </li>
-          <li>
-            <span className="font-semibold text-red-600">Blocked:</span>{' '}
-            phone is invalid, opted out, or revoked consent — DLR will not include the row.
-          </li>
-        </ul>
-      </div>
+      </details>
 
       {/* Auto-select trigger */}
       {eligibleCount > 0 && selectedCount === 0 && (
@@ -291,30 +346,6 @@ export default async function DealerImportPage({
       {/* Summary */}
       {allLeads.length > 0 && (
         <div className="space-y-3">
-          {/* Top CTA */}
-          {selectedCount > 0 && bucketPlan.length > 0 && (
-            <div className="rounded-xl border-2 border-blue-300 bg-blue-50 px-5 py-4">
-              <div className="space-y-1">
-                <p className="text-sm font-semibold text-blue-900">
-                  Ready — {selectedCount} lead{selectedCount !== 1 ? 's' : ''} across {bucketPlan.length} age window{bucketPlan.length !== 1 ? 's' : ''}
-                </p>
-                <p className="text-xs text-blue-700">
-                  No messages sent yet — you&apos;ll review and approve each campaign separately.
-                </p>
-                <div className="flex flex-wrap gap-2 pt-1">
-                  {bucketPlan.map(b => (
-                    <span
-                      key={b.workflowId}
-                      className="px-2 py-0.5 bg-white border border-blue-200 rounded-full text-xs text-blue-800 font-medium"
-                    >
-                      {b.bucketLabel}: {b.leadCount}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* Stat cards. Mobile-first: 2 columns at base, 3 at sm,
               6 at lg. Previously this was fixed grid-cols-6 which squeezed
               each card to ~50px on iPhone. */}
@@ -649,5 +680,29 @@ export default async function DealerImportPage({
         </div>
       )}
     </div>
+  )
+}
+
+// ── Presentational helpers ────────────────────────────────────────────────────
+
+// Small pill used in the import hero summary. Pure SSR — no client state.
+function ImportSummaryPill({
+  tone,
+  children,
+}: {
+  tone: 'emerald' | 'violet' | 'red' | 'blue' | 'gray'
+  children: React.ReactNode
+}) {
+  const TONES: Record<typeof tone, string> = {
+    emerald: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    violet:  'bg-violet-50  text-violet-700  border-violet-200',
+    red:     'bg-red-50     text-red-700     border-red-200',
+    blue:    'bg-blue-50    text-blue-700    border-blue-200',
+    gray:    'bg-white      text-gray-500    border-gray-200',
+  }
+  return (
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full border text-xs font-semibold ${TONES[tone]}`}>
+      {children}
+    </span>
   )
 }
