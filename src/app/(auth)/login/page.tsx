@@ -97,45 +97,47 @@ export default function LoginPage() {
       className="flex min-h-screen items-center justify-center px-4 py-12"
       style={{
         background:
-          'radial-gradient(ellipse 130% 50% at 50% -8%, rgba(220,38,38,0.07) 0%, transparent 62%),' +
-          'linear-gradient(180deg, #f4f4f5 0%, #eaeaea 100%)',
+          'radial-gradient(ellipse 130% 55% at 50% -8%, rgba(220,38,38,0.09) 0%, transparent 70%),' +
+          'linear-gradient(180deg, #f4f4f5 0%, #e9e9eb 100%)',
       }}
     >
       <div className="w-full max-w-md">
 
         {/* ── Logo + header copy ───────────────────────────────────────── */}
-        <div className="mb-8 text-center">
-          <div className="flex justify-center mb-6">
+        <div className="mb-6 text-center">
+          <div className="flex justify-center mb-5">
             {/* DLR logo — dark-bg PNG clipped to rounded card.
-                Wrapper div drives responsive width via clamp(); Image fills it. */}
+                Wrapper div drives responsive width via clamp(); Image fills it.
+                Ceiling raised from 252px → 320px (~27% larger on desktop) to
+                anchor the page more confidently. clamp() keeps it responsive. */}
             <div
               className="rounded-2xl overflow-hidden"
               style={{
-                width: 'clamp(180px, 28vw, 252px)',
+                width: 'clamp(220px, 32vw, 320px)',
                 boxShadow:
                   '0 1px 0 rgba(255,255,255,0.08) inset,' +
-                  '0 20px 50px -12px rgba(220,38,38,0.40),' +
-                  '0 4px 14px -4px rgba(0,0,0,0.20)',
+                  '0 22px 56px -14px rgba(220,38,38,0.42),' +
+                  '0 4px 14px -4px rgba(0,0,0,0.22)',
               }}
             >
               <Image
                 src="/brand/dlr-logo.png"
                 alt="Dead Lead Revival"
-                width={252}
-                height={84}
+                width={320}
+                height={107}
                 priority
                 style={{ width: '100%', height: 'auto', display: 'block' }}
               />
             </div>
           </div>
 
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-gray-400 mb-3">
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-gray-500 mb-2">
             Dealer Revival Portal
           </p>
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">
             Sign in to your Revival Center
           </h1>
-          <p className="mt-2.5 text-sm text-gray-500 leading-relaxed">
+          <p className="mt-2 text-sm text-gray-500 leading-relaxed">
             Access your dealership&apos;s lead revival campaigns,
             approvals, and conversations.
           </p>
@@ -152,8 +154,8 @@ export default function LoginPage() {
           style={{
             boxShadow:
               '0 0 0 1px rgba(0,0,0,0.06),' +
-              '0 4px 8px -2px rgba(0,0,0,0.06),' +
-              '0 18px 50px -8px rgba(0,0,0,0.14)',
+              '0 6px 12px -4px rgba(0,0,0,0.07),' +
+              '0 24px 60px -10px rgba(0,0,0,0.20)',
           }}
         >
           <form onSubmit={handleSubmit} className="space-y-5">
