@@ -29,7 +29,7 @@ type Props = {
 
 export function DealerBatchChecklist({ batchId, totalLeads }: Props) {
   const checkItems = [
-    'All leads have confirmed or implied SMS consent',
+    'All leads have confirmed or documented SMS consent',
     'I have reviewed the message previews and they look accurate',
     'No leads have opted out or revoked consent',
     'Fallback message copy (for leads without a vehicle on file) is acceptable',

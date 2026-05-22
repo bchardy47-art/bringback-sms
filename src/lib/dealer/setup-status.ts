@@ -91,7 +91,7 @@ export function computeDealerSetupStatus(p: DealerSetupInputs): DealerSetupStatu
     status: paid ? 'done' : 'needs_your_action',
     detail: paid
       ? null
-      : 'Complete payment using your DLR setup link so setup can continue.',
+      : 'Click Complete payment to unlock campaign review and final launch activation.',
   }
 
   const stage2Done = !!intake?.submittedAt
@@ -101,7 +101,7 @@ export function computeDealerSetupStatus(p: DealerSetupInputs): DealerSetupStatu
     detail: stage2Done
       ? null
       : paid
-        ? 'Finish the setup form via your DLR setup link to share your dealership details.'
+        ? 'Click Open setup form to share your dealership details.'
         : 'Available after payment.',
   }
 
@@ -159,7 +159,7 @@ export function computeDealerSetupStatus(p: DealerSetupInputs): DealerSetupStatu
     leads = {
       key: 'leads', label: 'Lead upload ready',
       status: 'done',
-      detail: 'You\'ve uploaded leads — DLR is preparing previews.',
+      detail: 'Message previews are ready — open Campaigns to review.',
     }
   } else if (paid && stage2Done) {
     leads = {
