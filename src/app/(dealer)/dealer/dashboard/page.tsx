@@ -772,7 +772,7 @@ function MessagingSafetyBanner({
   } else if (state === 'in_setup') {
     icon   = '⏳'
     title  = 'Setup mode — messages are paused'
-    detail = `No customer messages will send from ${dealershipName} until payment, campaign review, and final launch approval are complete.`
+    detail = `No customer messages will be sent from ${dealershipName} until payment, campaign review, and final launch approval are complete.`
     bg     = '#fffbeb'
     border = '#fde68a'
     iconBg = '#f59e0b'
@@ -788,7 +788,7 @@ function MessagingSafetyBanner({
   } else {
     icon   = 'ℹ'
     title  = 'Not sending yet'
-    detail = `No customer messages will send from ${dealershipName} until your first campaign is reviewed and DLR completes activation with you.`
+    detail = `No customer messages will be sent from ${dealershipName} until your first campaign is reviewed and DLR completes activation with you.`
     bg     = '#eff6ff'
     border = '#bfdbfe'
     iconBg = '#3b82f6'
