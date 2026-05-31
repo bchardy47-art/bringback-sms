@@ -90,8 +90,8 @@ const CAMPAIGN_BUCKETS: Array<{
   recommended: boolean
 }> = [
   { key: 'a', label: '14–30 Day Follow-Up', description: 'Recently quiet leads — a short re-engagement window.',  recommended: false },
-  { key: 'b', label: '31–60 Day Follow-Up', description: 'Cooling leads — a gentle nudge back to the dealership.', recommended: false },
-  { key: 'c', label: '61–90 Day Revival',   description: 'Aging leads — strong revival candidates.',              recommended: true  },
+  { key: 'b', label: '31–60 Day Follow-Up', description: 'Cooling leads — a gentle nudge back to the dealership.', recommended: true  },
+  { key: 'c', label: '61–90 Day Revival',   description: 'Aging leads — strong revival candidates.',              recommended: false },
   { key: 'd', label: '91+ Day Revival',     description: 'Long-cold leads — last-chance outreach.',                recommended: false },
 ]
 

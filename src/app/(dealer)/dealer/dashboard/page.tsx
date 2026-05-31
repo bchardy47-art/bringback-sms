@@ -1,6 +1,5 @@
 import { getServerSession } from 'next-auth'
 import { redirect } from 'next/navigation'
-import { revalidatePath } from 'next/cache'
 import { eq, ne, and, count, inArray, notInArray, or, isNull, isNotNull } from 'drizzle-orm'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
@@ -19,46 +18,11 @@ import {
   type DealerSetupStep,
   type DealerSetupStatus,
 } from '@/lib/dealer/setup-status'
-import {
-  pauseTenantAutomation,
-  resumeTenantAutomation,
-} from '@/lib/admin/dlr-queries'
-import { ConfirmingForm } from '@/app/(dashboard)/admin/dlr/ConfirmingForm'
-
-// Dealer-friendly pause/resume confirmation strings — reused by the
-// automation status card below. Kept here so updates land in one place.
-const PAUSE_CONFIRM_PROMPT =
-  'This will pause DLR automation for your dealership. No automated ' +
-  'follow-up will run until resumed. Continue?'
-const RESUME_CONFIRM_PROMPT =
-  'This will resume DLR automation for your dealership. Only approved/' +
-  'live workflows will continue. Continue?'
 
 export default async function DealerDashboardPage() {
   const session = await getServerSession(authOptions)
   if (!session) redirect('/login')
   if (session.user.role !== 'dealer') redirect('/dashboard')
-
-  // Dealer-scoped pause/resume server actions. Re-verify the session
-  // inside each action body — the closure's `session` reference can be
-  // stale by the time a form submit fires, and we never want to operate
-  // on anyone but the signed-in dealer's own tenant. Underlying
-  // mutation reuses the admin dlr-queries helpers but tenant scope is
-  // strictly the dealer's own.
-  async function dealerPauseAutomation() {
-    'use server'
-    const s = await getServerSession(authOptions)
-    if (!s || s.user.role !== 'dealer') throw new Error('Unauthorized')
-    await pauseTenantAutomation(s.user.tenantId)
-    revalidatePath('/dealer/dashboard')
-  }
-  async function dealerResumeAutomation() {
-    'use server'
-    const s = await getServerSession(authOptions)
-    if (!s || s.user.role !== 'dealer') throw new Error('Unauthorized')
-    await resumeTenantAutomation(s.user.tenantId)
-    revalidatePath('/dealer/dashboard')
-  }
 
   const tenantId = session.user.tenantId
 
@@ -398,13 +362,13 @@ export default async function DealerDashboardPage() {
       )}
 
       {/* ── System Status card (compact) ─────────────────────────────────
-          Suppressed when compliance-blocked (setup panel already alerts). */}
+          Suppressed when compliance-blocked (setup panel already alerts).
+          Read-only: pause/resume is handled by DLR during setup/launch,
+          not exposed to the dealer surface. */}
       {!tenantRow?.complianceBlocked && (
         <DealerAutomationStatusCard
           isLive={isLive}
           paused={!!tenantRow?.automationPaused}
-          pauseAction={dealerPauseAutomation}
-          resumeAction={dealerResumeAutomation}
         />
       )}
 
@@ -816,7 +780,7 @@ function MessagingSafetyBanner({
   } else if (state === 'in_review') {
     icon   = '⏳'
     title  = 'Campaigns in review — not live yet'
-    detail = `Approving a campaign prepares it for final review. No messages send from ${dealershipName} until DLR activates your account.`
+    detail = `Approving a campaign prepares it for final review. No messages are sent from ${dealershipName} until DLR activates your account.`
     bg     = '#fffbeb'
     border = '#fde68a'
     iconBg = '#f59e0b'
@@ -856,40 +820,33 @@ function MessagingSafetyBanner({
 // ── Dealer automation status card ──────────────────────────────────────────
 //
 // Compact "System Status" pill card — intentionally smaller and less alarming
-// than the old bordered section. Three states: not_live (gray, no action),
-// running (green, pause button), paused (amber, resume button).
+// than the old bordered section. Read-only: dealer-facing pause/resume
+// controls were removed — automation state is managed by DLR during setup
+// and launch. Three states: not_live (gray), running (green), paused (amber).
 
 function DealerAutomationStatusCard({
   isLive,
   paused,
-  pauseAction,
-  resumeAction,
 }: {
-  isLive:       boolean
-  paused:       boolean
-  pauseAction:  () => Promise<void>
-  resumeAction: () => Promise<void>
+  isLive: boolean
+  paused: boolean
 }) {
   let dotColor:   string
   let statusText: string
   let detail:     string
-  let button:     'pause' | 'resume' | null
 
   if (paused) {
     dotColor   = '#f59e0b'
     statusText = 'Paused'
     detail     = 'No automated follow-up is running. Existing conversations remain in Inbox.'
-    button     = 'resume'
   } else if (isLive) {
     dotColor   = '#22c55e'
     statusText = 'Running'
     detail     = 'DLR is managing approved live conversations for your dealership.'
-    button     = 'pause'
   } else {
     dotColor   = '#d1d5db'
     statusText = 'Not live yet'
     detail     = 'Automation will start once campaign review and the final activation step are complete.'
-    button     = null
   }
 
   return (
@@ -915,29 +872,10 @@ function DealerAutomationStatusCard({
           </p>
         </div>
         <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{detail}</p>
+        <p className="text-xs text-gray-400 mt-1 italic leading-relaxed">
+          Automation status is managed with DLR during setup and launch.
+        </p>
       </div>
-
-      {/* Pause / Resume button */}
-      {button === 'pause' && (
-        <ConfirmingForm action={pauseAction} confirmMessage={PAUSE_CONFIRM_PROMPT}>
-          <button
-            type="submit"
-            className="flex-shrink-0 px-3 py-1.5 text-xs font-semibold text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
-          >
-            Pause
-          </button>
-        </ConfirmingForm>
-      )}
-      {button === 'resume' && (
-        <ConfirmingForm action={resumeAction} confirmMessage={RESUME_CONFIRM_PROMPT}>
-          <button
-            type="submit"
-            className="flex-shrink-0 px-3 py-1.5 text-xs font-semibold text-emerald-600 border border-emerald-200 rounded-lg hover:bg-emerald-50 transition-colors"
-          >
-            Resume
-          </button>
-        </ConfirmingForm>
-      )}
     </div>
   )
 }

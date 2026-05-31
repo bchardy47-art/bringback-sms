@@ -667,7 +667,7 @@ export default async function DealerImportPage({
                 />
               ) : (
                 <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">
-                  <p className="font-semibold">⚠ Selected leads have no age-bucket workflow assigned</p>
+                  <p className="font-semibold">⚠ These selected leads are not assigned to a campaign group yet</p>
                   <p className="mt-0.5">Clear these leads and re-import with a contact date column.</p>
                 </div>
               )}
