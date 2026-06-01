@@ -21,11 +21,14 @@ import type { AgeBucket } from '@/lib/db/schema'
 
 type RouteContext = { params: { batchId: string } }
 
-const CONSENT_STYLE: Record<string, string> = {
-  explicit: 'text-emerald-700',
-  implied:  'text-amber-700',
-  unknown:  'text-gray-500',
-  revoked:  'text-red-600 font-semibold',
+// Per-lead consent pill (used in the message-preview hero cards next to
+// the lead's name). Mirrors the chip palette used in the small meta strip
+// and on /dealer/batches so the same word always wears the same color.
+const CONSENT_PILL: Record<string, string> = {
+  explicit: 'bg-emerald-100 text-emerald-700',
+  implied:  'bg-amber-100 text-amber-700',
+  unknown:  'bg-gray-100 text-gray-600',
+  revoked:  'bg-red-100 text-red-700',
 }
 
 export default async function DealerBatchReviewPage({ params }: RouteContext) {
@@ -88,16 +91,34 @@ export default async function DealerBatchReviewPage({ params }: RouteContext) {
     if (previews.some(p => p.usedFallback)) fallbackCount++
   }
 
-  return (
-    <div className="p-8 max-w-5xl mx-auto space-y-8">
+  // Hero headline picks a name when there's a single lead; otherwise the
+  // count. Falls back to "1 lead" if the single lead has no name on file —
+  // never renders "Prepared messages for —".
+  const singleLead = totalLeads === 1 ? leadRecords[0] : null
+  const singleLeadFullName = singleLead
+    ? `${singleLead.firstName ?? ''} ${singleLead.lastName ?? ''}`.trim()
+    : ''
+  const heroHeadline = singleLead && singleLeadFullName
+    ? `Prepared messages for ${singleLeadFullName}`
+    : `Prepared messages for ${totalLeads} lead${totalLeads === 1 ? '' : 's'}`
 
-      {/* Header */}
+  const groupLabel = workflow?.ageBucket
+    ? (DEALER_BUCKET_LABEL[workflow.ageBucket as AgeBucket] ?? workflow.name ?? '—')
+    : (workflow?.name ?? '—')
+
+  return (
+    <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-6">
+
+      {/* ── Header — dealer-friendly framing. Title + subtitle lead with the
+            promise (read the exact messages) rather than the compliance frame
+            ("Campaign Review"). Safety language stays inline so it can't be
+            missed even when the checklist is collapsed below. */}
       <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Campaign Review</h1>
-          <p className="mt-1 text-sm text-gray-500">
-            Review each lead&apos;s messages before approving. Nothing is sent until you approve
-            and we complete the final activation step together.
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold text-gray-900">Review prepared messages</h1>
+          <p className="mt-1.5 text-sm text-gray-600 leading-relaxed max-w-2xl">
+            Read the exact messages before anything sends. Approval only prepares
+            the campaign for final launch with DLR.
           </p>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
@@ -134,53 +155,62 @@ export default async function DealerBatchReviewPage({ params }: RouteContext) {
         </div>
       )}
 
-      {/* Batch summary */}
-      <div className="bg-white border border-gray-200 rounded-xl px-6 py-4 space-y-3">
-        <div className="flex items-center gap-3">
-          {/*
-            Display-only badge. The Campaigns list says "Ready for review" for
-            a draft batch (DEALER_STATUS_LABEL / STATUS_LEGEND); this page used
-            to render the raw "DRAFT" status, which read as a contradiction to
-            the dealer. Backend status values are unchanged.
-          */}
-          <span className={`px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${
-            isDraft    ? 'bg-blue-100 text-blue-700'    :
-            isApproved ? 'bg-blue-100 text-blue-700'    :
-            'bg-emerald-100 text-emerald-700'
-          }`}>
-            {isDraft ? 'Ready for review' : batch.status}
+      {/* ── Compact meta strip — was a bordered batch-summary card + a
+            separate Consent Summary card. Both collapsed here so the
+            metadata stops competing with the message hero below. Group,
+            lead count, created date, approval date, consent breakdown,
+            and fallback count all live in one wrap-line. */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs">
+        <span className={`px-2 py-0.5 rounded-full font-bold uppercase tracking-wide ${
+          isDraft    ? 'bg-blue-100 text-blue-700'    :
+          isApproved ? 'bg-blue-100 text-blue-700'    :
+          'bg-emerald-100 text-emerald-700'
+        }`}>
+          {isDraft ? 'Ready for review' : batch.status}
+        </span>
+        <span className="text-gray-500">
+          <span className="text-gray-400">Group:</span>{' '}
+          <span className="font-semibold text-gray-700">{groupLabel}</span>
+        </span>
+        <span className="text-gray-300" aria-hidden="true">·</span>
+        <span className="text-gray-500">
+          <span className="font-semibold text-gray-700">{totalLeads}</span>{' '}
+          lead{totalLeads !== 1 ? 's' : ''}
+        </span>
+        <span className="text-gray-300" aria-hidden="true">·</span>
+        <span className="text-gray-500">
+          <span className="text-gray-400">Created:</span>{' '}
+          <span className="font-semibold text-gray-700">
+            {new Date(batch.createdAt).toLocaleDateString()}
           </span>
-        </div>
-
-        <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
-          <div>
-            <p className="text-xs text-gray-500 uppercase tracking-wide">Campaign Group</p>
-            <p className="font-semibold text-gray-800">
-              {workflow?.ageBucket
-                ? (DEALER_BUCKET_LABEL[workflow.ageBucket as AgeBucket] ?? workflow.name ?? '—')
-                : (workflow?.name ?? '—')}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs text-gray-500 uppercase tracking-wide">Leads</p>
-            <p className="font-semibold text-gray-800">{totalLeads}</p>
-          </div>
-          <div>
-            <p className="text-xs text-gray-500 uppercase tracking-wide">Created</p>
-            <p className="font-semibold text-gray-800">
-              {new Date(batch.createdAt).toLocaleDateString()}
-            </p>
-          </div>
-          {batch.approvedAt && (
-            <div>
-              <p className="text-xs text-gray-500 uppercase tracking-wide">Approved</p>
-              <p className="font-semibold text-gray-800">
+        </span>
+        {batch.approvedAt && (
+          <>
+            <span className="text-gray-300" aria-hidden="true">·</span>
+            <span className="text-gray-500">
+              <span className="text-gray-400">Approved:</span>{' '}
+              <span className="font-semibold text-gray-700">
                 {new Date(batch.approvedAt).toLocaleDateString()}
                 {batch.approvedBy ? ` by ${batch.approvedBy}` : ''}
-              </p>
-            </div>
-          )}
-        </div>
+              </span>
+            </span>
+          </>
+        )}
+        {Object.entries(consentCounts).map(([status, count]) => (
+          <span
+            key={status}
+            className={`px-2 py-0.5 rounded-full font-semibold ${
+              CONSENT_PILL[status] ?? 'bg-gray-100 text-gray-600'
+            }`}
+          >
+            {count} {status}
+          </span>
+        ))}
+        {fallbackCount > 0 && (
+          <span className="px-2 py-0.5 rounded-full font-semibold bg-orange-50 text-orange-700 border border-orange-200">
+            {fallbackCount} fallback
+          </span>
+        )}
       </div>
 
       {!hasVisibleLeads && (
@@ -192,116 +222,170 @@ export default async function DealerBatchReviewPage({ params }: RouteContext) {
         </div>
       )}
 
-      {hasVisibleLeads && (<>
-      {/* Consent summary */}
-      <div className="border border-gray-200 rounded-xl px-5 py-4">
-        <h2 className="text-sm font-semibold text-gray-900 mb-3">Consent Summary</h2>
-        <div className="flex flex-wrap gap-2">
-          {Object.entries(consentCounts).map(([status, count]) => (
-            <span
-              key={status}
-              className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                status === 'explicit' ? 'bg-emerald-100 text-emerald-700' :
-                status === 'implied'  ? 'bg-amber-100 text-amber-700' :
-                status === 'revoked'  ? 'bg-red-100 text-red-700' :
-                'bg-gray-100 text-gray-600'
-              }`}
-            >
-              {count} lead{count !== 1 ? 's' : ''} with {status} consent
-            </span>
-          ))}
-          {fallbackCount > 0 && (
-            <span className="px-3 py-1 rounded-full text-xs font-semibold bg-orange-100 text-orange-700">
-              fallback templates: {fallbackCount}
-            </span>
-          )}
-        </div>
-        <p className="text-xs text-gray-500 mt-2">
-          Fallback templates are used when a lead&apos;s vehicle of interest isn&apos;t on file —
-          they&apos;re still personalized to first name and dealership.
-        </p>
-      </div>
+      {hasVisibleLeads && (
+        <section className="space-y-4">
+          {/* ── Hero header — dealer-name-first headline + an inline
+                emerald safety pill so "Nothing sends until you approve…"
+                is still visible even when the approval checklist is
+                collapsed below the messages. */}
+          <div className="flex items-baseline justify-between gap-3 flex-wrap">
+            <div className="min-w-0">
+              <h2 className="text-lg md:text-xl font-bold text-gray-900 leading-tight">
+                {heroHeadline}
+              </h2>
+              <p className="text-sm text-gray-500 mt-0.5">
+                These are the exact messages each lead will receive, in order.
+              </p>
+            </div>
+            <p className="text-xs font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-full px-3 py-1 leading-snug">
+              Nothing sends until you approve and complete the final launch step with DLR.
+            </p>
+          </div>
 
-      {/* Per-lead message previews */}
-      <div className="border border-gray-200 rounded-xl overflow-hidden">
-        <div className="bg-gray-50 px-5 py-3 border-b border-gray-200">
-          <h2 className="text-sm font-semibold text-gray-900">
-            Message Previews ({totalLeads} lead{totalLeads !== 1 ? 's' : ''})
-          </h2>
-          <p className="text-xs text-gray-500 mt-0.5">
-            These are the exact messages each lead will receive, in order.
-          </p>
-        </div>
-        <div className="divide-y divide-gray-100">
-          {batchLeadRows.map((bl, idx) => {
-            const lead     = leadMap.get(bl.leadId)
-            const previews = (bl.previewMessages as PilotPreviewMessage[] | null) ?? []
+          {/* ── Per-lead cards — the visual hero. Each lead is its own
+                card: identity header, then a clean vertical stack of
+                Message 1 / Message 2 / Message 3 with the message body
+                rendered as the primary text. */}
+          <div className="space-y-4">
+            {batchLeadRows.map((bl, idx) => {
+              const lead     = leadMap.get(bl.leadId)
+              const previews = (bl.previewMessages as PilotPreviewMessage[] | null) ?? []
+              const consentVal = lead?.consentStatus ?? 'unknown'
+              const fullName = `${lead?.firstName ?? ''} ${lead?.lastName ?? ''}`.trim() || '—'
 
-            return (
-              <div key={bl.id} className="px-5 py-4 space-y-3">
-                {/* Lead identity */}
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="font-semibold text-gray-800 text-sm">
-                      {idx + 1}. {lead?.firstName ?? '—'} {lead?.lastName ?? ''}
-                    </p>
-                    <p className="text-xs text-gray-500 font-mono">{lead?.phone ?? '—'}</p>
-                    {lead?.vehicleOfInterest && (
-                      <p className="text-xs text-gray-500">{lead.vehicleOfInterest}</p>
-                    )}
-                  </div>
-                  <div className="text-right text-xs">
-                    <span className={`font-medium ${CONSENT_STYLE[lead?.consentStatus ?? 'unknown'] ?? 'text-gray-500'}`}>
-                      {lead?.consentStatus ?? 'unknown'}
-                    </span>
-                    {bl.approvedForSend && (
-                      <p className="text-emerald-600 font-semibold mt-0.5">✓ Approved for send</p>
-                    )}
-                  </div>
-                </div>
-
-                {/* Message previews */}
-                {previews.length > 0 ? (
-                  <div className="space-y-2 pl-4 border-l-2 border-gray-200">
-                    {previews.map((p, i) => (
-                      <div key={i} className="text-xs">
-                        <p className="text-gray-400 mb-1">
-                          Message {i + 1}
-                          {p.delayHours
-                            ? ` — sent ${p.delayHours >= 24
-                                ? `${Math.round(p.delayHours / 24)} day${Math.round(p.delayHours / 24) !== 1 ? 's' : ''}`
-                                : `${p.delayHours}h`} after previous`
-                            : ' — immediate'
-                          }
-                          {p.usedFallback && (
-                            <span className="ml-1 text-amber-600 font-semibold">⚠ no vehicle on file</span>
+              return (
+                <article
+                  key={bl.id}
+                  className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden"
+                >
+                  {/* Identity header */}
+                  <header className="px-5 py-4 bg-gradient-to-br from-gray-50 to-white border-b border-gray-100">
+                    <div className="flex items-start justify-between gap-3 flex-wrap">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="text-base md:text-lg font-bold text-gray-900 leading-tight">
+                            {fullName}
+                          </h3>
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                              CONSENT_PILL[consentVal] ?? 'bg-gray-100 text-gray-600'
+                            }`}
+                          >
+                            {consentVal} consent
+                          </span>
+                          {bl.approvedForSend && (
+                            <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">
+                              ✓ Approved for send
+                            </span>
                           )}
-                        </p>
-                        <div className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-gray-700 leading-relaxed whitespace-pre-wrap">
-                          {p.rendered}
+                        </div>
+                        <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs">
+                          {lead?.phone && (
+                            <span className="font-mono text-gray-700">{lead.phone}</span>
+                          )}
+                          {lead?.vehicleOfInterest ? (
+                            <span className="text-gray-600">{lead.vehicleOfInterest}</span>
+                          ) : (
+                            <span className="italic text-gray-400">No vehicle on file</span>
+                          )}
                         </div>
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-xs text-gray-400 italic pl-4">
-                    No message previews available for this lead.
-                  </p>
-                )}
-              </div>
-            )
-          })}
-        </div>
-      </div>
+                      <span className="text-xs text-gray-400 mt-1 whitespace-nowrap">
+                        Lead {idx + 1} of {totalLeads}
+                      </span>
+                    </div>
+                  </header>
 
-      </>)}
+                  {/* Message stack */}
+                  {previews.length > 0 ? (
+                    <ol className="divide-y divide-gray-100">
+                      {previews.map((p, i) => (
+                        <li key={i} className="px-5 py-4">
+                          <div className="flex items-center justify-between gap-3 mb-2 flex-wrap">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                              Message {i + 1}
+                            </p>
+                            <p className="text-xs text-gray-400">
+                              {p.delayHours
+                                ? `${p.delayHours >= 24
+                                    ? `${Math.round(p.delayHours / 24)} day${Math.round(p.delayHours / 24) !== 1 ? 's' : ''}`
+                                    : `${p.delayHours}h`} after previous`
+                                : 'Sends first'}
+                              {p.usedFallback && (
+                                <span className="ml-2 text-amber-600 font-medium">
+                                  ⚠ no vehicle on file
+                                </span>
+                              )}
+                            </p>
+                          </div>
+                          <p className="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap">
+                            {p.rendered}
+                          </p>
+                        </li>
+                      ))}
+                    </ol>
+                  ) : (
+                    <p className="px-5 py-4 text-xs text-gray-400 italic">
+                      No message previews available for this lead.
+                    </p>
+                  )}
+                </article>
+              )
+            })}
+          </div>
 
-      {/* Dealer checklist + approve action — only when there's something to approve. */}
+          {/* ── Fallback-template note — moved out of the consent
+                summary's main eye path. Closed by default so it never
+                competes with the message preview hero above. Only shown
+                when at least one preview is actually using a fallback. */}
+          {fallbackCount > 0 && (
+            <details className="text-xs text-gray-500">
+              <summary className="cursor-pointer font-medium text-gray-500 hover:text-gray-700 list-none [&::-webkit-details-marker]:hidden inline-flex items-center gap-1">
+                <span>What does &ldquo;fallback&rdquo; mean?</span>
+                <span aria-hidden="true">▾</span>
+              </summary>
+              <p className="mt-1.5 max-w-prose leading-relaxed">
+                Fallback templates are used when a lead&apos;s vehicle of interest
+                isn&apos;t on file — they&apos;re still personalized to first name and
+                dealership.
+              </p>
+            </details>
+          )}
+        </section>
+      )}
+
+      {/* ── Approval checklist — wrapped in <details> so it reads as the
+            final step after reviewing messages, not a compliance form
+            that competes with the hero. The inner DealerBatchChecklist
+            client component is mounted with its state preserved across
+            open/close (native <details> just toggles visibility), so the
+            existing checklist + attestation + server-action gating is
+            entirely unchanged. */}
       {isDraft && hasVisibleLeads && (
-        <DealerBatchChecklist
-          batchId={params.batchId}
-          totalLeads={totalLeads}
-        />
+        <details className="group rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+          <summary className="cursor-pointer list-none px-5 py-4 flex items-center justify-between gap-3 hover:bg-gray-50 transition-colors [&::-webkit-details-marker]:hidden">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-gray-900">
+                Ready to approve? Review safety checklist
+              </p>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Final step — open this once the messages above look right to you.
+              </p>
+            </div>
+            <span
+              aria-hidden="true"
+              className="text-gray-400 transition-transform duration-150 group-open:rotate-180"
+            >
+              ▾
+            </span>
+          </summary>
+          <div className="border-t border-gray-100">
+            <DealerBatchChecklist
+              batchId={params.batchId}
+              totalLeads={totalLeads}
+            />
+          </div>
+        </details>
       )}
 
       {/* Footer nav */}
