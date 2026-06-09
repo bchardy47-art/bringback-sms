@@ -1,7 +1,6 @@
-import { getServerSession } from 'next-auth'
 import { redirect } from 'next/navigation'
 import { desc, eq } from 'drizzle-orm'
-import { authOptions } from '@/lib/auth'
+import { getDealerSession } from '@/lib/dealer/dev-auth-bypass'
 import { db } from '@/lib/db'
 import { conversations } from '@/lib/db/schema'
 import { ConversationListSidebar } from '@/components/inbox/ConversationListSidebar'
@@ -25,7 +24,7 @@ import { InboxLayoutClient } from '@/components/inbox/InboxLayoutClient'
 export const dynamic = 'force-dynamic'
 
 export default async function DealerInboxLayout({ children }: { children: React.ReactNode }) {
-  const session = await getServerSession(authOptions)
+  const session = await getDealerSession()
   if (!session) redirect('/login')
   if (session.user.role !== 'dealer') redirect('/dashboard')
 

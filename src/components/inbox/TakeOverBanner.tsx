@@ -1,28 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { Zap, CheckCircle } from 'lucide-react'
-
-/**
- * Take-over banner — sits at the top of a conversation thread.
- *
- * Two display states:
- *   - Not yet taken over (automation managing): amber banner explaining
- *     that automation is in charge, plus a "Take over conversation"
- *     button. Clicking the button shows a window.confirm() gate before
- *     posting to /api/conversations/[id]/take-over — that endpoint
- *     stamps humanTookOverAt, cancels the lead's enrollments, sets
- *     doNotAutomate=true, and cleans pending BullMQ jobs.
- *   - Taken over: green banner confirming the human is active and
- *     automation is paused.
- *
- * Render decision lives in the parent (page.tsx) — show this banner
- * whenever the conversation is open (not opted_out, not closed). The
- * parent also gates the reply compose box on the same humanTookOverAt
- * flag so an automated conversation can't accept a manual reply until
- * take-over is confirmed.
- */
 
 const TAKE_OVER_CONFIRM_PROMPT =
   'Take over this conversation? Automation will pause for this lead ' +
@@ -30,14 +10,15 @@ const TAKE_OVER_CONFIRM_PROMPT =
 
 type Props = {
   conversationId: string
-  /** already stamped when page loaded */
   alreadyTakenOver: boolean
 }
 
 export function TakeOverBanner({ conversationId, alreadyTakenOver }: Props) {
   const router = useRouter()
+  const pathname = usePathname()
   const [taken, setTaken] = useState(alreadyTakenOver)
   const [loading, setLoading] = useState(false)
+  const isDealer = pathname.startsWith('/dealer')
 
   async function handleTakeOver() {
     if (loading) return
@@ -51,13 +32,63 @@ export function TakeOverBanner({ conversationId, alreadyTakenOver }: Props) {
         method: 'POST',
       })
       setTaken(true)
-      // Refresh server data (lead state badge, etc.)
       router.refresh()
     } finally {
       setLoading(false)
     }
   }
 
+  if (isDealer) {
+    if (taken) {
+      return (
+        <div
+          className="flex items-center gap-2.5 px-5 py-2.5 text-sm font-bold"
+          style={{
+            background: 'rgba(34,197,94,0.12)',
+            borderBottom: '1px solid rgba(34,197,94,0.4)',
+            color: '#4ade80',
+          }}
+        >
+          <CheckCircle size={15} />
+          Human Active — you have taken over this conversation. Automation is paused.
+        </div>
+      )
+    }
+
+    return (
+      <div
+        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-3"
+        style={{
+          background: 'rgba(245,158,11,0.10)',
+          borderBottom: '1px solid rgba(245,158,11,0.4)',
+        }}
+      >
+        <div className="flex items-start gap-2 text-sm min-w-0" style={{ color: '#fbbf24' }}>
+          <Zap size={15} className="flex-shrink-0 mt-0.5" />
+          <span>
+            <strong className="font-black">Automation is managing this conversation.</strong>{' '}
+            Take over to reply manually. Automation will pause for this lead.
+          </span>
+        </div>
+        <button
+          onClick={handleTakeOver}
+          disabled={loading}
+          className="flex-shrink-0 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-opacity disabled:opacity-60 self-start sm:self-auto"
+          style={{
+            background: 'linear-gradient(180deg, #ff2929 0%, #a80d0d 100%)',
+            border: '1px solid rgba(255,80,80,0.78)',
+            color: 'white',
+            boxShadow: '0 0 14px rgba(255,27,27,0.5), inset 0 1px 0 rgba(255,255,255,0.18)',
+          }}
+        >
+          <Zap size={13} />
+          {loading ? 'Taking over…' : 'Take Over'}
+        </button>
+      </div>
+    )
+  }
+
+  // Admin / light theme — unchanged
   if (taken) {
     return (
       <div className="flex items-center gap-2.5 px-5 py-2.5 text-sm font-medium"

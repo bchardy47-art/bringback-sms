@@ -1,18 +1,24 @@
 'use client'
 
 import { useState, useRef, FormEvent } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
+import { Send, FileText, MessageSquare } from 'lucide-react'
 
 export function ReplyBox({ conversationId }: { conversationId: string }) {
   const [body, setBody] = useState('')
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [mode, setMode] = useState<'reply' | 'note'>('reply')
   const router = useRouter()
+  const pathname = usePathname()
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const isDealer = pathname.startsWith('/dealer')
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     if (!body.trim()) return
+    // Internal notes are not supported by the API surface; only 'reply' sends.
+    if (mode !== 'reply') return
 
     setSending(true)
     setError(null)
@@ -33,10 +39,6 @@ export function ReplyBox({ conversationId }: { conversationId: string }) {
     setSending(false)
 
     if (!res.ok) {
-      // Tolerate non-JSON error responses (e.g. Next.js renders HTML on
-      // unhandled 500s). Before this guard, res.json() threw and the
-      // exception was swallowed — the user saw nothing and the body
-      // sat in the textarea, looking like a no-op.
       let serverError: string | undefined
       try {
         const data = await res.json()
@@ -55,17 +57,119 @@ export function ReplyBox({ conversationId }: { conversationId: string }) {
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key !== 'Enter') return
-    // Shift+Enter: let the textarea insert a newline.
     if (e.shiftKey) return
-    // IME composition (Japanese/Chinese/Korean input, voice dictation): the
-    // Enter that confirms a candidate must not also submit the form.
     if (e.nativeEvent.isComposing || e.keyCode === 229) return
-    // Re-check sending + non-empty here so a stuck send + a stale ref'd
-    // closure can't double-submit.
-    if (sending || !body.trim()) return
+    if (sending || !body.trim() || mode !== 'reply') return
     handleSubmit(e as unknown as FormEvent)
   }
 
+  if (isDealer) {
+    return (
+      <form onSubmit={handleSubmit} className="px-4 py-3" style={{ background: 'rgba(3,3,4,0.92)' }}>
+        {/* Reply / Internal Note tabs */}
+        <div className="flex gap-2 mb-2">
+          <button
+            type="button"
+            onClick={() => setMode('reply')}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-bold uppercase tracking-widest transition-colors"
+            style={
+              mode === 'reply'
+                ? {
+                    background: 'rgba(255,27,27,0.2)',
+                    border: '1px solid rgba(255,27,27,0.7)',
+                    boxShadow: '0 0 14px rgba(255,27,27,0.28)',
+                    color: '#fff',
+                  }
+                : {
+                    background: 'rgba(255,255,255,0.04)',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    color: 'rgba(255,255,255,0.55)',
+                  }
+            }
+          >
+            <MessageSquare size={12} />
+            Reply
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode('note')}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-bold uppercase tracking-widest transition-colors"
+            style={
+              mode === 'note'
+                ? {
+                    background: 'rgba(245,158,11,0.18)',
+                    border: '1px solid rgba(245,158,11,0.55)',
+                    color: '#fbbf24',
+                  }
+                : {
+                    background: 'rgba(255,255,255,0.04)',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    color: 'rgba(255,255,255,0.55)',
+                  }
+            }
+          >
+            <FileText size={12} />
+            Internal Note
+          </button>
+          <div className="flex-1" />
+          <span className="text-[10px] self-center" style={{ color: 'rgba(255,255,255,0.4)' }}>
+            {body.length}/1600
+          </span>
+        </div>
+
+        {mode === 'note' && (
+          <p className="mb-2 text-[11px]" style={{ color: '#fbbf24' }}>
+            Internal notes aren&apos;t saved to the lead record yet — switch to Reply to send a message.
+          </p>
+        )}
+
+        <div className="flex gap-3 items-end">
+          <textarea
+            ref={textareaRef}
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={mode === 'reply' ? 'Type your message...' : 'Add an internal note for your team...'}
+            rows={2}
+            maxLength={1600}
+            className="flex-1 resize-none rounded-lg px-3 py-2.5 text-sm outline-none transition-colors"
+            style={{
+              background: 'rgba(255,255,255,0.04)',
+              border: '1px solid rgba(255,255,255,0.12)',
+              color: 'white',
+            }}
+          />
+          <button
+            type="submit"
+            disabled={sending || !body.trim() || mode !== 'reply'}
+            className="inline-flex items-center gap-2 px-4 rounded-lg text-xs font-black uppercase tracking-widest disabled:cursor-not-allowed transition-all"
+            style={
+              sending || !body.trim() || mode !== 'reply'
+                ? {
+                    height: 44,
+                    background: 'rgba(255,255,255,0.05)',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    color: 'var(--dlr-muted-dark)',
+                  }
+                : {
+                    height: 44,
+                    background: 'linear-gradient(180deg, #ff2929 0%, #a80d0d 100%)',
+                    border: '1px solid rgba(255,80,80,0.78)',
+                    color: 'white',
+                    boxShadow: '0 0 18px rgba(255,27,27,0.55), inset 0 1px 0 rgba(255,255,255,0.18)',
+                  }
+            }
+          >
+            {sending ? 'Sending…' : 'Send'}
+            <Send size={13} />
+          </button>
+        </div>
+        {error && <p className="mt-1.5 text-xs" style={{ color: '#ff5252' }}>{error}</p>}
+      </form>
+    )
+  }
+
+  // Admin / light theme — unchanged
   return (
     <form onSubmit={handleSubmit} className="px-6 py-4">
       <div className="flex gap-3 items-end">

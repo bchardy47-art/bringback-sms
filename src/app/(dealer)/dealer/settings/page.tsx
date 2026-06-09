@@ -1,8 +1,7 @@
-import { getServerSession } from 'next-auth'
 import { redirect } from 'next/navigation'
 import { and, desc, eq, isNotNull } from 'drizzle-orm'
 import { User, Shield, CreditCard } from 'lucide-react'
-import { authOptions } from '@/lib/auth'
+import { getDealerSession } from '@/lib/dealer/dev-auth-bypass'
 import { db } from '@/lib/db'
 import { users, dealerIntakes } from '@/lib/db/schema'
 import { DealerProfileEditForm } from '@/components/dealer/DealerProfileEditForm'
@@ -10,7 +9,7 @@ import { ChangePasswordForm } from '@/components/settings/ChangePasswordForm'
 import { BillingPortalButton } from '@/components/settings/BillingPortalButton'
 
 export default async function DealerSettingsPage() {
-  const session = await getServerSession(authOptions)
+  const session = await getDealerSession()
   if (!session) redirect('/login?callbackUrl=/dealer/settings')
   if (session.user.role !== 'dealer') redirect('/settings')
 

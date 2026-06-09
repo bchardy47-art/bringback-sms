@@ -11,9 +11,8 @@
 import { db } from '@/lib/db'
 import { pilotBatches, pilotBatchLeads, leads, workflows } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
-import { getServerSession } from 'next-auth'
 import { redirect, notFound } from 'next/navigation'
-import { authOptions } from '@/lib/auth'
+import { getDealerSession } from '@/lib/dealer/dev-auth-bypass'
 import type { PilotPreviewMessage } from '@/lib/db/schema'
 import { DealerBatchChecklist } from './DealerBatchChecklist'
 import { DEALER_BUCKET_LABEL } from '@/lib/pilot/age-classification'
@@ -32,7 +31,7 @@ const CONSENT_PILL: Record<string, string> = {
 }
 
 export default async function DealerBatchReviewPage({ params }: RouteContext) {
-  const session = await getServerSession(authOptions)
+  const session = await getDealerSession()
   if (!session) redirect('/login')
   if (session.user.role !== 'dealer') redirect('/dashboard')
 

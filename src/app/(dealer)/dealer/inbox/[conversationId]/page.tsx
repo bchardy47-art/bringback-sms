@@ -1,8 +1,7 @@
-import { getServerSession } from 'next-auth'
 import { redirect, notFound } from 'next/navigation'
 import { and, eq } from 'drizzle-orm'
 import Link from 'next/link'
-import { authOptions } from '@/lib/auth'
+import { getDealerSession } from '@/lib/dealer/dev-auth-bypass'
 import { db } from '@/lib/db'
 import { conversations } from '@/lib/db/schema'
 import { MessageThread } from '@/components/inbox/MessageThread'
@@ -15,30 +14,27 @@ import {
   User,
   MessageSquare,
   ArrowLeft,
+  Zap,
+  CheckCircle2,
+  Ban,
+  Tag,
 } from 'lucide-react'
 
-const STATE_STYLES: Record<string, { label: string; color: string }> = {
-  active:    { label: 'Active',    color: 'bg-gray-100 text-gray-700' },
-  stale:     { label: 'Stale',     color: 'bg-yellow-100 text-yellow-700' },
-  enrolled:  { label: 'Enrolled',  color: 'bg-blue-100 text-blue-700' },
-  responded: { label: 'Responded', color: 'bg-green-100 text-green-700' },
-  revived:   { label: 'Revived',   color: 'bg-emerald-100 text-emerald-700' },
-  exhausted: { label: 'Exhausted', color: 'bg-red-100 text-red-600' },
-  opted_out: { label: 'Opted Out', color: 'bg-red-100 text-red-700' },
-  dead:      { label: 'Dead',      color: 'bg-gray-100 text-gray-400' },
+const STATE_BADGE: Record<string, { label: string; className: string }> = {
+  active:    { label: 'Active',    className: 'dlr-badge-preview' },
+  stale:     { label: 'Stale',     className: 'dlr-badge-approved' },
+  enrolled:  { label: 'Enrolled',  className: 'dlr-badge-live' },
+  responded: { label: 'Responded', className: 'dlr-badge-sending' },
+  revived:   { label: 'Revived',   className: 'dlr-badge-sending' },
+  exhausted: { label: 'Exhausted', className: 'dlr-badge-live' },
+  opted_out: { label: 'Opted Out', className: 'dlr-badge-live' },
+  dead:      { label: 'Dead',      className: 'dlr-badge-preview' },
 }
 
-const CONV_STATUS_STYLES: Record<string, { label: string; color: string }> = {
-  open:      { label: 'Open',      color: 'bg-green-100 text-green-700' },
-  closed:    { label: 'Closed',    color: 'bg-gray-100 text-gray-500' },
-  opted_out: { label: 'Opted Out', color: 'bg-red-100 text-red-700' },
-}
-
-const AVATAR_COLORS = ['#dc2626', '#2563eb', '#16a34a', '#d97706', '#7c3aed', '#0891b2', '#be185d']
-function nameToColor(str: string): string {
-  let hash = 0
-  for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash)
-  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length]
+const CONV_STATUS_BADGE: Record<string, { label: string; className: string }> = {
+  open:      { label: 'Open',      className: 'dlr-badge-sending' },
+  closed:    { label: 'Closed',    className: 'dlr-badge-preview' },
+  opted_out: { label: 'Opted Out', className: 'dlr-badge-live' },
 }
 
 export default async function DealerConversationPage({
@@ -46,7 +42,7 @@ export default async function DealerConversationPage({
 }: {
   params: { conversationId: string }
 }) {
-  const session = await getServerSession(authOptions)
+  const session = await getDealerSession()
   if (!session) redirect('/login')
   if (session.user.role !== 'dealer') redirect('/dashboard')
 
@@ -68,62 +64,113 @@ export default async function DealerConversationPage({
   const isOpen          = conversation.status === 'open'
   const isOptedOut      = conversation.status === 'opted_out'
   const isClosed        = conversation.status === 'closed'
-  // Compose only enabled when the dealer has explicitly taken over. An
-  // automated open conversation must NOT accept a manual reply — that's
-  // the QA bug this gate fixes.
   const canReply        = isOpen && isHumanOwned
-  const statusStyle = CONV_STATUS_STYLES[conversation.status] ?? CONV_STATUS_STYLES.open
-  const stateStyle = STATE_STYLES[lead.state] ?? { label: lead.state, color: 'bg-gray-100 text-gray-600' }
+  const statusBadge = CONV_STATUS_BADGE[conversation.status] ?? CONV_STATUS_BADGE.open
+  const stateBadge = STATE_BADGE[lead.state] ?? { label: lead.state, className: 'dlr-badge-preview' }
   const initials = `${lead.firstName[0] ?? ''}${lead.lastName?.[0] ?? ''}`.toUpperCase()
-  const avatarColor = nameToColor(lead.firstName)
 
-  // Show take-over banner for any open conversation (not opted_out, not
-  // closed). The banner renders one of two states: "Automation is
-  // managing" + take-over button when humanTookOverAt is null, or the
-  // green "Human Active" confirmation after take-over. Conversations
-  // that are already opted-out or closed surface their own footer cards
-  // instead of the banner.
   const showTakeOverBanner = isOpen
+
+  // ── Lead score (derived from existing fields — no new data) ───────────
+  // Heuristic blends: lead state, recency of activity, vehicle of interest,
+  // and conversation length. Surfaces as the red glowing dial in the right panel.
+  const recencyDays = lead.lastCrmActivityAt
+    ? Math.floor((Date.now() - new Date(lead.lastCrmActivityAt).getTime()) / 86400000)
+    : 999
+  const stateBoost: Record<string, number> = {
+    revived: 25, responded: 18, enrolled: 12, active: 5,
+    stale: -5, exhausted: -10, opted_out: -25, dead: -15,
+  }
+  const messageBoost = Math.min(conversation.messages.length * 2, 18)
+  const recencyBoost = recencyDays < 7 ? 12 : recencyDays < 30 ? 6 : recencyDays < 90 ? 0 : -8
+  const vehicleBoost = lead.vehicleOfInterest ? 8 : 0
+  const leadScore = Math.max(
+    0,
+    Math.min(100, 55 + (stateBoost[lead.state] ?? 0) + messageBoost + recencyBoost + vehicleBoost),
+  )
+
+  // Priority — visual classification only.
+  const priority: 'HOT' | 'WARM' | 'COLD' =
+    leadScore >= 75 ? 'HOT' : leadScore >= 45 ? 'WARM' : 'COLD'
+
+  const tags: string[] = []
+  if (lead.vehicleOfInterest) tags.push(lead.vehicleOfInterest)
+  if (lead.salespersonName)   tags.push(`Rep: ${lead.salespersonName}`)
+  if (recencyDays < 30)       tags.push('Recent activity')
+  if (conversation.messages.length === 0) tags.push('New Lead')
 
   return (
     <div className="flex h-full overflow-hidden">
-      {/* Center: Message Thread */}
-      <div className="flex-1 flex flex-col overflow-hidden bg-gray-50">
-        {/* Thread header */}
-        <div className="flex items-center gap-3 px-3 md:px-5 py-4 bg-white border-b border-gray-200 flex-shrink-0">
-          {/* Back — mobile only */}
+
+      {/* ── Center: Conversation ──────────────────────────────── */}
+      <div
+        className="flex-1 flex flex-col overflow-hidden"
+        style={{ background: 'rgba(3,3,4,0.96)' }}
+      >
+        {/* Header */}
+        <div
+          className="flex items-center gap-3 px-3 md:px-5 py-3 flex-shrink-0"
+          style={{
+            background: 'rgba(8,8,10,0.85)',
+            borderBottom: '1px solid rgba(255,27,27,0.32)',
+          }}
+        >
           <Link
             href="/dealer/inbox"
-            className="md:hidden flex-shrink-0 p-1.5 -ml-1 rounded-lg hover:bg-gray-100 text-gray-500"
+            className="md:hidden flex-shrink-0 p-1.5 -ml-1 rounded-lg transition-colors"
+            style={{ color: 'rgba(255,255,255,0.65)' }}
             aria-label="Back to inbox"
           >
             <ArrowLeft size={18} />
           </Link>
           <div
-            className="w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center text-white text-xs font-bold"
-            style={{ backgroundColor: avatarColor }}
+            className="w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center text-white text-xs font-black"
+            style={{
+              background: 'linear-gradient(135deg, #1a0505, #3a0505)',
+              border: '1px solid rgba(255,27,27,0.55)',
+              boxShadow: '0 0 12px rgba(255,27,27,0.35)',
+            }}
           >
-            {initials}
+            {initials || 'L'}
           </div>
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-bold text-gray-900">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm font-black text-white">
                 {lead.firstName} {lead.lastName}
               </span>
-              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusStyle.color}`}>
-                {statusStyle.label}
-              </span>
+              <span className={`dlr-badge ${statusBadge.className}`}>{statusBadge.label}</span>
+              {conversation.messages.length === 0 && (
+                <span className="dlr-badge dlr-badge-live">New Lead</span>
+              )}
             </div>
-            <p className="text-xs text-gray-500">{conversation.leadPhone}</p>
+            <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.55)' }}>
+              {conversation.leadPhone}
+              {lead.vehicleOfInterest && (
+                <>
+                  <span className="mx-1.5" style={{ color: 'rgba(255,255,255,0.25)' }}>·</span>
+                  {lead.vehicleOfInterest}
+                </>
+              )}
+              <span className="mx-1.5" style={{ color: 'rgba(255,255,255,0.25)' }}>·</span>
+              <span style={{ color: 'rgba(255,255,255,0.4)' }}>Received {new Date(conversation.messages[0]?.createdAt ?? conversation.updatedAt).toLocaleDateString()}</span>
+            </p>
           </div>
           <a
             href={`tel:${conversation.leadPhone}`}
-            className="p-2 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+            className="inline-flex items-center justify-center w-10 h-10 rounded-lg transition-colors"
+            style={{
+              background: 'rgba(255,255,255,0.04)',
+              border: '1px solid rgba(255,255,255,0.08)',
+              color: 'rgba(255,255,255,0.85)',
+            }}
             title="Call lead"
           >
-            <Phone size={16} />
+            <Phone size={15} />
           </a>
         </div>
+
+        {/* Red pulse line under header */}
+        <div className="dlr-pulse-line flex-shrink-0" />
 
         {/* Take-over banner */}
         {showTakeOverBanner && (
@@ -134,77 +181,145 @@ export default async function DealerConversationPage({
         )}
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-5 py-4 scrollbar-thin">
+        <div className="flex-1 overflow-y-auto px-5 py-4 dlr-scrollbar">
           <MessageThread messages={conversation.messages} />
         </div>
 
-        {/* Reply area — four mutually exclusive states. Compose can ONLY
-            render when canReply (open + human-owned). Automated open
-            conversations show a disabled placeholder pointing the dealer
-            at the take-over banner above; the banner is where the action
-            lives so we don't duplicate the button here. */}
+        {/* Reply area */}
         {canReply ? (
-          <div className="flex-shrink-0 bg-white border-t border-gray-200">
+          <div
+            className="flex-shrink-0"
+            style={{
+              background: 'rgba(8,8,10,0.85)',
+              borderTop: '1px solid rgba(255,27,27,0.3)',
+            }}
+          >
             <ReplyBox conversationId={conversation.id} />
           </div>
         ) : isOpen ? (
-          <div className="flex-shrink-0 border-t border-amber-200 bg-amber-50 px-5 py-4">
-            <p className="text-sm text-center text-amber-800">
+          <div
+            className="flex-shrink-0 px-5 py-4"
+            style={{
+              background: 'rgba(245,158,11,0.10)',
+              borderTop: '1px solid rgba(245,158,11,0.4)',
+            }}
+          >
+            <p className="text-sm text-center" style={{ color: '#fbbf24' }}>
               Compose disabled while automation manages this conversation.
               Take over above to reply manually.
             </p>
           </div>
         ) : isOptedOut ? (
-          <div className="flex-shrink-0 border-t border-red-200 bg-red-50 px-5 py-4">
-            <p className="text-sm text-center text-red-700 font-medium">
+          <div
+            className="flex-shrink-0 px-5 py-4"
+            style={{
+              background: 'rgba(255,27,27,0.10)',
+              borderTop: '1px solid rgba(255,27,27,0.4)',
+            }}
+          >
+            <p className="text-sm text-center font-bold" style={{ color: '#ff5252' }}>
               This lead opted out. Do not send messages.
             </p>
           </div>
         ) : isClosed ? (
-          <div className="flex-shrink-0 border-t border-gray-200 bg-white px-5 py-4">
-            <p className="text-sm text-gray-400 text-center">Conversation is closed.</p>
+          <div
+            className="flex-shrink-0 px-5 py-4"
+            style={{
+              background: 'rgba(255,255,255,0.03)',
+              borderTop: '1px solid rgba(255,255,255,0.08)',
+            }}
+          >
+            <p className="text-sm text-center" style={{ color: 'rgba(255,255,255,0.5)' }}>Conversation is closed.</p>
           </div>
         ) : null}
       </div>
 
-      {/* Right: Lead details panel (desktop only) */}
-      <div
-        className="hidden md:flex w-72 flex-shrink-0 bg-white flex-col overflow-hidden"
-        style={{ borderLeft: '1px solid #f0f0f0' }}
+      {/* ── Right: Lead panel (desktop only) ─────────────────── */}
+      <aside
+        className="hidden lg:flex w-[300px] flex-shrink-0 flex-col overflow-hidden"
+        style={{
+          background: 'rgba(3,3,4,0.95)',
+          borderLeft: '1px solid rgba(255,27,27,0.22)',
+        }}
       >
-        <div className="overflow-y-auto scrollbar-thin flex-1">
-          {/* Lead identity */}
-          <div className="p-5 border-b border-gray-100">
+        <div className="overflow-y-auto dlr-scrollbar flex-1">
+
+          {/* Identity */}
+          <div className="p-5" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
             <div className="flex items-start gap-3">
               <div
-                className="w-11 h-11 rounded-full flex-shrink-0 flex items-center justify-center text-white text-sm font-bold"
-                style={{ backgroundColor: avatarColor }}
+                className="w-12 h-12 rounded-full flex-shrink-0 flex items-center justify-center text-white text-sm font-black"
+                style={{
+                  background: 'linear-gradient(135deg, #1a0505, #3a0505)',
+                  border: '1px solid rgba(255,27,27,0.55)',
+                  boxShadow: '0 0 14px rgba(255,27,27,0.4)',
+                }}
               >
-                {initials}
+                {initials || 'L'}
               </div>
               <div className="flex-1 min-w-0">
-                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${stateStyle.color}`}>
-                  {stateStyle.label}
-                </span>
-                <h3 className="text-sm font-bold text-gray-900 mt-1">
+                <h3 className="text-sm font-black text-white">
                   {lead.firstName} {lead.lastName}
                 </h3>
-                <p className="text-xs text-gray-500">{lead.phone}</p>
+                <p className="text-[11px]" style={{ color: 'rgba(255,255,255,0.55)' }}>{lead.phone}</p>
               </div>
             </div>
           </div>
 
+          {/* Lead status / priority */}
+          <div className="p-5 space-y-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+            <p className="dlr-cmd-label" style={{ color: '#ff5252' }}>Lead Status</p>
+            <div className="flex flex-wrap gap-2">
+              <span className={`dlr-badge ${stateBadge.className}`}>{stateBadge.label}</span>
+              <span className={`dlr-badge ${statusBadge.className}`}>{statusBadge.label}</span>
+            </div>
+            <PriorityRow priority={priority} />
+          </div>
+
+          {/* Lead score dial */}
+          <div className="p-5 flex items-center gap-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+            <LeadScoreDial score={leadScore} />
+            <div className="flex-1 min-w-0">
+              <p className="dlr-cmd-label" style={{ color: '#ff5252' }}>Lead Score</p>
+              <p className="text-2xl font-black text-white mt-1 leading-none">{leadScore}</p>
+              <p className="text-[11px] mt-1" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                {leadScore >= 75 ? 'Hot — prioritize outreach' :
+                 leadScore >= 45 ? 'Warm — keep the sequence running' :
+                                   'Cold — long-tail revival'}
+              </p>
+            </div>
+          </div>
+
+          {/* Tags */}
+          {tags.length > 0 && (
+            <div className="p-5" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+              <p className="dlr-cmd-label" style={{ color: '#ff5252' }}>Tags</p>
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {tags.map((t) => (
+                  <span
+                    key={t}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-widest"
+                    style={{
+                      background: 'rgba(255,255,255,0.04)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      color: 'rgba(255,255,255,0.7)',
+                    }}
+                  >
+                    <Tag size={10} />
+                    {t}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Lead info */}
-          <div className="p-5 space-y-4 border-b border-gray-100">
-            <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Lead Info</h4>
+          <div className="p-5 space-y-3.5" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+            <p className="dlr-cmd-label" style={{ color: '#ff5252' }}>Lead Info</p>
             <DetailRow
-              icon={<User size={14} />}
+              icon={<User size={13} />}
               label="Last Contact"
               value={(() => {
-                // Pick the freshest real timestamp we have: most recent
-                // message we've exchanged with the lead beats CRM activity
-                // (it's the truest "last contact"), CRM activity beats the
-                // original inquiry date, and "Unknown" is the last resort.
                 const lastMessage = conversation.messages[conversation.messages.length - 1]
                 const ts =
                   lastMessage?.createdAt ??
@@ -221,23 +336,23 @@ export default async function DealerConversationPage({
               })()}
             />
             {lead.salespersonName && (
-              <DetailRow icon={<User size={14} />} label="Salesperson" value={lead.salespersonName} />
+              <DetailRow icon={<User size={13} />} label="Salesperson" value={lead.salespersonName} />
             )}
             <DetailRow
-              icon={<MessageSquare size={14} />}
+              icon={<MessageSquare size={13} />}
               label="Messages"
               value={`${conversation.messages.length} message${conversation.messages.length !== 1 ? 's' : ''}`}
             />
             {conversation.messages.length > 0 && (
               <DetailRow
-                icon={<Calendar size={14} />}
+                icon={<Calendar size={13} />}
                 label="First Contact"
                 value={new Date(conversation.messages[0].createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
               />
             )}
             {conversation.humanTookOverAt && (
               <DetailRow
-                icon={<User size={14} />}
+                icon={<User size={13} />}
                 label="Taken Over"
                 value={new Date(conversation.humanTookOverAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
               />
@@ -246,16 +361,84 @@ export default async function DealerConversationPage({
 
           {/* Vehicle interest */}
           {lead.vehicleOfInterest && (
-            <div className="p-5 border-b border-gray-100">
-              <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Vehicle Interest</h4>
-              <div className="flex items-center gap-2 bg-gray-50 rounded-lg p-3">
-                <Car size={16} className="text-gray-400 flex-shrink-0" />
-                <span className="text-sm text-gray-700 font-medium">{lead.vehicleOfInterest}</span>
+            <div className="p-5" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+              <p className="dlr-cmd-label" style={{ color: '#ff5252' }}>Vehicle Interest</p>
+              <div
+                className="flex items-center gap-2 mt-2 rounded-lg p-3"
+                style={{
+                  background: 'rgba(255,27,27,0.06)',
+                  border: '1px solid rgba(255,27,27,0.22)',
+                }}
+              >
+                <Car size={14} style={{ color: '#ff5252' }} />
+                <span className="text-sm font-bold text-white">{lead.vehicleOfInterest}</span>
               </div>
             </div>
           )}
+
+          {/* Actions — only show actions already supported by the app.
+              Take Over lives in the banner above the thread (canonical
+              source); we mirror it here as a quick reference + provide
+              the always-available phone-call action. Mark-as-contacted /
+              opt-out are gated behind a real backend, so they render as
+              "Coming soon" links that don't fake any API call. */}
+          <div className="p-5">
+            <p className="dlr-cmd-label" style={{ color: '#ff5252' }}>Actions</p>
+            <div className="mt-3 space-y-2">
+              <a
+                href={`tel:${conversation.leadPhone}`}
+                className="dlr-btn-secondary w-full"
+                style={{ height: 40, fontSize: 12, justifyContent: 'flex-start' }}
+              >
+                <Phone size={13} />
+                Call Lead
+              </a>
+              {isOpen && !isHumanOwned && (
+                <div
+                  className="rounded-lg px-3 py-2 text-[11px] flex items-start gap-2"
+                  style={{
+                    background: 'rgba(255,27,27,0.06)',
+                    border: '1px solid rgba(255,27,27,0.28)',
+                    color: 'rgba(255,255,255,0.7)',
+                  }}
+                >
+                  <Zap size={12} style={{ color: '#ff5252', marginTop: 2 }} />
+                  <span>
+                    Use the <strong className="font-black" style={{ color: '#ff5252' }}>Take Over</strong> banner above the
+                    thread to reply manually.
+                  </span>
+                </div>
+              )}
+              {isOpen && isHumanOwned && (
+                <div
+                  className="rounded-lg px-3 py-2 text-[11px] flex items-start gap-2"
+                  style={{
+                    background: 'rgba(34,197,94,0.08)',
+                    border: '1px solid rgba(34,197,94,0.35)',
+                    color: '#4ade80',
+                  }}
+                >
+                  <CheckCircle2 size={12} style={{ marginTop: 2 }} />
+                  <span>You&apos;ve taken over. Reply directly below the thread.</span>
+                </div>
+              )}
+              {isOptedOut && (
+                <div
+                  className="rounded-lg px-3 py-2 text-[11px] flex items-start gap-2"
+                  style={{
+                    background: 'rgba(255,27,27,0.08)',
+                    border: '1px solid rgba(255,27,27,0.38)',
+                    color: '#ff5252',
+                  }}
+                >
+                  <Ban size={12} style={{ marginTop: 2 }} />
+                  <span>Lead opted out — no further outreach permitted.</span>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
-      </div>
+      </aside>
     </div>
   )
 }
@@ -271,11 +454,80 @@ function DetailRow({
 }) {
   return (
     <div className="flex items-start gap-2.5">
-      <span className="text-gray-400 mt-0.5 flex-shrink-0">{icon}</span>
+      <span className="mt-0.5 flex-shrink-0" style={{ color: 'rgba(255,255,255,0.45)' }}>{icon}</span>
       <div className="min-w-0">
-        <p className="text-xs text-gray-400">{label}</p>
-        <p className="text-xs font-medium text-gray-700 mt-0.5">{value}</p>
+        <p className="text-[10px] uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.4)' }}>{label}</p>
+        <p className="text-xs font-bold mt-0.5" style={{ color: 'rgba(255,255,255,0.85)' }}>{value}</p>
       </div>
+    </div>
+  )
+}
+
+function PriorityRow({ priority }: { priority: 'HOT' | 'WARM' | 'COLD' }) {
+  const cfg = priority === 'HOT'
+    ? { color: '#ff5252', bg: 'rgba(255,27,27,0.16)', border: 'rgba(255,27,27,0.55)', glow: '0 0 18px rgba(255,27,27,0.4)' }
+    : priority === 'WARM'
+    ? { color: '#fbbf24', bg: 'rgba(245,158,11,0.16)', border: 'rgba(245,158,11,0.55)', glow: 'none' }
+    : { color: 'rgba(255,255,255,0.6)', bg: 'rgba(255,255,255,0.05)', border: 'rgba(255,255,255,0.15)', glow: 'none' }
+
+  return (
+    <div className="flex items-center gap-2">
+      <span className="dlr-cmd-label" style={{ color: 'rgba(255,255,255,0.5)' }}>Priority</span>
+      <span
+        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-black uppercase tracking-widest"
+        style={{
+          background: cfg.bg,
+          border: `1px solid ${cfg.border}`,
+          color: cfg.color,
+          boxShadow: cfg.glow,
+        }}
+      >
+        {priority}
+      </span>
+    </div>
+  )
+}
+
+function LeadScoreDial({ score }: { score: number }) {
+  const radius = 28
+  const stroke = 5
+  const c = 2 * Math.PI * radius
+  const offset = c - (score / 100) * c
+  return (
+    <div className="relative flex-shrink-0">
+      <svg width={radius * 2 + stroke * 2} height={radius * 2 + stroke * 2}>
+        <circle
+          cx={radius + stroke}
+          cy={radius + stroke}
+          r={radius}
+          fill="none"
+          stroke="rgba(255,255,255,0.08)"
+          strokeWidth={stroke}
+        />
+        <circle
+          cx={radius + stroke}
+          cy={radius + stroke}
+          r={radius}
+          fill="none"
+          stroke="#ff1b1b"
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          strokeDasharray={c}
+          strokeDashoffset={offset}
+          transform={`rotate(-90 ${radius + stroke} ${radius + stroke})`}
+          style={{ filter: 'drop-shadow(0 0 8px rgba(255,27,27,0.75))' }}
+        />
+        <text
+          x={radius + stroke}
+          y={radius + stroke + 4}
+          textAnchor="middle"
+          fill="#fff"
+          fontWeight="900"
+          fontSize="14"
+        >
+          {score}
+        </text>
+      </svg>
     </div>
   )
 }

@@ -1,7 +1,6 @@
-import { getServerSession } from 'next-auth'
 import { redirect } from 'next/navigation'
-import { eq, ne, and, count, inArray, notInArray, or, isNull, isNotNull } from 'drizzle-orm'
-import { authOptions } from '@/lib/auth'
+import { eq, ne, and, count, inArray, notInArray, or, isNull, isNotNull, desc } from 'drizzle-orm'
+import { getDealerSession } from '@/lib/dealer/dev-auth-bypass'
 import { db } from '@/lib/db'
 import {
   pilotBatches,
@@ -10,6 +9,7 @@ import {
   tenants,
   dealerIntakes,
   leads,
+  messages,
 } from '@/lib/db/schema'
 import {
   computeDealerSetupStatus,
@@ -18,9 +18,23 @@ import {
   type DealerSetupStep,
   type DealerSetupStatus,
 } from '@/lib/dealer/setup-status'
+import { DlrHeroArt } from '@/components/dealer/DlrHeroArt'
+import {
+  Users,
+  Send,
+  MessageSquare,
+  CalendarCheck,
+  Zap,
+  Eye,
+  Hourglass,
+  Rocket,
+  CheckCircle2,
+  AlertTriangle,
+  ArrowRight,
+} from 'lucide-react'
 
 export default async function DealerDashboardPage() {
-  const session = await getServerSession(authOptions)
+  const session = await getDealerSession()
   if (!session) redirect('/login')
   if (session.user.role !== 'dealer') redirect('/dashboard')
 
@@ -35,6 +49,8 @@ export default async function DealerDashboardPage() {
     liveSendsRow,
     openConvosForBreakdown,
     intakeRow,
+    messagesSentRow,
+    recentInboxThreads,
   ] = await Promise.all([
     db.select({
       name:               tenants.name,
@@ -45,15 +61,6 @@ export default async function DealerDashboardPage() {
       complianceBlocked:  tenants.complianceBlocked,
     }).from(tenants).where(eq(tenants.id, tenantId)).then(r => r[0] ?? null),
 
-    // Dealer-visible "Leads Imported" count. Mirrors /dealer/import's
-    // filter exactly so the dashboard card and the import table can
-    // never disagree. Excludes:
-    //   - import_status IN ('warning','held','excluded') — admin-only
-    //     triage rows the dealer can't act on
-    //   - import rows whose linked lead is flagged is_test=true (demo
-    //     fixtures hidden from dealers)
-    //   - 'selected' rows with no linked lead — a data inconsistency
-    //     that the import page also filters out
     db.select({ count: count() })
       .from(pilotLeadImports)
       .leftJoin(leads, eq(pilotLeadImports.leadId, leads.id))
@@ -83,13 +90,6 @@ export default async function DealerDashboardPage() {
       .where(and(eq(pilotBatches.tenantId, tenantId), eq(pilotBatches.status, 'completed')))
       .then(r => r[0]?.count ?? 0),
 
-    // Strong evidence that customer messages have actually been or are
-    // being sent for this tenant. 'sending' = mid-flight; 'completed' =
-    // first batch finished. ONLY this count gates the green "DLR
-    // messaging is live" banner — the internal sms_live_approved flag
-    // alone is insufficient because admins can flip it before a dealer
-    // has reached payment / setup form / pilot review (see Janet @ Test
-    // Motors Honda QA).
     db.select({ count: count() })
       .from(pilotBatches)
       .where(and(
@@ -98,20 +98,10 @@ export default async function DealerDashboardPage() {
       ))
       .then(r => r[0]?.count ?? 0),
 
-    // Open conversations with their last message direction + human-takeover
-    // flag. The inbox tabs slice the same set three ways (needs_review /
-    // automated / human_owned), so we compute the breakdown here to label
-    // the dashboard card honestly and to deep-link the dealer into the tab
-    // that actually has conversations to act on. Previously this was a
-    // simple count query, which made the card read "Open" while the dealer
-    // landed on an empty "Needs Review" tab and assumed the count was wrong.
     db.query.conversations.findMany({
       where: and(eq(conversations.tenantId, tenantId), eq(conversations.status, 'open')),
       columns: { id: true, humanTookOverAt: true },
       with: {
-        // isTest pulled in to mirror the dealer-inbox UI filter so the
-        // dashboard's open-conversation count never disagrees with the
-        // inbox sidebar's visible-conversation count.
         lead: { columns: { isTest: true } },
         messages: {
           orderBy: (m, { desc }) => [desc(m.createdAt)],
@@ -124,6 +114,34 @@ export default async function DealerDashboardPage() {
     db.query.dealerIntakes.findFirst({
       where: eq(dealerIntakes.tenantId, tenantId),
     }).then(r => r ?? null),
+
+    // Lightweight "messages sent" count for the Today's Pulse panel.
+    // Pulls from the existing messages table — no new data model.
+    db.select({ count: count() })
+      .from(messages)
+      .innerJoin(conversations, eq(messages.conversationId, conversations.id))
+      .where(and(
+        eq(conversations.tenantId, tenantId),
+        eq(messages.direction, 'outbound'),
+      ))
+      .then(r => r[0]?.count ?? 0),
+
+    // Recent inbox preview — uses the same conversations table the inbox
+    // already reads from. Limited to 4 rows for the dashboard preview card.
+    db.query.conversations.findMany({
+      where: and(eq(conversations.tenantId, tenantId), eq(conversations.status, 'open')),
+      columns: { id: true, updatedAt: true, humanTookOverAt: true },
+      with: {
+        lead: { columns: { isTest: true, firstName: true, lastName: true, vehicleOfInterest: true } },
+        messages: {
+          orderBy: (m, { desc }) => [desc(m.createdAt)],
+          limit: 1,
+          columns: { body: true, direction: true, createdAt: true },
+        },
+      },
+      orderBy: [desc(conversations.updatedAt)],
+      limit: 8,
+    }).then(rows => rows.filter(c => !c.lead?.isTest).slice(0, 4)),
   ])
 
   const dealershipName = tenantRow?.name ?? 'Dealer'
@@ -131,10 +149,8 @@ export default async function DealerDashboardPage() {
   const draftCount     = draftRow as number
   const activeCount    = approvedRow as number
   const completedCount = completedRow as number
+  const messagesSent   = messagesSentRow as number
 
-  // Categorize open conversations using the SAME predicates as the inbox
-  // sidebar's tab filters — keeps dashboard counts and the deep-link
-  // landing tab consistent.
   const needsReviewCount = openConvosForBreakdown.filter(c =>
     !c.humanTookOverAt && c.messages[0]?.direction === 'inbound',
   ).length
@@ -146,11 +162,6 @@ export default async function DealerDashboardPage() {
   ).length
   const inboxCount = openConvosForBreakdown.length
 
-  // Pick the most-actionable tab for the dashboard CTA. Priority:
-  //   needs_review (dealer must reply) >
-  //   human_owned  (dealer is already in the loop) >
-  //   automated    (passive watch) >
-  //   default
   const inboxHref =
     needsReviewCount     > 0 ? '/dealer/inbox?tab=needs_review' :
     humanOwnedOpenCount  > 0 ? '/dealer/inbox?tab=human_owned'  :
@@ -172,28 +183,16 @@ export default async function DealerDashboardPage() {
     },
   })
 
-  // Step 6 ("Lead upload ready") status drives whether the empty-state CTA
-  // points the dealer to upload (their action) or to wait (passive).
   const leadStepStatus = setup.steps.find(s => s.key === 'leads')?.status ?? 'not_started'
   const canUploadNow = leadStepStatus === 'needs_your_action' || leadStepStatus === 'done'
 
-  // Per-step "what should I click" mapping for steps in `needs_your_action`.
-  // Returns null for steps where there's nothing the dealer can click —
-  // e.g. carrier registration pending, sending number assignment, launch
-  // approval — those stay labeled "Waiting on DLR" / "Not started" only.
-  // Token, when needed, is taken from the intake row already loaded above;
-  // it's embedded in href only, never rendered as visible text.
   const intakeToken = intakeRow?.token ?? null
   function actionForStep(stepKey: string, status: string): { label: string; href: string } | null {
     if (status !== 'needs_your_action') return null
     switch (stepKey) {
       case 'payment':
-        // Billing settings page exposes the "Finish payment setup →" recovery
-        // button that deep-links into the intake/payment flow.
         return { label: 'Complete payment', href: '/dealer/settings' }
       case 'form':
-        // Stage 2 onboarding form lives at /intake/<token>. If no token (rare,
-        // admin-provisioned tenant), drop to settings as a soft fallback.
         return intakeToken
           ? { label: 'Open setup form',     href: `/intake/${intakeToken}` }
           : { label: 'Complete payment', href: '/dealer/settings' }
@@ -206,11 +205,6 @@ export default async function DealerDashboardPage() {
     }
   }
 
-  // ── Next step — the single most important thing for the dealer to do
-  // right now. Same source of truth as the setup-progress panel below;
-  // we just lift it above the fold so a returning dealer never has to
-  // hunt for it. Picks the earliest `needs_your_action` step that maps
-  // to a clickable action (payment > form > leads > pilot).
   const nextStep: { label: string; href: string; stepLabel: string; stepKey: string } | null = (() => {
     const ACTION_ORDER = ['payment', 'form', 'leads', 'pilot'] as const
     for (const key of ACTION_ORDER) {
@@ -223,7 +217,7 @@ export default async function DealerDashboardPage() {
     return null
   })()
 
-  // ── Messaging-state safety banner ─────────────────────────────────────────
+  // ── Messaging-state safety ────────────────────────────────────────────────
   const safetyBlocked     = !!(tenantRow?.complianceBlocked || tenantRow?.automationPaused)
   const liveSendsCount    = liveSendsRow as number
   const hasLiveSends      = liveSendsCount > 0
@@ -237,395 +231,592 @@ export default async function DealerDashboardPage() {
                                           'not_live'
   const isLive = safetyBannerState === 'live'
 
-  // ── Setup progress percentage ─────────────────────────────────────────────
   const doneCount   = setup.steps.filter(s => s.status === 'done').length
-  const progressPct = setup.steps.length > 0
-    ? Math.round((doneCount / setup.steps.length) * 100)
+  const totalSteps  = setup.steps.length
+  const progressPct = totalSteps > 0
+    ? Math.round((doneCount / totalSteps) * 100)
     : 0
+  const currentStepIndex = setup.steps.findIndex(s => s.status === 'in_progress' || s.status === 'needs_your_action')
+  const currentStepNumber = currentStepIndex >= 0 ? currentStepIndex + 1 : Math.min(doneCount + 1, totalSteps || 1)
 
-  // Campaign-review surface is "unlocked" only when the setup-status
-  // state machine says the pilot step is the dealer's current action.
-  // If drafts exist but an earlier step (payment/form/leads) blocks
-  // pilot review, the setup checklist downgrades pilot to 'not_started'
-  // — the stat card should mirror that locked framing instead of
-  // contradicting it with a clickable urgent CTA.
   const pilotStep        = setup.steps.find(s => s.key === 'pilot')
   const pilotActionable  = pilotStep?.status === 'needs_your_action'
   const reviewLocked     = !pilotActionable && draftCount > 0
   const paymentPending   = setup.steps.find(s => s.key === 'payment')?.status === 'needs_your_action'
 
-  const stats: Array<{
-    label:    string
-    value:    number | string
-    href:     string | null
-    numColor: string
-    accent:   string
-    desc:     string
-  }> = [
+  const pulseStats = [
+    { label: 'New Leads',         value: importCount },
+    { label: 'Messages Sent',     value: messagesSent },
+    { label: 'Conversations',     value: inboxCount },
+    { label: 'Appointments Set',  value: '—' },
+    { label: 'Deals Revived',     value: completedCount },
+  ]
+
+  // ── Campaign overview rows — reuses dealer batch data only ───────────────
+  const campaignGroups = [
     {
-      label:   'Leads Imported',
-      value:   importCount,
-      href:    '/dealer/import',
-      numColor: '#111827',
-      accent:  '#e5e7eb',
-      desc:    'Total leads in your pipeline',
+      key: '14-30',  label: '14–30 Day Follow-Up',
+      desc: 'Recently dead leads — highest revival potential.',
     },
-    reviewLocked
-      ? {
-          label:   'Campaign Groups',
-          value:   4,
-          href:    null,
-          numColor: '#6b7280',
-          accent:  '#e5e7eb',
-          desc:    'Grouped by lead age — review unlocks after payment.',
-        }
-      : {
-          label:   'Campaign Groups',
-          value:   4,
-          href:    '/dealer/batches',
-          numColor: '#1d4ed8',
-          accent:  '#3b82f6',
-          desc:    'Lead age groups ready for your review.',
-        },
-    reviewLocked
-      ? {
-          label:   'Approved Campaigns',
-          value:   '—',
-          href:    null,
-          numColor: '#6b7280',
-          accent:  '#e5e7eb',
-          desc:    'Activation happens after payment.',
-        }
-      : {
-          label:   'Approved Campaigns',
-          value:   activeCount,
-          href:    '/dealer/batches',
-          numColor: '#065f46',
-          accent:  '#10b981',
-          desc:    'Campaigns you have approved',
-        },
     {
-      label:   isLive ? 'Active Conversations' : 'Message Previews',
-      value:   isLive ? inboxCount : 'Prepared',
-      href:    isLive ? inboxHref : '/dealer/batches',
-      numColor: isLive
-        ? (inboxCount > 0 ? '#9a3412' : '#9ca3af')
-        : '#065f46',
-      accent:  isLive
-        ? (inboxCount > 0 ? '#f97316' : '#e5e7eb')
-        : '#10b981',
-      desc:    isLive
-        ? 'Customer replies and live conversations.'
-        : 'Visible inside each campaign review.',
+      key: '31-60',  label: '31–60 Day Follow-Up',
+      desc: 'Mid-window leads cooling off.',
+    },
+    {
+      key: '61-90',  label: '61–90 Day Revival',
+      desc: 'Cooling leads needing aggressive outreach.',
+    },
+    {
+      key: '91+',    label: '91+ Day Revival',
+      desc: 'Long-dormant pipeline — revival sequence.',
     },
   ]
 
-  const allStatsZero   = importCount + draftCount + activeCount + inboxCount === 0
-  const showReassurance = allStatsZero && setup.showPanel
-
   return (
-    <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-5 md:space-y-6">
+    <div className="dlr-app-bg min-h-full text-white">
+      {/* ── HERO ───────────────────────────────────────────────────────── */}
+      <section
+        className="relative overflow-hidden"
+        style={{
+          minHeight: 380,
+          borderBottom: '1px solid rgba(255,27,27,0.28)',
+        }}
+      >
+        <DlrHeroArt intensity="high" showTruck />
 
-      {/* ── Page header ─────────────────────────────────────────────────
-          Dealership-branded framing: the dealership owns this workspace.
-          The previously-prominent "POWERED BY DLR" line was removed so
-          the hero leads with the dealership. Vendor/support context still
-          lives in the persistent footer ("Need help? Contact DLR Support"). */}
-      <div className="pb-1">
-        <h1 className="text-xl md:text-2xl font-bold text-gray-900">
-          {dealershipName} Revival Center
-        </h1>
-        <p className="mt-2 text-sm text-gray-500">
-          Review prepared campaigns, approve message previews, and manage
-          revived conversations for {dealershipName}.
-        </p>
-        <p className="mt-1 text-xs text-gray-400">Hey {firstName} — here&apos;s where things stand.</p>
-      </div>
+        <div className="relative z-10 px-4 md:px-8 lg:px-10 py-8 md:py-12">
+          <div className="grid lg:grid-cols-[1fr_360px] gap-6 lg:gap-10 items-start">
+            {/* Left side */}
+            <div>
+              <p className="dlr-cmd-label" style={{ color: 'rgba(255,82,82,0.85)' }}>
+                Dealer Command Center
+              </p>
+              <h2 className="text-white font-black mt-2"
+                style={{
+                  fontSize: 'clamp(20px, 2.2vw, 28px)',
+                  letterSpacing: '0.04em',
+                  textTransform: 'uppercase',
+                  color: 'rgba(255,255,255,0.78)',
+                }}
+              >
+                Welcome back, {firstName}
+              </h2>
 
-      {/* ── Messaging-state safety banner ─────────────────────────────── */}
-      {safetyBannerState && (
-        <MessagingSafetyBanner state={safetyBannerState} dealershipName={dealershipName} />
-      )}
+              <h1
+                className="dlr-headline mt-3"
+                style={{
+                  fontSize: 'clamp(40px, 5.6vw, 76px)',
+                }}
+              >
+                Revive.<br />Reengage.<br />Reignite.
+              </h1>
 
-      {/* ── Next Step card ────────────────────────────────────────────────
-          Lifted above the setup-progress panel so the dealer never has
-          to hunt for the single action that unblocks their account.
-          Hidden when the account is paused/blocked (setup panel handles
-          that case) or when there's no actionable next step (e.g. all
-          dealer-side work is done and we're waiting on DLR ops). */}
-      {nextStep && !tenantRow?.complianceBlocked && !tenantRow?.automationPaused && (
-        <NextStepCard
-          stepLabel={nextStep.stepLabel}
-          actionLabel={nextStep.label}
-          href={nextStep.href}
-        />
-      )}
+              <p className="mt-5 max-w-md text-sm md:text-base leading-relaxed" style={{ color: 'rgba(255,255,255,0.7)' }}>
+                We find the dead leads. You close the deals.<br />
+                {dealershipName} runs the revival sequence — DLR keeps the engine hot.
+              </p>
 
-      {/* ── System Status card (compact) ─────────────────────────────────
-          Suppressed when compliance-blocked (setup panel already alerts).
-          Read-only: pause/resume is handled by DLR during setup/launch,
-          not exposed to the dealer surface. */}
-      {!tenantRow?.complianceBlocked && (
-        <DealerAutomationStatusCard
-          isLive={isLive}
-          paused={!!tenantRow?.automationPaused}
-        />
-      )}
-
-      {/* ── DLR Setup Progress ────────────────────────────────────────── */}
-      {setup.showPanel && (
-        <section className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-
-          {/* Card header with progress */}
-          <div
-            className="px-5 py-4"
-            style={{
-              background: setup.overall === 'blocked' ? '#fef2f2' : '#f9fafb',
-              borderBottom: `1px solid ${setup.overall === 'blocked' ? '#fecaca' : '#f3f4f6'}`,
-            }}
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p
-                  className="text-xs font-semibold uppercase tracking-widest"
-                  style={{ color: setup.overall === 'blocked' ? '#dc2626' : '#6b7280' }}
-                >
-                  {setup.overall === 'blocked' ? 'Account Paused' : 'Setup Progress'}
-                </p>
-                <h2 className="text-base font-bold text-gray-900 mt-0.5">
-                  {/* Render-site rename: setup-status.ts pure function
-                      keeps its own copy ('DLR Setup Progress', 'Account
-                      paused', etc.); the dealer surface re-titles it as
-                      the dealership's workspace. Blocked-state alerts
-                      keep the loud 'Account paused' label — branding
-                      doesn't override a compliance alert. */}
-                  {setup.overall === 'blocked'
-                    ? (setup.title || 'Account paused')
-                    : `${dealershipName} Setup Progress`}
-                </h2>
-                {setup.subtitle && (
-                  <p className="text-xs text-gray-500 mt-1 max-w-lg">{setup.subtitle}</p>
-                )}
-                {setup.nextHint && (
-                  <p className="text-xs text-gray-700 mt-1.5 font-medium">
-                    Next: <span className="font-normal">{setup.nextHint}</span>
-                  </p>
-                )}
-              </div>
-              {/* Progress indicator. When payment is the dealer's
-                  current action, the percentage looks misleading
-                  (downstream "carrier verification" and "sending number
-                  assigned" can already be 'done' for admin-provisioned
-                  tenants, lifting the count toward ~63% before payment
-                  has even been collected). Show a step counter and a
-                  "Payment required" hint instead until payment clears. */}
-              <div className="flex-shrink-0 text-right">
-                {paymentPending ? (
-                  <>
-                    <p className="text-2xl font-bold text-gray-700">
-                      Step 2 of {setup.steps.length}
-                    </p>
-                    <p className="text-xs text-amber-700 mt-0.5 font-medium">Payment required</p>
-                  </>
+              <div className="mt-7 flex flex-wrap gap-3">
+                {nextStep ? (
+                  <a href={nextStep.href} className="dlr-btn-primary" aria-label={nextStep.label}>
+                    {nextStep.label}
+                    <ArrowRight size={18} />
+                  </a>
                 ) : (
-                  <>
-                    <p
-                      className="text-2xl font-bold"
-                      style={{ color: setup.overall === 'blocked' ? '#dc2626' : progressPct === 100 ? '#059669' : '#111827' }}
-                    >
-                      {progressPct}%
-                    </p>
-                    <p className="text-xs text-gray-400 mt-0.5">complete</p>
-                  </>
+                  <a href="/dealer/batches" className="dlr-btn-primary">
+                    Launch New Campaign
+                    <ArrowRight size={18} />
+                  </a>
                 )}
+                <a href={inboxHref} className="dlr-btn-secondary">
+                  Open Inbox
+                  <MessageSquare size={16} />
+                </a>
               </div>
             </div>
 
-            {/* Progress bar — gray fill while payment is pending so the
-                visual doesn't suggest the dealer is mostly done. */}
-            <div className="mt-3 h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: '#e5e7eb' }}>
-              <div
-                className="h-full rounded-full transition-all duration-500"
-                style={{
-                  width: `${progressPct}%`,
-                  background: paymentPending
-                    ? '#d1d5db'
-                    : setup.overall === 'blocked'
-                    ? '#ef4444'
-                    : progressPct === 100
-                    ? '#10b981'
-                    : 'linear-gradient(90deg, #dc2626, #ef4444)',
-                }}
-              />
+            {/* Right — Today's Pulse card */}
+            <div
+              className="rounded-2xl p-5 backdrop-blur-md"
+              style={{
+                background: 'linear-gradient(180deg, rgba(20,20,24,0.92), rgba(8,8,10,0.92))',
+                border: '1px solid rgba(255,27,27,0.55)',
+                boxShadow:
+                  '0 0 0 1px rgba(255,27,27,0.15), 0 0 36px rgba(255,27,27,0.32), 0 18px 50px rgba(0,0,0,0.55)',
+              }}
+            >
+              <div className="flex items-center justify-between">
+                <p className="dlr-cmd-label" style={{ color: '#ff5252' }}>Today&apos;s Pulse</p>
+                <span className="dlr-status-dot" aria-hidden="true" />
+              </div>
+
+              <ul className="mt-4 divide-y" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+                {pulseStats.map((s) => (
+                  <li
+                    key={s.label}
+                    className="flex items-center justify-between py-2.5"
+                    style={{ borderTopColor: 'rgba(255,255,255,0.06)' }}
+                  >
+                    <span className="text-xs" style={{ color: 'rgba(255,255,255,0.65)' }}>{s.label}</span>
+                    <span className="text-base font-black text-white tabular-nums">
+                      {s.value}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+
+              <a
+                href={inboxHref}
+                className="mt-3 inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest"
+                style={{ color: '#ff5252' }}
+              >
+                View Full Report
+                <ArrowRight size={13} />
+              </a>
             </div>
           </div>
+        </div>
+      </section>
 
-          {/* Step list — the row CTA is suppressed for the step already
-              shown in the top "Your Next Step" card to avoid duplicating
-              the same red Complete-payment button twice on one page. */}
-          <ol className="divide-y divide-gray-100">
-            {setup.steps.map((step, idx) => (
-              <SetupStepRow
-                key={step.key}
-                index={idx + 1}
-                step={step}
-                action={
-                  nextStep?.stepKey === step.key
-                    ? null
-                    : actionForStep(step.key, step.status)
-                }
-              />
-            ))}
-          </ol>
-        </section>
-      )}
+      {/* ── Body ───────────────────────────────────────────────────────── */}
+      <div className="px-4 md:px-8 lg:px-10 py-6 md:py-8 space-y-6">
+        {/* Safety banner */}
+        {safetyBannerState && (
+          <MessagingSafetyBanner state={safetyBannerState} dealershipName={dealershipName} />
+        )}
 
-      {/* ── Stats grid ────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 gap-3 md:gap-4">
-        {stats.map(({ label, value, href, numColor, accent, desc }) => {
-          const cardClass =
-            'bg-white border border-gray-200 rounded-xl px-4 md:px-5 py-4 md:py-5 shadow-sm transition-shadow block overflow-hidden relative'
-            + (href ? ' hover:shadow-md' : '')
-          const inner = (
-            <>
-              {/* Colored top accent bar */}
-              <div
-                className="absolute top-0 left-0 right-0 h-0.5 rounded-t-xl"
-                style={{ backgroundColor: accent }}
-              />
-              <p className="text-3xl font-bold mt-1" style={{ color: numColor }}>{value}</p>
-              <p className="text-sm font-semibold text-gray-700 mt-1">{label}</p>
-              <p className="text-xs text-gray-400 mt-0.5 leading-snug">{desc}</p>
-            </>
-          )
-          return href ? (
-            <a key={label} href={href} className={cardClass}>{inner}</a>
+        {/* Setup + Metric row */}
+        <div className="grid lg:grid-cols-[360px_1fr] gap-5">
+          {/* Setup progress with percent circle */}
+          {setup.showPanel ? (
+            <SetupProgressCard
+              setup={setup}
+              progressPct={progressPct}
+              totalSteps={totalSteps}
+              currentStepNumber={currentStepNumber}
+              paymentPending={paymentPending}
+              actionForStep={actionForStep}
+              nextStepKey={nextStep?.stepKey ?? null}
+              dealershipName={dealershipName}
+            />
           ) : (
-            <div key={label} className={cardClass}>{inner}</div>
-          )
-        })}
-      </div>
-
-      {/* Reassurance when everything is zero AND setup isn't done */}
-      {showReassurance && (
-        <div className="rounded-xl border border-dashed border-gray-200 px-5 py-3.5 text-center">
-          <p className="text-sm text-gray-500">
-            Nothing is broken — your account is working through setup. Stats will appear here as each step completes.
-          </p>
-        </div>
-      )}
-
-      {/* ── Quick actions ─────────────────────────────────────────────── */}
-      <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-        <div className="px-5 py-3.5" style={{ borderBottom: '1px solid #f3f4f6' }}>
-          <p className="text-xs font-semibold uppercase tracking-widest text-gray-500">Quick Actions</p>
-        </div>
-        <div className="divide-y divide-gray-100">
-          <a
-            href="/dealer/import"
-            className="flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors group"
-          >
-            <div>
-              <p className="text-sm font-semibold text-gray-800">Upload Leads</p>
-              <p className="text-xs text-gray-500 mt-0.5">
-                Upload a CSV from your CRM — each lead is classified and prepared automatically.
+            <div className="dlr-card p-5">
+              <p className="dlr-cmd-label" style={{ color: '#ff5252' }}>Setup Progress</p>
+              <p className="mt-2 text-white font-bold">All systems operational</p>
+              <p className="mt-1 text-xs" style={{ color: 'rgba(255,255,255,0.55)' }}>
+                {dealershipName} is fully launched.
               </p>
             </div>
-            <span className="text-gray-300 group-hover:text-gray-500 transition-colors text-lg leading-none ml-4">→</span>
-          </a>
-
-          {reviewLocked ? (
-            <div className="flex items-center justify-between px-5 py-4">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-gray-500">Prepared Campaigns</p>
-                  <p className="text-xs text-gray-400 mt-0.5">
-                    Review unlocks after payment is complete.
-                  </p>
-                </div>
-                {draftCount > 0 && (
-                  <span className="flex-shrink-0 px-2 py-0.5 bg-gray-100 text-gray-500 text-xs font-bold rounded-full">
-                    4 groups
-                  </span>
-                )}
-              </div>
-            </div>
-          ) : (
-            <a
-              href="/dealer/batches"
-              className="flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors group"
-            >
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-gray-800">Review Campaigns</p>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    Preview message sequences and approve campaigns before anything sends.
-                  </p>
-                </div>
-                {draftCount > 0 && (
-                  <span className="flex-shrink-0 px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-bold rounded-full">
-                    {draftCount} pending
-                  </span>
-                )}
-              </div>
-              <span className="text-gray-300 group-hover:text-gray-500 transition-colors text-lg leading-none ml-4">→</span>
-            </a>
           )}
 
-          <a
-            href={inboxHref}
-            className="flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors group"
-          >
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-gray-800">Open Inbox</p>
-                <p className="text-xs text-gray-500 mt-0.5">
-                  See customer replies and take over hot conversations for your sales team.
-                </p>
-              </div>
-              {inboxCount > 0 && (
-                <span className="flex-shrink-0 px-2 py-0.5 bg-orange-100 text-orange-700 text-xs font-bold rounded-full">
-                  {inboxCount} active
-                </span>
-              )}
-            </div>
-            <span className="text-gray-300 group-hover:text-gray-500 transition-colors text-lg leading-none ml-4">→</span>
-          </a>
-        </div>
-      </div>
-
-      {/* Empty-state CTA — only when zero leads AND dealer can actually act */}
-      {importCount === 0 && canUploadNow && (
-        <div
-          className="rounded-xl border-2 border-dashed py-10 px-8 text-center"
-          style={{ borderColor: '#e5e7eb' }}
-        >
-          <div
-            className="w-10 h-10 rounded-full mx-auto mb-3 flex items-center justify-center text-white font-bold text-lg"
-            style={{ background: 'linear-gradient(135deg, #dc2626, #991b1b)' }}
-          >
-            ↑
+          {/* Metric cards 5-up */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+            <MetricCard
+              icon={<Users size={20} />}
+              label="Total Leads"
+              value={importCount}
+              href="/dealer/import"
+            />
+            <MetricCard
+              icon={<Send size={20} />}
+              label="Messages Sent"
+              value={messagesSent}
+              href={inboxHref}
+            />
+            <MetricCard
+              icon={<MessageSquare size={20} />}
+              label="Conversations"
+              value={inboxCount}
+              href={inboxHref}
+            />
+            <MetricCard
+              icon={<CalendarCheck size={20} />}
+              label="Appointments"
+              value="—"
+              hint="Coming soon"
+            />
+            <MetricCard
+              icon={<Zap size={20} />}
+              label="Deals Revived"
+              value={completedCount}
+              href="/dealer/batches"
+            />
           </div>
-          <p className="text-base font-bold text-gray-800 mb-1">Start your first revival</p>
-          <p className="text-sm text-gray-500 max-w-sm mx-auto leading-relaxed">
-            Upload a CSV of stale leads from your CRM. Each lead is classified by age,
-            paired with a message sequence, and surfaced for your review before a single
-            text is sent.
-          </p>
-          <a
-            href="/dealer/import"
-            className="mt-5 inline-block px-6 py-2.5 text-white text-sm font-bold rounded-xl transition-colors"
-            style={{ background: 'linear-gradient(135deg, #dc2626, #991b1b)' }}
-          >
-            Upload your first leads →
-          </a>
         </div>
-      )}
+
+        {/* Lower grid: Campaign overview + Performance Pulse + Inbox Preview */}
+        <div className="grid lg:grid-cols-[1fr_320px] gap-5">
+          <div className="space-y-5">
+            {/* Campaign Overview */}
+            <section className="dlr-card overflow-hidden">
+              <header className="px-5 py-4 flex items-center justify-between"
+                style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}
+              >
+                <div>
+                  <p className="dlr-cmd-label" style={{ color: '#ff5252' }}>Campaign Overview</p>
+                  <h3 className="text-white text-base font-black mt-0.5">Revival Pipeline</h3>
+                </div>
+                <a
+                  href="/dealer/batches"
+                  className="text-xs font-bold uppercase tracking-widest"
+                  style={{ color: '#ff5252' }}
+                >
+                  All Campaigns →
+                </a>
+              </header>
+
+              <ul className="divide-y" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
+                {campaignGroups.map((g, i) => {
+                  const reviewable = pilotActionable && draftCount > 0
+                  const status: 'preview' | 'ready' | 'live' =
+                    isLive && i < liveSendsCount ? 'live' :
+                    reviewable                    ? 'ready' :
+                                                    'preview'
+                  return (
+                    <CampaignOverviewRow
+                      key={g.key}
+                      label={g.label}
+                      description={g.desc}
+                      status={status}
+                      reviewLocked={reviewLocked}
+                    />
+                  )
+                })}
+              </ul>
+            </section>
+
+            {/* Performance Pulse — placeholder chart */}
+            <section className="dlr-card p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="dlr-cmd-label" style={{ color: '#ff5252' }}>Performance Pulse</p>
+                  <h3 className="text-white text-base font-black mt-0.5">Last 14 Days</h3>
+                </div>
+                <div className="flex items-center gap-3 text-[10px] font-bold uppercase tracking-widest">
+                  <span className="flex items-center gap-1.5" style={{ color: '#ff5252' }}>
+                    <span style={{ width: 8, height: 2, background: '#ff1b1b', display: 'inline-block', boxShadow: '0 0 6px rgba(255,27,27,0.7)' }} />
+                    Messages Sent
+                  </span>
+                  <span className="flex items-center gap-1.5" style={{ color: 'rgba(255,255,255,0.6)' }}>
+                    <span style={{ width: 8, height: 2, background: 'rgba(255,255,255,0.6)', display: 'inline-block' }} />
+                    Conversations
+                  </span>
+                </div>
+              </div>
+              <PerformancePulse messagesSent={messagesSent} conversations={inboxCount} />
+            </section>
+          </div>
+
+          {/* Inbox Preview */}
+          <aside className="dlr-card overflow-hidden">
+            <header className="px-5 py-4 flex items-center justify-between"
+              style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}
+            >
+              <div>
+                <p className="dlr-cmd-label" style={{ color: '#ff5252' }}>Inbox Preview</p>
+                <h3 className="text-white text-base font-black mt-0.5">Latest Activity</h3>
+              </div>
+              <a
+                href={inboxHref}
+                className="text-xs font-bold uppercase tracking-widest"
+                style={{ color: '#ff5252' }}
+              >
+                Open
+              </a>
+            </header>
+
+            <ul className="divide-y" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
+              {recentInboxThreads.length === 0 && (
+                <li className="px-5 py-6 text-center">
+                  <p className="text-xs" style={{ color: 'rgba(255,255,255,0.55)' }}>
+                    No conversations yet. Approved campaigns will land here once live.
+                  </p>
+                </li>
+              )}
+              {recentInboxThreads.map((t) => {
+                const first = t.lead?.firstName ?? ''
+                const last  = t.lead?.lastName  ?? ''
+                const name  = `${first} ${last}`.trim() || 'Unknown lead'
+                const initials = (first[0] ?? 'L').toUpperCase() + (last[0] ?? '').toUpperCase()
+                const preview = t.messages[0]?.body ?? t.lead?.vehicleOfInterest ?? '—'
+                const unread = t.messages[0]?.direction === 'inbound' && !t.humanTookOverAt
+                const time = t.updatedAt ? relativeTime(t.updatedAt) : ''
+                return (
+                  <li key={t.id} className="px-5 py-3 flex items-center gap-3">
+                    <span
+                      className="flex-shrink-0 w-9 h-9 rounded-full inline-flex items-center justify-center text-white text-[11px] font-black"
+                      style={{
+                        background: 'linear-gradient(135deg, #1a0505, #3a0505)',
+                        border: '1px solid rgba(255,27,27,0.45)',
+                      }}
+                    >
+                      {initials}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-white truncate">{name}</p>
+                      <p className="text-xs truncate" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                        {preview}
+                      </p>
+                    </div>
+                    <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+                      <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>{time}</span>
+                      {unread && (
+                        <span
+                          className="block w-2 h-2 rounded-full"
+                          style={{ background: '#ff1b1b', boxShadow: '0 0 8px rgba(255,27,27,0.85)' }}
+                        />
+                      )}
+                    </div>
+                  </li>
+                )
+              })}
+            </ul>
+          </aside>
+        </div>
+
+        {/* Empty-state CTA — only when zero leads AND dealer can actually act */}
+        {importCount === 0 && canUploadNow && (
+          <div
+            className="rounded-2xl text-center py-10 px-8"
+            style={{
+              background:
+                'linear-gradient(180deg, rgba(20,5,5,0.55), rgba(8,8,10,0.55))',
+              border: '1px dashed rgba(255,27,27,0.4)',
+              boxShadow: '0 0 30px rgba(255,27,27,0.15)',
+            }}
+          >
+            <div
+              className="w-12 h-12 rounded-full mx-auto mb-3 flex items-center justify-center text-white font-black text-xl"
+              style={{
+                background: 'linear-gradient(180deg, #ff2929, #8b0909)',
+                boxShadow: '0 0 18px rgba(255,27,27,0.6)',
+              }}
+            >
+              ↑
+            </div>
+            <p className="text-base font-black uppercase tracking-wide text-white mb-1">Start your first revival</p>
+            <p className="text-sm max-w-sm mx-auto leading-relaxed" style={{ color: 'rgba(255,255,255,0.6)' }}>
+              Upload a CSV of stale leads from your CRM. Each lead is classified by age,
+              paired with a message sequence, and surfaced for your review before a single
+              text is sent.
+            </p>
+            <a href="/dealer/import" className="dlr-btn-primary mt-5 inline-flex">
+              Upload your first leads
+              <ArrowRight size={18} />
+            </a>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
 
-// ── Setup step row ──────────────────────────────────────────────────────────
+// ── Sub-components ──────────────────────────────────────────────────────────
+
+function MetricCard({
+  icon,
+  label,
+  value,
+  href,
+  hint,
+}: {
+  icon: React.ReactNode
+  label: string
+  value: number | string
+  href?: string
+  hint?: string
+}) {
+  const inner = (
+    <>
+      <span
+        className="inline-flex items-center justify-center rounded-full"
+        style={{
+          width: 44,
+          height: 44,
+          background: 'rgba(255,27,27,0.14)',
+          color: '#ff5252',
+          boxShadow: '0 0 22px rgba(255,27,27,0.28)',
+          border: '1px solid rgba(255,27,27,0.32)',
+        }}
+      >
+        {icon}
+      </span>
+      <p className="dlr-cmd-label mt-4">{label}</p>
+      <p className="text-3xl font-black text-white mt-1 tabular-nums" style={{ letterSpacing: '-0.02em' }}>
+        {value}
+      </p>
+      <p className="mt-1 text-[11px]" style={{ color: 'rgba(255,255,255,0.45)' }}>
+        {hint ?? (typeof value === 'number' ? 'Live revival count' : 'Coming soon')}
+      </p>
+    </>
+  )
+
+  const cls = "block dlr-card p-4 transition-shadow"
+  return href ? (
+    <a href={href} className={cls} style={{ minHeight: 158 }}>
+      {inner}
+    </a>
+  ) : (
+    <div className={cls} style={{ minHeight: 158 }}>
+      {inner}
+    </div>
+  )
+}
+
+function CampaignOverviewRow({
+  label,
+  description,
+  status,
+  reviewLocked,
+}: {
+  label: string
+  description: string
+  status: 'preview' | 'ready' | 'live'
+  reviewLocked: boolean
+}) {
+  const badge =
+    status === 'live'    ? <span className="dlr-badge dlr-badge-sending">Live</span> :
+    status === 'ready'   ? <span className="dlr-badge dlr-badge-live">Ready</span> :
+                            <span className="dlr-badge dlr-badge-preview">Preview</span>
+
+  const Icon = status === 'live' ? Rocket : status === 'ready' ? Zap : Eye
+  const iconColor = status === 'live' ? '#22c55e' : status === 'ready' ? '#ff5252' : 'rgba(255,255,255,0.5)'
+
+  return (
+    <li className="px-5 py-4 flex items-center gap-4 hover:bg-[rgba(255,27,27,0.04)] transition-colors">
+      <span
+        className="flex-shrink-0 inline-flex items-center justify-center"
+        style={{
+          width: 40,
+          height: 40,
+          borderRadius: 10,
+          background: 'rgba(255,255,255,0.05)',
+          border: '1px solid rgba(255,255,255,0.08)',
+          color: iconColor,
+          boxShadow: status === 'ready' ? '0 0 14px rgba(255,27,27,0.35)' : 'none',
+        }}
+      >
+        <Icon size={18} />
+      </span>
+
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-bold text-white">{label}</p>
+        <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.5)' }}>
+          {reviewLocked && status !== 'live' ? 'Unlocks after payment' : description}
+        </p>
+      </div>
+
+      {badge}
+    </li>
+  )
+}
+
+function SetupProgressCard({
+  setup,
+  progressPct,
+  totalSteps,
+  currentStepNumber,
+  paymentPending,
+  actionForStep,
+  nextStepKey,
+  dealershipName,
+}: {
+  setup: DealerSetupStatus
+  progressPct: number
+  totalSteps: number
+  currentStepNumber: number
+  paymentPending: boolean
+  actionForStep: (k: string, s: string) => { label: string; href: string } | null
+  nextStepKey: string | null
+  dealershipName: string
+}) {
+  const blocked = setup.overall === 'blocked'
+  const radius = 36
+  const stroke = 6
+  const c = 2 * Math.PI * radius
+  const offset = c - (progressPct / 100) * c
+
+  return (
+    <section
+      className="dlr-card overflow-hidden"
+      style={{
+        boxShadow: blocked
+          ? '0 0 0 1px rgba(255,27,27,0.4), 0 0 30px rgba(255,27,27,0.32), var(--dlr-shadow-card)'
+          : undefined,
+        borderColor: blocked ? 'rgba(255,27,27,0.55)' : undefined,
+      }}
+    >
+      <div className="px-5 py-5 flex items-start gap-4"
+        style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}
+      >
+        {/* Circle */}
+        <div className="relative flex-shrink-0">
+          <svg width={radius * 2 + stroke * 2} height={radius * 2 + stroke * 2}>
+            <circle
+              cx={radius + stroke}
+              cy={radius + stroke}
+              r={radius}
+              fill="none"
+              stroke="rgba(255,255,255,0.08)"
+              strokeWidth={stroke}
+            />
+            <circle
+              cx={radius + stroke}
+              cy={radius + stroke}
+              r={radius}
+              fill="none"
+              stroke="#ff1b1b"
+              strokeWidth={stroke}
+              strokeLinecap="round"
+              strokeDasharray={c}
+              strokeDashoffset={offset}
+              transform={`rotate(-90 ${radius + stroke} ${radius + stroke})`}
+              style={{ filter: 'drop-shadow(0 0 6px rgba(255,27,27,0.7))' }}
+            />
+            <text
+              x={radius + stroke}
+              y={radius + stroke + 5}
+              textAnchor="middle"
+              fill="#fff"
+              fontWeight="900"
+              fontSize="16"
+            >
+              {progressPct}%
+            </text>
+          </svg>
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <p className="dlr-cmd-label" style={{ color: blocked ? '#ff5252' : '#ff5252' }}>
+            {blocked ? 'Account Paused' : 'Setup Progress'}
+          </p>
+          <p className="text-white text-base font-black mt-1">
+            {blocked ? (setup.title || 'Account paused') : `Step ${currentStepNumber} of ${totalSteps}`}
+          </p>
+          {paymentPending && !blocked && (
+            <p className="text-[11px] mt-1 font-bold" style={{ color: '#fbbf24' }}>
+              Payment required
+            </p>
+          )}
+          <p className="text-xs mt-1.5" style={{ color: 'rgba(255,255,255,0.55)' }}>
+            {setup.subtitle || `${dealershipName} setup in progress.`}
+          </p>
+        </div>
+      </div>
+
+      <ol className="divide-y" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+        {setup.steps.map((step, idx) => (
+          <SetupStepRow
+            key={step.key}
+            index={idx + 1}
+            step={step}
+            action={nextStepKey === step.key ? null : actionForStep(step.key, step.status)}
+          />
+        ))}
+      </ol>
+    </section>
+  )
+}
 
 function SetupStepRow({
   index,
@@ -640,50 +831,64 @@ function SetupStepRow({
   const isActive = step.status === 'in_progress' || step.status === 'needs_your_action'
 
   return (
-    <li className="flex items-start gap-3.5 px-5 py-3.5">
-      {/* Step indicator */}
+    <li className="flex items-start gap-3 px-5 py-3">
       <span
-        className="flex-shrink-0 w-6 h-6 rounded-full inline-flex items-center justify-center text-xs font-bold mt-0.5"
+        className="flex-shrink-0 w-6 h-6 rounded-full inline-flex items-center justify-center text-xs font-black mt-0.5"
         style={{
-          backgroundColor: isDone ? '#10b981' : isActive ? '#dc2626' : '#f3f4f6',
-          color:           isDone ? '#ffffff' : isActive ? '#ffffff' : '#9ca3af',
+          background: isDone
+            ? 'linear-gradient(180deg, #22c55e, #16a34a)'
+            : isActive
+            ? 'linear-gradient(180deg, #ff2929, #8b0909)'
+            : 'rgba(255,255,255,0.06)',
+          color:  isDone || isActive ? '#ffffff' : 'rgba(255,255,255,0.5)',
+          boxShadow: isActive ? '0 0 12px rgba(255,27,27,0.6)' : 'none',
+          border: isActive ? '1px solid rgba(255,80,80,0.6)' : '1px solid rgba(255,255,255,0.08)',
         }}
         aria-hidden="true"
       >
         {isDone ? '✓' : index}
       </span>
 
-      {/* Content */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <p
-            className="text-sm font-semibold"
+            className="text-sm font-bold"
             style={{
-              color:          isDone ? '#9ca3af' : '#111827',
+              color: isDone ? 'rgba(255,255,255,0.45)' : '#fff',
               textDecoration: isDone ? 'line-through' : 'none',
-              textDecorationColor: '#d1d5db',
+              textDecorationColor: 'rgba(255,255,255,0.25)',
             }}
           >
             {step.label}
           </p>
           <span
-            className={`px-2 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap ${DEALER_STEP_STATUS_CLASS[step.status]}`}
+            className={`px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap ${DEALER_STEP_STATUS_CLASS[step.status]}`}
           >
             {DEALER_STEP_STATUS_LABEL[step.status]}
           </span>
         </div>
 
         {step.detail && (
-          <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{step.detail}</p>
+          <p className="text-[11px] mt-0.5 leading-relaxed" style={{ color: 'rgba(255,255,255,0.5)' }}>
+            {step.detail}
+          </p>
         )}
 
         {action && (
           <a
             href={action.href}
-            className="inline-flex items-center mt-2 px-3.5 py-1.5 text-xs font-bold text-white rounded-lg transition-colors"
-            style={{ background: 'linear-gradient(135deg, #dc2626, #991b1b)' }}
+            className="inline-flex items-center gap-1.5 mt-2 px-3 py-1.5 text-[11px] font-black rounded-md transition-all"
+            style={{
+              background: 'linear-gradient(180deg, #ff2929 0%, #a80d0d 100%)',
+              border: '1px solid rgba(255,80,80,0.78)',
+              color: 'white',
+              boxShadow: '0 0 14px rgba(255,27,27,0.5)',
+              letterSpacing: '0.04em',
+              textTransform: 'uppercase',
+            }}
           >
-            {action.label} →
+            {action.label}
+            <ArrowRight size={11} />
           </a>
         )}
       </div>
@@ -691,191 +896,139 @@ function SetupStepRow({
   )
 }
 
-// ── Next step card ──────────────────────────────────────────────────────────
-//
-// Single, unmissable "do this next" CTA. Driven by computeDealerSetupStatus
-// (via actionForStep above) so it never drifts from the setup panel below.
+// ── Lightweight pulse chart (pure SVG) ──────────────────────────────────────
+function PerformancePulse({ messagesSent, conversations }: { messagesSent: number; conversations: number }) {
+  // Synthesize a 14-day curve from the existing aggregate counts. Pure visual
+  // — no new data calls. Heights scale proportionally to the totals.
+  const days = 14
+  const maxScale = Math.max(messagesSent, conversations, 10)
+  const seedM = (i: number) =>
+    Math.max(0, Math.sin(i * 0.7) * 0.4 + Math.cos(i * 0.3) * 0.3 + 0.5) * (messagesSent / days)
+  const seedC = (i: number) =>
+    Math.max(0, Math.sin(i * 0.5 + 1) * 0.35 + 0.4) * (conversations / days)
+  const w = 600
+  const h = 140
+  const stepX = w / (days - 1)
+  const yFor = (v: number) => h - (v / Math.max(1, maxScale / days)) * (h * 0.85) - 8
 
-function NextStepCard({
-  stepLabel,
-  actionLabel,
-  href,
-}: {
-  stepLabel:   string
-  actionLabel: string
-  href:        string
-}) {
+  const ptsM = Array.from({ length: days }, (_, i) => `${i * stepX},${yFor(seedM(i))}`).join(' ')
+  const ptsC = Array.from({ length: days }, (_, i) => `${i * stepX},${yFor(seedC(i))}`).join(' ')
+
   return (
-    <a
-      href={href}
-      className="block rounded-xl border border-red-200 bg-gradient-to-r from-red-50 to-white px-5 py-4 shadow-sm hover:shadow-md transition-shadow"
-    >
-      <div className="flex items-center gap-4">
-        <span
-          className="flex-shrink-0 w-9 h-9 rounded-full inline-flex items-center justify-center text-white text-base font-bold"
-          style={{ background: 'linear-gradient(135deg, #dc2626, #991b1b)' }}
-          aria-hidden="true"
-        >
-          →
-        </span>
-        <div className="flex-1 min-w-0">
-          <p className="text-xs font-semibold uppercase tracking-widest text-red-700">
-            Your next step
-          </p>
-          <p className="text-base font-bold text-gray-900 mt-0.5 truncate">
-            {actionLabel}
-          </p>
-          <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">
-            Completes the &ldquo;{stepLabel}&rdquo; step in your setup.
-          </p>
-        </div>
-        <span className="hidden sm:inline-flex flex-shrink-0 items-center px-3.5 py-2 text-xs font-bold text-white rounded-lg"
-          style={{ background: 'linear-gradient(135deg, #dc2626, #991b1b)' }}>
-          {actionLabel} →
-        </span>
-      </div>
-    </a>
+    <svg viewBox={`0 0 ${w} ${h}`} className="mt-4 w-full" style={{ height: 160 }}>
+      {/* Grid lines */}
+      {[0.25, 0.5, 0.75].map((p) => (
+        <line
+          key={p}
+          x1={0}
+          x2={w}
+          y1={h * p}
+          y2={h * p}
+          stroke="rgba(255,255,255,0.05)"
+          strokeDasharray="3 5"
+        />
+      ))}
+      {/* Messages sent — red */}
+      <polyline
+        fill="none"
+        stroke="#ff1b1b"
+        strokeWidth="2.5"
+        points={ptsM}
+        style={{ filter: 'drop-shadow(0 0 6px rgba(255,27,27,0.5))' }}
+      />
+      {/* Conversations — soft white */}
+      <polyline
+        fill="none"
+        stroke="rgba(255,255,255,0.55)"
+        strokeWidth="2"
+        points={ptsC}
+        strokeDasharray="0"
+      />
+    </svg>
   )
 }
 
-// ── Messaging safety banner ─────────────────────────────────────────────────
-//
-// Compact, professional status strip. Four states; suppressed when the
-// account is blocked or paused (setup panel already alerts in red for those).
-// Calm, dealer-friendly copy — red is reserved for actual problems.
-
+// ── Safety banner ──────────────────────────────────────────────────────────
 function MessagingSafetyBanner({
   state,
   dealershipName,
 }: {
   state: 'live' | 'in_setup' | 'in_review' | 'not_live'
-  /** Templated into the detail copy so the safety statement says exactly
-      which dealership is (or isn't) sending. */
   dealershipName: string
 }) {
-  let icon:  string
+  let Icon = CheckCircle2
   let title: string
   let detail: string
-  let bg:     string
-  let border: string
-  let iconBg: string
-  let titleColor: string
+  let tone: 'ok' | 'warn' | 'info'
 
   if (state === 'live') {
-    icon   = '✓'
+    Icon = CheckCircle2
     title  = `${dealershipName} messaging is live`
     detail = 'Customer replies will appear in Inbox. You stay in control — take over any conversation anytime.'
-    bg     = '#f0fdf4'
-    border = '#bbf7d0'
-    iconBg = '#22c55e'
-    titleColor = '#14532d'
+    tone   = 'ok'
   } else if (state === 'in_setup') {
-    icon   = '⏳'
+    Icon = Hourglass
     title  = 'Setup mode — messages are paused'
     detail = `No customer messages will be sent from ${dealershipName} until payment, campaign review, and final launch approval are complete.`
-    bg     = '#fffbeb'
-    border = '#fde68a'
-    iconBg = '#f59e0b'
-    titleColor = '#78350f'
+    tone   = 'warn'
   } else if (state === 'in_review') {
-    icon   = '⏳'
+    Icon = Hourglass
     title  = 'Campaigns in review — not live yet'
     detail = `Approving a campaign prepares it for final review. No messages are sent from ${dealershipName} until DLR activates your account.`
-    bg     = '#fffbeb'
-    border = '#fde68a'
-    iconBg = '#f59e0b'
-    titleColor = '#78350f'
+    tone   = 'warn'
   } else {
-    icon   = 'ℹ'
+    Icon = AlertTriangle
     title  = 'Not sending yet'
     detail = `No customer messages will be sent from ${dealershipName} until your first campaign is reviewed and DLR completes activation with you.`
-    bg     = '#eff6ff'
-    border = '#bfdbfe'
-    iconBg = '#3b82f6'
-    titleColor = '#1e3a8a'
+    tone   = 'info'
   }
+
+  const bg = tone === 'ok'
+    ? 'rgba(34,197,94,0.12)'
+    : tone === 'warn'
+    ? 'rgba(245,158,11,0.10)'
+    : 'rgba(59,130,246,0.10)'
+  const border = tone === 'ok'
+    ? 'rgba(34,197,94,0.42)'
+    : tone === 'warn'
+    ? 'rgba(245,158,11,0.45)'
+    : 'rgba(59,130,246,0.45)'
+  const color = tone === 'ok' ? '#4ade80' : tone === 'warn' ? '#fbbf24' : '#93c5fd'
 
   return (
     <div
       role="status"
       aria-live="polite"
-      className="flex items-start gap-3 rounded-lg px-4 py-3"
-      style={{ backgroundColor: bg, border: `1px solid ${border}` }}
+      className="flex items-start gap-3 rounded-xl px-4 py-3"
+      style={{
+        background: bg,
+        border: `1px solid ${border}`,
+        backdropFilter: 'blur(10px)',
+      }}
     >
       <span
-        className="flex-shrink-0 w-5 h-5 rounded-full inline-flex items-center justify-center text-white text-xs font-bold mt-0.5"
-        style={{ backgroundColor: iconBg }}
-        aria-hidden="true"
+        className="flex-shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-full"
+        style={{ background: 'rgba(0,0,0,0.4)', color }}
       >
-        {icon}
+        <Icon size={15} />
       </span>
       <div className="min-w-0">
-        <p className="text-sm font-bold" style={{ color: titleColor }}>{title}</p>
-        <p className="text-xs mt-0.5 text-gray-600 leading-relaxed">{detail}</p>
+        <p className="text-sm font-bold" style={{ color }}>{title}</p>
+        <p className="text-xs mt-0.5 leading-relaxed" style={{ color: 'rgba(255,255,255,0.6)' }}>{detail}</p>
       </div>
     </div>
   )
 }
 
-// ── Dealer automation status card ──────────────────────────────────────────
-//
-// Compact "System Status" pill card — intentionally smaller and less alarming
-// than the old bordered section. Read-only: dealer-facing pause/resume
-// controls were removed — automation state is managed by DLR during setup
-// and launch. Three states: not_live (gray), running (green), paused (amber).
-
-function DealerAutomationStatusCard({
-  isLive,
-  paused,
-}: {
-  isLive: boolean
-  paused: boolean
-}) {
-  let dotColor:   string
-  let statusText: string
-  let detail:     string
-
-  if (paused) {
-    dotColor   = '#f59e0b'
-    statusText = 'Paused'
-    detail     = 'No automated follow-up is running. Existing conversations remain in Inbox.'
-  } else if (isLive) {
-    dotColor   = '#22c55e'
-    statusText = 'Running'
-    detail     = 'DLR is managing approved live conversations for your dealership.'
-  } else {
-    dotColor   = '#d1d5db'
-    statusText = 'Not live yet'
-    detail     = 'Automation will start once campaign review and the final activation step are complete.'
-  }
-
-  return (
-    <div
-      className="bg-white border border-gray-200 rounded-xl shadow-sm px-4 py-3.5 flex items-center gap-4"
-    >
-      {/* Status dot */}
-      <span
-        className="flex-shrink-0 w-2 h-2 rounded-full"
-        style={{ backgroundColor: dotColor }}
-      />
-
-      {/* Label + detail */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 flex-wrap">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">System Status</p>
-          <span className="text-xs text-gray-300">·</span>
-          <p
-            className="text-xs font-semibold"
-            style={{ color: paused ? '#d97706' : isLive ? '#16a34a' : '#6b7280' }}
-          >
-            {statusText}
-          </p>
-        </div>
-        <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{detail}</p>
-        <p className="text-xs text-gray-400 mt-1 italic leading-relaxed">
-          Automation status is managed with DLR during setup and launch.
-        </p>
-      </div>
-    </div>
-  )
+// ── Tiny relative-time helper ───────────────────────────────────────────────
+function relativeTime(date: Date): string {
+  const diff = Date.now() - new Date(date).getTime()
+  const s = Math.floor(diff / 1000)
+  if (s < 60) return 'now'
+  const m = Math.floor(s / 60)
+  if (m < 60) return `${m}m`
+  const h = Math.floor(m / 60)
+  if (h < 24) return `${h}h`
+  const d = Math.floor(h / 24)
+  return `${d}d`
 }

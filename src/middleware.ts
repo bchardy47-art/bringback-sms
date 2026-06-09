@@ -79,7 +79,28 @@ export async function middleware(req: NextRequest) {
 
   // ── /dealer/** — dealer-only page surface ──────────────────────────────────
   if (pathname.startsWith('/dealer')) {
-    if (!token) return applyAuthedNoCache(loginRedirect(req))
+    // LOCAL VISUAL QA ONLY — page-level dev auth bypass.
+    //
+    // When DLR_DEV_AUTH_BYPASS=true is set in .env.local and the build
+    // is non-production, let unauthenticated requests fall through to
+    // the page layer so `getDealerSession()` (src/lib/dealer/
+    // dev-auth-bypass.ts) can substitute a synthetic session built from
+    // the first users.role='dealer' row in the database. Two independent
+    // gates have to line up — `NODE_ENV !== 'production'` is a hard gate
+    // that flips off in any production build, and `DLR_DEV_AUTH_BYPASS`
+    // is an opt-in env flag. In production this branch is dead.
+    //
+    // Crucially we are only relaxing the dealer *page* path here.
+    // `/api/dealer/**` above keeps its strict 401/403 behaviour, so
+    // mutating actions still need a real session.
+    const devBypassActive =
+      process.env.NODE_ENV !== 'production' &&
+      process.env.DLR_DEV_AUTH_BYPASS === 'true'
+
+    if (!token) {
+      if (devBypassActive) return applyAuthedNoCache(NextResponse.next())
+      return applyAuthedNoCache(loginRedirect(req))
+    }
     if (token.role !== 'dealer') {
       return applyAuthedNoCache(NextResponse.redirect(new URL('/dashboard', req.url)))
     }

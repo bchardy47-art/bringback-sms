@@ -6,16 +6,15 @@
  * cross-tenant tools they're used to.
  */
 
-import { getServerSession } from 'next-auth'
 import { redirect, notFound } from 'next/navigation'
-import { authOptions } from '@/lib/auth'
+import { getDealerSession } from '@/lib/dealer/dev-auth-bypass'
 import { getCampaignReport } from '@/lib/pilot/campaign-report'
 import CampaignReportView from './CampaignReportView'
 
 type RouteContext = { params: { batchId: string } }
 
 export default async function DealerCampaignReportPage({ params }: RouteContext) {
-  const session = await getServerSession(authOptions)
+  const session = await getDealerSession()
   if (!session?.user?.tenantId) redirect('/login')
   if (session.user.role !== 'dealer') {
     redirect(`/admin/dlr/pilot/batches/${params.batchId}/report`)

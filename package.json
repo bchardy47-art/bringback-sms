@@ -10,6 +10,7 @@
     "worker": "tsx worker.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
+    "db:migrate:local": "tsx scripts/migrate-local.ts",
     "db:seed": "tsx scripts/seed.ts",
     "sim": "tsx scripts/simulate-webhook.ts"
   },
