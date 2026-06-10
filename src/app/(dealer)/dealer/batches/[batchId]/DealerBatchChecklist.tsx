@@ -64,25 +64,31 @@ export function DealerBatchChecklist({ batchId, totalLeads }: Props) {
   }
 
   return (
-    <div className="border-2 border-blue-200 rounded-xl overflow-hidden">
-      <div className="bg-blue-50 px-5 py-3 border-b border-blue-200">
-        <h2 className="text-sm font-semibold text-blue-900">Ready to Approve This Campaign?</h2>
-        <p className="text-xs text-blue-700 mt-0.5">
-          Confirm each item below, then approve. Approving does <strong>not</strong> send messages —
+    <div className="p-5 space-y-4">
+      {/* Header */}
+      <div>
+        <h2 className="text-sm font-black text-white">Ready to Approve This Campaign?</h2>
+        <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.6)' }}>
+          Confirm each item below, then approve. Approving does <strong className="text-white">not</strong> send messages —
           that requires a final activation step that we complete together.
         </p>
       </div>
 
-      <div className="px-5 py-4 space-y-2 text-sm text-gray-700">
+      <div className="space-y-2 text-sm">
         {checkItems.map((item, i) => (
           <label key={i} className="flex items-start gap-3 cursor-pointer">
             <input
               type="checkbox"
               checked={checked[i]}
               onChange={() => toggle(i)}
-              className="mt-0.5 h-4 w-4 rounded border-gray-300 text-blue-600 cursor-pointer"
+              className="mt-0.5 h-4 w-4 rounded cursor-pointer accent-red-500"
+              style={{ accentColor: '#ff1b1b' }}
             />
-            <span className={checked[i] ? 'text-gray-400 line-through' : 'text-gray-700'}>
+            <span style={{
+              color: checked[i] ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.8)',
+              textDecoration: checked[i] ? 'line-through' : 'none',
+              textDecorationColor: 'rgba(255,255,255,0.2)',
+            }}>
               {item}
             </span>
           </label>
@@ -93,62 +99,69 @@ export function DealerBatchChecklist({ batchId, totalLeads }: Props) {
           A signed audit row is written before the status flip. The exact
           text the dealer ticks here is mirrored in
           CAMPAIGN_APPROVAL_TEXT — bump the version if you change either. */}
-      <div className="px-5 pb-4">
-        <label
-          className={`flex items-start gap-3 cursor-pointer rounded-lg border px-4 py-3 transition-colors ${
-            attested
-              ? 'border-emerald-200 bg-emerald-50'
-              : 'border-amber-200 bg-amber-50'
-          }`}
-        >
-          <input
-            type="checkbox"
-            checked={attested}
-            onChange={(e) => setAttested(e.target.checked)}
-            className="mt-0.5 h-4 w-4 rounded border-gray-300 text-emerald-600 cursor-pointer shrink-0"
-          />
-          <div className="text-sm">
-            <p className={`font-semibold ${attested ? 'text-emerald-900' : 'text-amber-900'}`}>
-              {attested ? '✓ Approval attestation confirmed' : 'Final approval attestation required'}
-            </p>
-            <p className="text-gray-700 mt-0.5 leading-relaxed">
-              {CAMPAIGN_APPROVAL_TEXT}
-            </p>
-          </div>
-        </label>
-      </div>
+      <label
+        className="flex items-start gap-3 cursor-pointer rounded-lg px-4 py-3 transition-colors"
+        style={{
+          background: attested ? 'rgba(16,185,129,0.12)' : 'rgba(245,158,11,0.08)',
+          border: attested ? '1px solid rgba(16,185,129,0.4)' : '1px solid rgba(245,158,11,0.35)',
+        }}
+      >
+        <input
+          type="checkbox"
+          checked={attested}
+          onChange={(e) => setAttested(e.target.checked)}
+          className="mt-0.5 h-4 w-4 rounded cursor-pointer shrink-0"
+          style={{ accentColor: attested ? '#10b981' : '#f59e0b' }}
+        />
+        <div className="text-sm">
+          <p
+            className="font-bold"
+            style={{ color: attested ? '#34d399' : '#fbbf24' }}
+          >
+            {attested ? '✓ Approval attestation confirmed' : 'Final approval attestation required'}
+          </p>
+          <p className="mt-0.5 leading-relaxed" style={{ color: 'rgba(255,255,255,0.7)' }}>
+            {CAMPAIGN_APPROVAL_TEXT}
+          </p>
+        </div>
+      </label>
 
-      <div className="px-5 pb-5 space-y-2">
+      <div className="space-y-2">
         {!canApprove && (
-          <p className="text-xs text-gray-400">
+          <p className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>
             {checkedCount} of {checkItems.length} items confirmed
             {!attested && ' · final attestation required'}
           </p>
         )}
 
         {error && (
-          <p className="text-xs text-red-600 font-medium">{error}</p>
+          <p className="text-xs font-medium" style={{ color: '#f87171' }}>{error}</p>
         )}
 
         {canApprove ? (
           <button
             onClick={handleApprove}
             disabled={isPending}
-            className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="dlr-btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isPending ? 'Approving…' : 'Approve this campaign →'}
           </button>
         ) : (
           <button
             disabled
-            className="px-5 py-2.5 bg-gray-200 text-gray-400 text-sm font-bold rounded-lg cursor-not-allowed"
+            className="px-5 py-2.5 rounded-lg text-sm font-bold cursor-not-allowed"
+            style={{
+              background: 'rgba(255,255,255,0.06)',
+              border: '1px solid rgba(255,255,255,0.08)',
+              color: 'rgba(255,255,255,0.25)',
+            }}
             title="Confirm all items + tick the final attestation to approve"
           >
             Approve this campaign →
           </button>
         )}
 
-        <p className="text-xs text-gray-400">
+        <p className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>
           After approval, our team will complete final carrier verification before any messages are sent.
         </p>
       </div>
