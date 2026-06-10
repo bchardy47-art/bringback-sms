@@ -309,11 +309,11 @@ export const DEALER_STEP_STATUS_LABEL: Record<DealerStepStatus, string> = {
   not_started:        'Not started',
 }
 
-/** Tailwind class strings — UI is free to ignore and roll its own. */
+/** DLR design-system badge classes (see globals.css .badge / .badge-* rules). */
 export const DEALER_STEP_STATUS_CLASS: Record<DealerStepStatus, string> = {
-  done:              'bg-[rgba(16,185,129,0.15)] text-emerald-400',
-  in_progress:       'bg-[rgba(59,130,246,0.15)] text-blue-400',
-  waiting_on_dlr:    'bg-[rgba(255,255,255,0.06)] text-[rgba(255,255,255,0.5)]',
-  needs_your_action: 'bg-[rgba(255,27,27,0.20)] text-red-400',
-  not_started:       'bg-[rgba(255,255,255,0.04)] text-[rgba(255,255,255,0.25)]',
+  done:              'badge badge-green',
+  in_progress:       'badge badge-amber',
+  waiting_on_dlr:    'badge badge-ghost',
+  needs_your_action: 'badge badge-red',
+  not_started:       'badge badge-ghost',
 }

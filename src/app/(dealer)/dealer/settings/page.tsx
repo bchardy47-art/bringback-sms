@@ -62,58 +62,36 @@ export default async function DealerSettingsPage() {
   const email = dbEmail || sessEmail || ''
 
   return (
-    <div className="dlr-app-bg min-h-full text-white">
-      <div
-        className="px-8 py-5"
-        style={{ borderBottom: '1px solid rgba(255,27,27,0.28)' }}
-      >
-        <p className="dlr-cmd-label" style={{ color: '#ff5252' }}>Account Settings</p>
-        <h1 className="text-xl font-black text-white mt-1">Settings</h1>
-        <p className="text-sm mt-0.5" style={{ color: 'rgba(255,255,255,0.55)' }}>Manage your Revival Center account</p>
+    <div className="min-h-full bg-gray-50">
+      <div className="bg-white border-b border-gray-200 px-8 py-5">
+        <h1 className="text-xl font-bold text-gray-900">Settings</h1>
+        <p className="text-sm text-gray-500 mt-0.5">Manage your Revival Center account</p>
       </div>
 
       <div className="px-8 py-6 max-w-3xl space-y-5">
         {/* Account */}
-        <div className="dlr-card overflow-hidden">
-          <div
-            className="flex items-center gap-3 px-6 py-4"
-            style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}
-          >
-            <div
-              className="w-8 h-8 rounded-lg flex items-center justify-center"
-              style={{
-                background: 'rgba(59,130,246,0.15)',
-                border: '1px solid rgba(59,130,246,0.25)',
-              }}
-            >
-              <User size={18} style={{ color: '#60a5fa' }} />
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-100">
+            <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center">
+              <User size={18} className="text-blue-500" />
             </div>
             <div>
-              <h2 className="text-sm font-bold text-white">Account</h2>
-              <p className="text-xs" style={{ color: 'rgba(255,255,255,0.45)' }}>Your dealer profile</p>
+              <h2 className="text-sm font-semibold text-gray-900">Account</h2>
+              <p className="text-xs text-gray-400">Your dealer profile</p>
             </div>
           </div>
           <DealerProfileEditForm initialName={name} email={email} />
         </div>
 
         {/* Billing — Stripe-hosted self-serve portal */}
-        <div className="dlr-card overflow-hidden">
-          <div
-            className="flex items-center gap-3 px-6 py-4"
-            style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}
-          >
-            <div
-              className="w-8 h-8 rounded-lg flex items-center justify-center"
-              style={{
-                background: 'rgba(16,185,129,0.15)',
-                border: '1px solid rgba(16,185,129,0.25)',
-              }}
-            >
-              <CreditCard size={18} style={{ color: '#34d399' }} />
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-100">
+            <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center">
+              <CreditCard size={18} className="text-emerald-500" />
             </div>
             <div>
-              <h2 className="text-sm font-bold text-white">Billing</h2>
-              <p className="text-xs" style={{ color: 'rgba(255,255,255,0.45)' }}>
+              <h2 className="text-sm font-semibold text-gray-900">Billing</h2>
+              <p className="text-xs text-gray-400">
                 {billingIntake?.plan
                   ? `${billingIntake.plan.charAt(0).toUpperCase() + billingIntake.plan.slice(1)} plan`
                   : 'Manage your subscription'}
@@ -128,23 +106,14 @@ export default async function DealerSettingsPage() {
         </div>
 
         {/* Security — change password */}
-        <div className="dlr-card overflow-hidden">
-          <div
-            className="flex items-center gap-3 px-6 py-4"
-            style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}
-          >
-            <div
-              className="w-8 h-8 rounded-lg flex items-center justify-center"
-              style={{
-                background: 'rgba(139,92,246,0.15)',
-                border: '1px solid rgba(139,92,246,0.25)',
-              }}
-            >
-              <Shield size={18} style={{ color: '#a78bfa' }} />
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-100">
+            <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center">
+              <Shield size={18} className="text-violet-500" />
             </div>
             <div>
-              <h2 className="text-sm font-bold text-white">Security</h2>
-              <p className="text-xs" style={{ color: 'rgba(255,255,255,0.45)' }}>Change your password</p>
+              <h2 className="text-sm font-semibold text-gray-900">Security</h2>
+              <p className="text-xs text-gray-400">Change your password</p>
             </div>
           </div>
           <ChangePasswordForm />
