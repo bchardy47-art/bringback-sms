@@ -18,6 +18,7 @@ import {
   CheckCircle2,
   Ban,
   Tag,
+  AlertTriangle,
 } from 'lucide-react'
 
 const STATE_BADGE: Record<string, { label: string; className: string }> = {
@@ -164,6 +165,7 @@ export default async function DealerConversationPage({
               color: 'rgba(255,255,255,0.85)',
             }}
             title="Call lead"
+            aria-label="Call lead"
           >
             <Phone size={15} />
           </a>
@@ -171,6 +173,22 @@ export default async function DealerConversationPage({
 
         {/* Red pulse line under header */}
         <div className="dlr-pulse-line flex-shrink-0" />
+
+        <div
+          className="flex-shrink-0 px-5 py-2.5"
+          style={{
+            background: 'rgba(255,255,255,0.03)',
+            borderBottom: '1px solid rgba(255,255,255,0.06)',
+          }}
+        >
+          <p className="text-[11px] flex items-start gap-2" style={{ color: 'rgba(255,255,255,0.58)' }}>
+            <AlertTriangle size={12} style={{ marginTop: 2, color: '#fbbf24', flexShrink: 0 }} />
+            <span>
+              Call actions use your phone directly. Only use <strong style={{ color: '#fff' }}>Call lead</strong>{' '}
+              when you&apos;re ready to place a live call.
+            </span>
+          </p>
+        </div>
 
         {/* Take-over banner */}
         {showTakeOverBanner && (
@@ -389,9 +407,11 @@ export default async function DealerConversationPage({
                 href={`tel:${conversation.leadPhone}`}
                 className="dlr-btn-secondary w-full"
                 style={{ height: 40, fontSize: 12, justifyContent: 'flex-start' }}
+                aria-label="Call lead"
+                title="Call lead"
               >
                 <Phone size={13} />
-                Call Lead
+                Call lead now
               </a>
               {isOpen && !isHumanOwned && (
                 <div

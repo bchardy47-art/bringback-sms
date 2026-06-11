@@ -88,10 +88,10 @@ export default function CampaignReportView({
         </div>
       </div>
 
-      {/* ── Manager summary ──────────────────────────────────────────── */}
+      {/* ── Campaign summary ─────────────────────────────────────────── */}
       <section className="bg-white border border-gray-200 rounded-xl px-6 py-5">
         <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-          Manager Summary
+          Campaign Summary
         </p>
         <p className="text-sm text-gray-800 leading-relaxed">{report.managerSummary}</p>
       </section>
@@ -105,12 +105,12 @@ export default function CampaignReportView({
           <StatCard label="Replies"           value={report.repliesReceived} color="text-blue-600" />
           <StatCard label="Reply rate"        value={fmtPct(report.replyRate)} color="text-blue-600" />
           <StatCard label="Opt-outs"          value={report.optOuts} color={report.optOuts > 0 ? 'text-red-600' : 'text-gray-500'} />
-          <StatCard label="Hot leads"         value={report.classification.hot} color="text-orange-600" />
-          <StatCard label="Warm replies"      value={report.classification.warm} color="text-amber-600" />
-          <StatCard label="Needs human"       value={report.classification.needsHuman} color="text-purple-600" />
-          <StatCard label="Handoffs"          value={report.handoffsCreated} color="text-orange-500" />
-          <StatCard label="Handoffs resolved" value={report.handoffsResolved} color="text-teal-600" />
-          <StatCard label="Failed"            value={report.messagesFailed} color={report.messagesFailed > 0 ? 'text-red-600' : 'text-gray-500'} />
+          <StatCard label="Hot leads"          value={report.classification.hot} color="text-orange-600" />
+          <StatCard label="Warm replies"       value={report.classification.warm} color="text-amber-600" />
+          <StatCard label="Needs follow-up"    value={report.classification.needsHuman} color="text-purple-600" />
+          <StatCard label="Follow-ups created" value={report.handoffsCreated} color="text-orange-500" />
+          <StatCard label="Follow-ups resolved" value={report.handoffsResolved} color="text-teal-600" />
+          <StatCard label="Failed"             value={report.messagesFailed} color={report.messagesFailed > 0 ? 'text-red-600' : 'text-gray-500'} />
         </div>
       </section>
 
@@ -184,15 +184,15 @@ export default function CampaignReportView({
           <EmptyState text="No replies yet — groups will populate as leads respond." />
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-            <StatCard label="Hot"             value={report.classification.hot}             color="text-orange-600" />
-            <StatCard label="Warm"            value={report.classification.warm}            color="text-amber-600" />
-            <StatCard label="Needs human"     value={report.classification.needsHuman}      color="text-purple-600" />
-            <StatCard label="Not now"         value={report.classification.notNow}          color="text-gray-500" />
-            <StatCard label="Neutral/unclear" value={report.classification.neutralUnclear}  color="text-gray-500" />
-            <StatCard label="Not interested"  value={report.classification.notInterested}   color="text-gray-500" />
-            <StatCard label="Bought elsewhere" value={report.classification.alreadyBought}  color="text-gray-500" />
-            <StatCard label="Bad number"      value={report.classification.wrongNumber}     color="text-gray-500" />
-            <StatCard label="Complaint"       value={report.classification.angryOrComplaint} color={report.classification.angryOrComplaint > 0 ? 'text-red-600' : 'text-gray-500'} />
+            <StatCard label="Hot"              value={report.classification.hot}             color="text-orange-600" />
+            <StatCard label="Warm"             value={report.classification.warm}            color="text-amber-600" />
+            <StatCard label="Needs follow-up"  value={report.classification.needsHuman}      color="text-purple-600" />
+            <StatCard label="Not now"          value={report.classification.notNow}          color="text-gray-500" />
+            <StatCard label="Neutral/unclear"  value={report.classification.neutralUnclear}  color="text-gray-500" />
+            <StatCard label="Not interested"   value={report.classification.notInterested}   color="text-gray-500" />
+            <StatCard label="Bought elsewhere" value={report.classification.alreadyBought}   color="text-gray-500" />
+            <StatCard label="Bad number"       value={report.classification.wrongNumber}     color="text-gray-500" />
+            <StatCard label="Complaint"        value={report.classification.angryOrComplaint} color={report.classification.angryOrComplaint > 0 ? 'text-red-600' : 'text-gray-500'} />
           </div>
         )}
       </section>
@@ -212,29 +212,28 @@ export default function CampaignReportView({
       {/* ── Needs-human table ────────────────────────────────────────── */}
       <section>
         <h2 className="text-sm font-semibold text-gray-700 mb-3">
-          Needs Human Follow-up ({report.needsHumanLeads.length})
+          Needs Follow-up ({report.needsHumanLeads.length})
         </h2>
         {report.needsHumanLeads.length === 0 ? (
-          <EmptyState text="No leads flagged for human follow-up yet — warm trade/finance and explicit callback requests will show here." />
+          <EmptyState text="No leads flagged for follow-up yet — warm trade/finance and explicit callback requests will show here." />
         ) : (
           <LeadTable rows={report.needsHumanLeads} highlight="warm" />
         )}
       </section>
 
-      {/* ── Handoffs section (just a count + note; details live in /handoffs) ── */}
       <section>
-        <h2 className="text-sm font-semibold text-gray-700 mb-3">Handoffs</h2>
+        <h2 className="text-sm font-semibold text-gray-700 mb-3">Follow-up Activity</h2>
         {noHandoffs ? (
-          <EmptyState text="No handoffs created yet — handoffs are created automatically when a reply is hot, warm, or needs human review." />
+          <EmptyState text="No follow-up items created yet — DLR creates them automatically when a reply needs personal attention." />
         ) : (
           <div className="bg-white border border-gray-200 rounded-xl px-5 py-4 text-sm text-gray-700">
             <p>
               <span className="font-semibold">{report.handoffsCreated}</span>{' '}
-              {report.handoffsCreated === 1 ? 'handoff has' : 'handoffs have'} been created.{' '}
+              {report.handoffsCreated === 1 ? 'follow-up item has' : 'follow-up items have'} been created.{' '}
               <span className="font-semibold">{report.handoffsResolved}</span> resolved.
             </p>
             <p className="text-xs text-gray-500 mt-1">
-              Resolve or dismiss them in the Handoffs queue.
+              DLR tracks these items automatically as conversations progress.
             </p>
           </div>
         )}

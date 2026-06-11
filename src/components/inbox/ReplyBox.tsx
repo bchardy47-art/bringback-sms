@@ -2,13 +2,12 @@
 
 import { useState, useRef, FormEvent } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
-import { Send, FileText, MessageSquare } from 'lucide-react'
+import { Send, MessageSquare } from 'lucide-react'
 
 export function ReplyBox({ conversationId }: { conversationId: string }) {
   const [body, setBody] = useState('')
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [mode, setMode] = useState<'reply' | 'note'>('reply')
   const router = useRouter()
   const pathname = usePathname()
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -24,8 +23,6 @@ export function ReplyBox({ conversationId }: { conversationId: string }) {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     if (!body.trim()) return
-    // Internal notes are not supported by the API surface; only 'reply' sends.
-    if (mode !== 'reply') return
     if (!confirmSend()) return
 
     setSending(true)
@@ -67,69 +64,31 @@ export function ReplyBox({ conversationId }: { conversationId: string }) {
     if (e.key !== 'Enter') return
     if (e.shiftKey) return
     if (e.nativeEvent.isComposing || e.keyCode === 229) return
-    if (sending || !body.trim() || mode !== 'reply') return
+    if (sending || !body.trim()) return
     handleSubmit(e as unknown as FormEvent)
   }
 
   if (isDealer) {
     return (
       <form onSubmit={handleSubmit} className="px-4 py-3" style={{ background: 'rgba(3,3,4,0.92)' }}>
-        {/* Reply / Internal Note tabs */}
-        <div className="flex gap-2 mb-2">
-          <button
-            type="button"
-            onClick={() => setMode('reply')}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-bold uppercase tracking-widest transition-colors"
-            style={
-              mode === 'reply'
-                ? {
-                    background: 'rgba(255,27,27,0.2)',
-                    border: '1px solid rgba(255,27,27,0.7)',
-                    boxShadow: '0 0 14px rgba(255,27,27,0.28)',
-                    color: '#fff',
-                  }
-                : {
-                    background: 'rgba(255,255,255,0.04)',
-                    border: '1px solid rgba(255,255,255,0.08)',
-                    color: 'rgba(255,255,255,0.55)',
-                  }
-            }
+        <div className="flex items-center gap-2 mb-2">
+          <span
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-bold uppercase tracking-widest"
+            style={{
+              background: 'rgba(255,27,27,0.2)',
+              border: '1px solid rgba(255,27,27,0.7)',
+              boxShadow: '0 0 14px rgba(255,27,27,0.28)',
+              color: '#fff',
+            }}
           >
             <MessageSquare size={12} />
             Reply
-          </button>
-          <button
-            type="button"
-            onClick={() => setMode('note')}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-bold uppercase tracking-widest transition-colors"
-            style={
-              mode === 'note'
-                ? {
-                    background: 'rgba(245,158,11,0.18)',
-                    border: '1px solid rgba(245,158,11,0.55)',
-                    color: '#fbbf24',
-                  }
-                : {
-                    background: 'rgba(255,255,255,0.04)',
-                    border: '1px solid rgba(255,255,255,0.08)',
-                    color: 'rgba(255,255,255,0.55)',
-                  }
-            }
-          >
-            <FileText size={12} />
-            Internal Note
-          </button>
+          </span>
           <div className="flex-1" />
           <span className="text-[10px] self-center" style={{ color: 'rgba(255,255,255,0.4)' }}>
             {body.length}/1600
           </span>
         </div>
-
-        {mode === 'note' && (
-          <p className="mb-2 text-[11px]" style={{ color: '#fbbf24' }}>
-            Internal notes aren&apos;t saved to the lead record yet — switch to Reply to send a message.
-          </p>
-        )}
 
         <div className="flex gap-3 items-end">
           <textarea
@@ -137,7 +96,7 @@ export function ReplyBox({ conversationId }: { conversationId: string }) {
             value={body}
             onChange={(e) => setBody(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={mode === 'reply' ? 'Type your message...' : 'Add an internal note for your team...'}
+            placeholder="Type your message..."
             rows={2}
             maxLength={1600}
             className="flex-1 resize-none rounded-lg px-3 py-2.5 text-sm outline-none transition-colors"
@@ -149,10 +108,10 @@ export function ReplyBox({ conversationId }: { conversationId: string }) {
           />
           <button
             type="submit"
-            disabled={sending || !body.trim() || mode !== 'reply'}
+            disabled={sending || !body.trim()}
             className="inline-flex items-center gap-2 px-4 rounded-lg text-xs font-black uppercase tracking-widest disabled:cursor-not-allowed transition-all"
             style={
-              sending || !body.trim() || mode !== 'reply'
+              sending || !body.trim()
                 ? {
                     height: 44,
                     background: 'rgba(255,255,255,0.05)',

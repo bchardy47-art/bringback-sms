@@ -28,6 +28,10 @@ const TACH_STANDBY: string[] = [
 export default async function DealerLayout({ children }: { children: React.ReactNode }) {
   const { session, source } = await getDealerSessionWithSource()
   const bypassActive = source === 'bypass'
+  const showDevAuthBadge =
+    bypassActive &&
+    process.env.NODE_ENV !== 'production' &&
+    process.env.DLR_SHOW_DEV_BADGES === 'true'
   if (!session) redirect('/login')
   if (session.user.role !== 'dealer') redirect('/dashboard')
 
@@ -161,7 +165,7 @@ export default async function DealerLayout({ children }: { children: React.React
               env bypass actually substituted a synthetic session. Production
               builds never see this because isDevAuthBypassActive() is
               hard-gated to NODE_ENV !== 'production'. */}
-          {bypassActive && (
+          {showDevAuthBadge && (
             <div
               style={{
                 margin: '10px 0 4px',
@@ -176,9 +180,9 @@ export default async function DealerLayout({ children }: { children: React.React
                 textTransform: 'uppercase',
                 color: '#fbbf24',
               }}
-              title="Local-only dealer auth bypass is active. Disable by removing DLR_DEV_AUTH_BYPASS from .env.local."
+              title="Local-only dealer auth bypass is active."
             >
-              Dev Auth Bypass
+              Dev Session
             </div>
           )}
 
@@ -261,7 +265,7 @@ export default async function DealerLayout({ children }: { children: React.React
             </div>
 
             {/* Dev-auth bypass badge in topbar (desktop) */}
-            {bypassActive && (
+            {showDevAuthBadge && (
               <div
                 style={{
                   display: 'inline-flex',
@@ -285,7 +289,7 @@ export default async function DealerLayout({ children }: { children: React.React
                   aria-hidden="true"
                   style={{ width: 6, height: 6, borderRadius: '50%', background: '#fbbf24', display: 'inline-block' }}
                 />
-                Dev Auth Bypass
+                Dev Session
               </div>
             )}
 

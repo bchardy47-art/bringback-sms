@@ -433,8 +433,8 @@ export default async function DealerImportPage({
               <div>
                 <h2 className="text-sm font-black text-white uppercase tracking-wider">Upload your CSV</h2>
                 <p className="text-xs" style={{ color: 'rgba(255,255,255,0.6)' }}>
-                  Each row is validated immediately. Nothing is sent until you and DLR
-                  admin approve a campaign.
+                  Each row is validated immediately. Nothing is sent until you review
+                  and approve a campaign.
                 </p>
               </div>
             </div>
@@ -735,6 +735,7 @@ export default async function DealerImportPage({
                     bucketPlan={bucketPlan}
                     apiBase={apiBase}
                     bucketSectionTitle="Auto-assigned campaign groups"
+                    successRedirectPath="/dealer/batches"
                   />
                 ) : (
                   <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">
