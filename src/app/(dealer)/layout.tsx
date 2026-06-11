@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import Image from 'next/image'
 import { and, count, eq } from 'drizzle-orm'
-import { Bell, MessageSquare, ArrowRight, Settings } from 'lucide-react'
+import { MessageSquare, ArrowRight, Settings } from 'lucide-react'
 import { db } from '@/lib/db'
 import { conversations, tenants, users } from '@/lib/db/schema'
 import { DealerNav } from '@/components/dealer/DealerNav'
@@ -66,6 +66,8 @@ export default async function DealerLayout({ children }: { children: React.React
   const isLive = !!tenantRow?.smsLiveApproved
   const systemLabel = isLive ? 'LIVE' : 'STANDBY'
   const systemDetail = isLive ? 'All systems operational' : 'Preparing for launch'
+  const setupHref = isLive ? '/dealer/batches' : '/dealer/settings'
+  const setupLabel = isLive ? 'View pipeline' : 'Continue setup'
 
   const tachSegs  = isLive ? TACH_LIVE : TACH_STANDBY
   const powerValue = isLive ? 100 : 45
@@ -136,15 +138,9 @@ export default async function DealerLayout({ children }: { children: React.React
                 <div className="power-foot">
                   {isLive ? 'Engines hot — leads are being revived.' : 'Complete setup to ignite revival mode.'}
                 </div>
-                {isLive ? (
-                  <a href="/dealer/batches" className="link-red" style={{ fontSize: 11, marginTop: 6 }}>
-                    View pipeline <ArrowRight size={11} />
-                  </a>
-                ) : (
-                  <a href="/dealer/settings" className="link-red" style={{ fontSize: 11, marginTop: 6 }}>
-                    Complete setup <ArrowRight size={11} />
-                  </a>
-                )}
+                <a href={setupHref} className="link-red" style={{ fontSize: 11, marginTop: 6 }}>
+                  {setupLabel} <ArrowRight size={11} />
+                </a>
               </div>
               <div className="gauge">
                 <div className="tach-label">Power</div>
@@ -302,11 +298,6 @@ export default async function DealerLayout({ children }: { children: React.React
                 <span className="nb">{inboxCount > 99 ? '99+' : inboxCount}</span>
               )}
             </a>
-
-            {/* Notifications icon button */}
-            <button className="icon-btn" aria-label="Notifications">
-              <Bell size={18} />
-            </button>
 
             {/* Settings icon (visible on mobile when sidebar is hidden) */}
             <a href="/dealer/settings" className="icon-btn" aria-label="Settings">

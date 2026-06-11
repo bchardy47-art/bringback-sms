@@ -14,11 +14,19 @@ export function ReplyBox({ conversationId }: { conversationId: string }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const isDealer = pathname.startsWith('/dealer')
 
+  function confirmSend(): boolean {
+    if (typeof window === 'undefined') return true
+    return window.confirm(
+      'Send this message now? This will send a real message to the lead.',
+    )
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     if (!body.trim()) return
     // Internal notes are not supported by the API surface; only 'reply' sends.
     if (mode !== 'reply') return
+    if (!confirmSend()) return
 
     setSending(true)
     setError(null)
