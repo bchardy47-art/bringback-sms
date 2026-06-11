@@ -434,7 +434,7 @@ export default async function DealerImportPage({
                 <h2 className="text-sm font-black text-white uppercase tracking-wider">Upload your CSV</h2>
                 <p className="text-xs" style={{ color: 'rgba(255,255,255,0.6)' }}>
                   Each row is validated immediately. Nothing is sent until you review
-                  and approve a campaign.
+                  and confirm a campaign.
                 </p>
               </div>
             </div>
@@ -461,7 +461,7 @@ export default async function DealerImportPage({
               and prepares preview campaigns for your review.
             </p>
             <p className="text-xs max-w-md mx-auto" style={{ color: 'rgba(255,255,255,0.45)' }}>
-              Nothing is sent until you approve a campaign. Tip: start with 5–10 leads so you
+              Nothing is sent until you confirm a campaign. Tip: start with 5–10 leads so you
               have room to exclude any blocked ones.
             </p>
           </div>

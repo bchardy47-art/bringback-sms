@@ -69,7 +69,7 @@ export function DealerBatchChecklist({ batchId, totalLeads }: Props) {
         <h2 className="text-sm font-semibold text-blue-900">Ready to Approve This Campaign?</h2>
         <p className="text-xs text-blue-700 mt-0.5">
           Confirm each item below, then approve. Approving does <strong>not</strong> send messages —
-          your campaign still stays paused until the final launch step is completed.
+          your campaign stays paused until launch is turned on.
         </p>
       </div>
 
@@ -149,7 +149,7 @@ export function DealerBatchChecklist({ batchId, totalLeads }: Props) {
         )}
 
         <p className="text-xs text-gray-400">
-          After approval, your campaign remains paused until the final launch step is completed.
+          After approval, your campaign remains paused until launch is turned on.
         </p>
       </div>
     </div>

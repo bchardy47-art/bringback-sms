@@ -28,9 +28,10 @@ const TACH_STANDBY: string[] = [
 export default async function DealerLayout({ children }: { children: React.ReactNode }) {
   const { session, source } = await getDealerSessionWithSource()
   const bypassActive = source === 'bypass'
-  const showDevAuthBadge =
+  const showLocalSessionBadge =
     bypassActive &&
     process.env.NODE_ENV !== 'production' &&
+    process.env.DLR_DEV_AUTH_BYPASS === 'true' &&
     process.env.DLR_SHOW_DEV_BADGES === 'true'
   if (!session) redirect('/login')
   if (session.user.role !== 'dealer') redirect('/dashboard')
@@ -161,11 +162,9 @@ export default async function DealerLayout({ children }: { children: React.React
             </div>
           </div>
 
-          {/* DEV AUTH BYPASS badge — only renders when the local-only
-              env bypass actually substituted a synthetic session. Production
-              builds never see this because isDevAuthBypassActive() is
-              hard-gated to NODE_ENV !== 'production'. */}
-          {showDevAuthBadge && (
+          {/* Local QA badge — only renders when a synthetic local session is
+              actually active and an explicit env flag allows badges. */}
+          {showLocalSessionBadge && (
             <div
               style={{
                 margin: '10px 0 4px',
@@ -180,9 +179,9 @@ export default async function DealerLayout({ children }: { children: React.React
                 textTransform: 'uppercase',
                 color: '#fbbf24',
               }}
-              title="Local-only dealer auth bypass is active."
+              title="Local QA session is active."
             >
-              Dev Session
+              Local Session
             </div>
           )}
 
@@ -264,8 +263,8 @@ export default async function DealerLayout({ children }: { children: React.React
               </div>
             </div>
 
-            {/* Dev-auth bypass badge in topbar (desktop) */}
-            {showDevAuthBadge && (
+            {/* Local QA badge in topbar (desktop) */}
+            {showLocalSessionBadge && (
               <div
                 style={{
                   display: 'inline-flex',
@@ -283,13 +282,13 @@ export default async function DealerLayout({ children }: { children: React.React
                   position: 'relative',
                   zIndex: 1,
                 }}
-                title="Local-only dealer auth bypass is active."
+                title="Local QA session is active."
               >
                 <span
                   aria-hidden="true"
                   style={{ width: 6, height: 6, borderRadius: '50%', background: '#fbbf24', display: 'inline-block' }}
                 />
-                Dev Session
+                Local Session
               </div>
             )}
 
