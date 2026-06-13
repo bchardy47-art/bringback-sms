@@ -13,7 +13,7 @@ import { pilotLeadImports, workflows, leads } from '@/lib/db/schema'
 import { eq, and, ne, inArray } from 'drizzle-orm'
 import { redirect } from 'next/navigation'
 import { getDealerSession } from '@/lib/dealer/dev-auth-bypass'
-import { ImportForm } from '@/app/(dashboard)/admin/dlr/pilot-leads/ImportForm'
+import { DealerImportForm } from './DealerImportForm'
 import { DealerConsentGate } from './DealerConsentGate'
 import {
   AutoSelectEligible,
@@ -35,14 +35,14 @@ import { ShieldCheck, CheckCircle2, AlertTriangle, Upload } from 'lucide-react'
 // ── Style maps (duplicated from admin page for independence) ──────────────────
 
 const STATUS_STYLE: Record<string, string> = {
-  eligible:     'bg-emerald-100 text-emerald-700',
-  warning:      'bg-amber-100 text-amber-700',
-  blocked:      'bg-red-100 text-red-700',
-  selected:     'bg-blue-100 text-blue-700',
-  excluded:     'bg-gray-100 text-gray-400',
-  pending:      'bg-gray-100 text-gray-500',
-  held:         'bg-violet-100 text-violet-700',
-  needs_review: 'bg-orange-100 text-orange-700',
+  eligible:     'bg-emerald-950/60 text-emerald-400 border border-emerald-700/40',
+  warning:      'bg-amber-950/60 text-amber-400 border border-amber-700/40',
+  blocked:      'bg-red-950/60 text-red-400 border border-red-700/40',
+  selected:     'bg-blue-950/60 text-blue-400 border border-blue-700/40',
+  excluded:     'bg-white/5 text-white/35 border border-white/10',
+  pending:      'bg-white/5 text-white/45 border border-white/10',
+  held:         'bg-violet-950/60 text-violet-400 border border-violet-700/40',
+  needs_review: 'bg-orange-950/60 text-orange-400 border border-orange-700/40',
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -57,17 +57,17 @@ const STATUS_LABEL: Record<string, string> = {
 }
 
 const BUCKET_COLOR: Record<AgeBucket, { bg: string; text: string; border: string }> = {
-  a: { bg: 'bg-emerald-50',  text: 'text-emerald-700', border: 'border-emerald-200' },
-  b: { bg: 'bg-blue-50',     text: 'text-blue-700',    border: 'border-blue-200'    },
-  c: { bg: 'bg-amber-50',    text: 'text-amber-700',   border: 'border-amber-200'   },
-  d: { bg: 'bg-orange-50',   text: 'text-orange-700',  border: 'border-orange-200'  },
+  a: { bg: 'bg-emerald-950/60', text: 'text-emerald-400', border: 'border-emerald-700/40' },
+  b: { bg: 'bg-blue-950/60',    text: 'text-blue-400',    border: 'border-blue-700/40'    },
+  c: { bg: 'bg-amber-950/60',   text: 'text-amber-400',   border: 'border-amber-700/40'   },
+  d: { bg: 'bg-orange-950/60',  text: 'text-orange-400',  border: 'border-orange-700/40'  },
 }
 
 const CONSENT_STYLE: Record<string, string> = {
-  explicit: 'text-emerald-700',
-  implied:  'text-amber-700',
-  unknown:  'text-orange-600 font-semibold',
-  revoked:  'text-red-600 font-semibold',
+  explicit: 'text-emerald-400',
+  implied:  'text-amber-400',
+  unknown:  'text-orange-400 font-semibold',
+  revoked:  'text-red-400 font-semibold',
 }
 
 const CONSENT_LABEL: Record<string, string> = {
@@ -406,9 +406,7 @@ export default async function DealerImportPage({
         {/* ── Auto-select CTA ────────────────────────────────────── */}
         {eligibleCount > 0 && selectedCount === 0 && (
           <div className="dlr-card-red p-5">
-            <div className="bg-white rounded-lg p-4 -m-1">
-              <AutoSelectEligible tenantId={tenantId} apiBase={apiBase} />
-            </div>
+            <AutoSelectEligible tenantId={tenantId} apiBase={apiBase} />
           </div>
         )}
 
@@ -439,9 +437,9 @@ export default async function DealerImportPage({
               </div>
             </div>
           </header>
-          <div className="p-5 bg-white" style={{ borderRadius: 0 }}>
+          <div className="p-5">
             <DealerConsentGate>
-              <ImportForm tenantId={tenantId} apiBase={apiBase} />
+              <DealerImportForm tenantId={tenantId} apiBase={apiBase} />
             </DealerConsentGate>
           </div>
         </section>
@@ -498,12 +496,8 @@ export default async function DealerImportPage({
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <div className="bg-white rounded-lg px-1">
-                  <StatusFilterSelect tenantId={tenantId} statusFilter={statusFilter} />
-                </div>
-                <div className="bg-white rounded-lg px-1">
-                  <BulkClearButton tenantId={tenantId} blockedCount={blockedCount} apiBase={apiBase} />
-                </div>
+                <StatusFilterSelect tenantId={tenantId} statusFilter={statusFilter} />
+                <BulkClearButton tenantId={tenantId} blockedCount={blockedCount} apiBase={apiBase} />
                 {selectedCount > 0 && (
                   <span className="dlr-badge dlr-badge-live">
                     {selectedCount} selected
@@ -513,8 +507,8 @@ export default async function DealerImportPage({
               </div>
             </header>
 
-            <div className="bg-white">
-              <div className="divide-y divide-gray-100">
+            <div>
+              <div className="divide-y" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
                 {actionableLeads.map(lead => {
                   const isSelected       = lead.importStatus === 'selected'
                   const consentVal       = (lead.consentStatus ?? 'unknown').toLowerCase().trim()
@@ -526,11 +520,14 @@ export default async function DealerImportPage({
                   return (
                     <div
                       key={lead.id}
-                      className={`px-5 py-4 space-y-3 transition-colors ${
-                        isSelected    ? 'bg-blue-50' :
-                        lead.reviewed ? 'bg-emerald-50/40' :
-                        'bg-white hover:bg-gray-50/50'
-                      }`}
+                      className="px-5 py-4 space-y-3 transition-colors"
+                      style={{
+                        background: isSelected
+                          ? 'rgba(59,130,246,0.1)'
+                          : lead.reviewed
+                          ? 'rgba(34,197,94,0.06)'
+                          : 'transparent',
+                      }}
                     >
                       <div className="flex items-start gap-3">
                         <div className="mt-0.5 shrink-0">
@@ -544,17 +541,17 @@ export default async function DealerImportPage({
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
-                            <p className="text-sm font-semibold text-gray-900 leading-tight">
+                            <p className="text-sm font-semibold text-white leading-tight">
                               {lead.firstName} {lead.lastName}
                             </p>
-                            <span className={`text-xs font-medium ${CONSENT_STYLE[lead.consentStatus] ?? 'text-orange-600 font-semibold'}`}>
+                            <span className={`text-xs font-medium ${CONSENT_STYLE[lead.consentStatus] ?? 'text-orange-400 font-semibold'}`}>
                               {CONSENT_LABEL[lead.consentStatus] ?? `${lead.consentStatus ?? 'unknown'} ⛔`}
                             </span>
                             <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${STATUS_STYLE[lead.importStatus] ?? ''}`}>
                               {STATUS_LABEL[lead.importStatus] ?? lead.importStatus}
                             </span>
                           </div>
-                          <div className="flex flex-wrap gap-x-3 mt-0.5 text-xs text-gray-500">
+                          <div className="flex flex-wrap gap-x-3 mt-0.5 text-xs" style={{ color: 'rgba(255,255,255,0.5)' }}>
                             {lead.email && <span>{lead.email}</span>}
                             {lead.phone && <span className="font-mono">{lead.phone}</span>}
                           </div>
@@ -572,45 +569,49 @@ export default async function DealerImportPage({
 
                       <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 pl-7 text-xs">
                         {lead.vehicleOfInterest ? (
-                          <span className="font-medium text-gray-800">{lead.vehicleOfInterest}</span>
+                          <span className="font-medium" style={{ color: 'rgba(255,255,255,0.8)' }}>{lead.vehicleOfInterest}</span>
                         ) : (
-                          <span className="text-gray-400 italic">No vehicle on file ⚠</span>
+                          <span className="italic" style={{ color: 'rgba(255,255,255,0.38)' }}>No vehicle on file ⚠</span>
                         )}
                         {lead.ageBucket ? (
                           <span className={`px-2 py-0.5 rounded-full font-semibold border ${bucketColors?.bg ?? ''} ${bucketColors?.text ?? ''} ${bucketColors?.border ?? ''}`}>
                             {DEALER_BUCKET_LABEL[lead.ageBucket as AgeBucket]}
                           </span>
                         ) : lead.importStatus === 'held' ? (
-                          <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-violet-100 text-violet-700 border border-violet-200">
+                          <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-violet-950/60 text-violet-400 border border-violet-700/40">
                             &lt; 14d — held
                           </span>
                         ) : (
-                          <span className="text-gray-400 italic">missing date</span>
+                          <span className="italic" style={{ color: 'rgba(255,255,255,0.38)' }}>missing date</span>
                         )}
                         {lead.leadAgeDays != null && (
-                          <span className="text-gray-400">
+                          <span style={{ color: 'rgba(255,255,255,0.38)' }}>
                             {lead.leadAgeDays === 1 ? '1 day ago' : `${lead.leadAgeDays} days ago`}
                           </span>
                         )}
                         {(lead.warnings as string[] | null)?.map((w, i) => (
-                          <span key={i} className="text-amber-600 font-medium">⚠ {friendlyWarning(w)}</span>
+                          <span key={i} className="text-amber-400 font-medium">⚠ {friendlyWarning(w)}</span>
                         ))}
                       </div>
 
                       {previews.length > 0 ? (
                         <div className="pl-7 space-y-2">
-                          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+                          <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'rgba(255,255,255,0.4)' }}>
                             Message preview sequence
                           </p>
                           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                             {previews.map((p, i) => (
                               <div
                                 key={i}
-                                className="bg-white border border-gray-200 rounded-lg px-3 py-2.5 text-xs space-y-1.5 shadow-sm"
+                                className="rounded-lg px-3 py-2.5 text-xs space-y-1.5"
+                                style={{
+                                  background: 'rgba(255,255,255,0.05)',
+                                  border: '1px solid rgba(255,255,255,0.1)',
+                                }}
                               >
-                                <p className="font-semibold text-gray-500">
+                                <p className="font-semibold" style={{ color: 'rgba(255,255,255,0.5)' }}>
                                   Message {i + 1}
-                                  <span className="font-normal text-gray-400 ml-1">
+                                  <span className="font-normal ml-1" style={{ color: 'rgba(255,255,255,0.35)' }}>
                                     {p.delayHours
                                       ? `— ${p.delayHours >= 24
                                           ? `${Math.round(p.delayHours / 24)}d later`
@@ -618,16 +619,16 @@ export default async function DealerImportPage({
                                       : '— immediate'}
                                   </span>
                                   {p.usedFallback && (
-                                    <span className="ml-1 text-amber-500 font-medium">⚠ fallback</span>
+                                    <span className="ml-1 text-amber-400 font-medium">⚠ fallback</span>
                                   )}
                                 </p>
-                                <p className="text-gray-700 leading-relaxed">{p.rendered}</p>
+                                <p className="leading-relaxed" style={{ color: 'rgba(255,255,255,0.8)' }}>{p.rendered}</p>
                               </div>
                             ))}
                           </div>
                         </div>
                       ) : (
-                        <p className="pl-7 text-xs text-gray-400 italic">No message previews yet.</p>
+                        <p className="pl-7 text-xs italic" style={{ color: 'rgba(255,255,255,0.38)' }}>No message previews yet.</p>
                       )}
                     </div>
                   )
@@ -635,32 +636,36 @@ export default async function DealerImportPage({
 
                 {blockedLeads.length > 0 && (
                   <div>
-                    <div className="px-5 py-2 bg-red-50 border-t border-red-200">
-                      <p className="text-xs font-semibold text-red-600">
+                    <div
+                      className="px-5 py-2 border-t"
+                      style={{ background: 'rgba(255,27,27,0.1)', borderColor: 'rgba(255,27,27,0.3)' }}
+                    >
+                      <p className="text-xs font-semibold text-red-400">
                         ✗ {blockedLeads.length} blocked lead{blockedLeads.length !== 1 ? 's' : ''} — cannot be included
                       </p>
                     </div>
                     {blockedLeads.map(lead => (
                       <div
                         key={lead.id}
-                        className="px-5 py-3 border-t border-red-100 bg-red-50/60 flex items-start gap-3 opacity-75"
+                        className="px-5 py-3 border-t flex items-start gap-3 opacity-70"
+                        style={{ borderColor: 'rgba(255,27,27,0.2)', background: 'rgba(255,27,27,0.06)' }}
                       >
                         <div className="flex-1 min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
-                            <p className="text-sm font-semibold text-gray-700 line-through decoration-red-300">
+                            <p className="text-sm font-semibold line-through" style={{ color: 'rgba(255,255,255,0.55)', textDecorationColor: 'rgba(255,82,82,0.5)' }}>
                               {lead.firstName} {lead.lastName}
                             </p>
                             <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${STATUS_STYLE.blocked}`}>
                               {STATUS_LABEL.blocked}
                             </span>
                           </div>
-                          <div className="flex flex-wrap gap-x-3 mt-0.5 text-xs text-gray-500">
+                          <div className="flex flex-wrap gap-x-3 mt-0.5 text-xs" style={{ color: 'rgba(255,255,255,0.45)' }}>
                             {lead.phone && <span className="font-mono">{lead.phone}</span>}
                             {lead.vehicleOfInterest && <span>{lead.vehicleOfInterest}</span>}
                           </div>
                           <div className="mt-1 space-y-0.5">
                             {(lead.blockedReasons as string[] | null)?.map((r, i) => (
-                              <p key={i} className="text-xs text-red-600">✗ {r}</p>
+                              <p key={i} className="text-xs text-red-400">✗ {r}</p>
                             ))}
                           </div>
                         </div>
@@ -676,10 +681,8 @@ export default async function DealerImportPage({
 
         {/* Dry-run */}
         {allLeads.length > 0 && (
-          <div className="dlr-card p-1 overflow-hidden">
-            <div className="bg-white rounded-xl">
-              <DryRunReportPanel tenantId={tenantId} apiBase={apiBase} title="Preview Report" />
-            </div>
+          <div className="dlr-card overflow-hidden">
+            <DryRunReportPanel tenantId={tenantId} apiBase={apiBase} title="Preview Report" />
           </div>
         )}
 
@@ -727,7 +730,7 @@ export default async function DealerImportPage({
             </header>
 
             {selectedCount > 0 ? (
-              <div className="p-5 bg-white">
+              <div className="p-5">
                 {bucketPlan.length > 0 ? (
                   <CreateBatchButton
                     tenantId={tenantId}
@@ -738,9 +741,16 @@ export default async function DealerImportPage({
                     successRedirectPath="/dealer/batches"
                   />
                 ) : (
-                  <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">
+                  <div
+                    className="rounded-lg px-4 py-3 text-xs"
+                    style={{
+                      background: 'rgba(245,158,11,0.1)',
+                      border: '1px solid rgba(245,158,11,0.38)',
+                      color: '#fde68a',
+                    }}
+                  >
                     <p className="font-semibold">⚠ These selected leads are not assigned to a campaign group yet</p>
-                    <p className="mt-0.5">Clear these leads and re-import with a contact date column.</p>
+                    <p className="mt-0.5" style={{ color: 'rgba(253,230,138,0.75)' }}>Clear these leads and re-import with a contact date column.</p>
                   </div>
                 )}
               </div>
