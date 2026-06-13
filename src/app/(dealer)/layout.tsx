@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import Image from 'next/image'
 import { and, count, eq } from 'drizzle-orm'
-import { Bell, MessageSquare, ArrowRight, Settings } from 'lucide-react'
+import { MessageSquare, ArrowRight, Settings } from 'lucide-react'
 import { db } from '@/lib/db'
 import { conversations, tenants, users } from '@/lib/db/schema'
 import { DealerNav } from '@/components/dealer/DealerNav'
@@ -28,6 +28,11 @@ const TACH_STANDBY: string[] = [
 export default async function DealerLayout({ children }: { children: React.ReactNode }) {
   const { session, source } = await getDealerSessionWithSource()
   const bypassActive = source === 'bypass'
+  const showLocalSessionBadge =
+    bypassActive &&
+    process.env.NODE_ENV !== 'production' &&
+    process.env.DLR_DEV_AUTH_BYPASS === 'true' &&
+    process.env.DLR_SHOW_DEV_BADGES === 'true'
   if (!session) redirect('/login')
   if (session.user.role !== 'dealer') redirect('/dashboard')
 
@@ -66,6 +71,8 @@ export default async function DealerLayout({ children }: { children: React.React
   const isLive = !!tenantRow?.smsLiveApproved
   const systemLabel = isLive ? 'LIVE' : 'STANDBY'
   const systemDetail = isLive ? 'All systems operational' : 'Preparing for launch'
+  const setupHref = isLive ? '/dealer/batches' : '/dealer/settings'
+  const setupLabel = isLive ? 'View pipeline' : 'Continue setup'
 
   const tachSegs  = isLive ? TACH_LIVE : TACH_STANDBY
   const powerValue = isLive ? 100 : 45
@@ -136,15 +143,9 @@ export default async function DealerLayout({ children }: { children: React.React
                 <div className="power-foot">
                   {isLive ? 'Engines hot — leads are being revived.' : 'Complete setup to ignite revival mode.'}
                 </div>
-                {isLive ? (
-                  <a href="/dealer/batches" className="link-red" style={{ fontSize: 11, marginTop: 6 }}>
-                    View pipeline <ArrowRight size={11} />
-                  </a>
-                ) : (
-                  <a href="/dealer/settings" className="link-red" style={{ fontSize: 11, marginTop: 6 }}>
-                    Complete setup <ArrowRight size={11} />
-                  </a>
-                )}
+                <a href={setupHref} className="link-red" style={{ fontSize: 11, marginTop: 6 }}>
+                  {setupLabel} <ArrowRight size={11} />
+                </a>
               </div>
               <div className="gauge">
                 <div className="tach-label">Power</div>
@@ -161,11 +162,9 @@ export default async function DealerLayout({ children }: { children: React.React
             </div>
           </div>
 
-          {/* DEV AUTH BYPASS badge — only renders when the local-only
-              env bypass actually substituted a synthetic session. Production
-              builds never see this because isDevAuthBypassActive() is
-              hard-gated to NODE_ENV !== 'production'. */}
-          {bypassActive && (
+          {/* Local QA badge — only renders when a synthetic local session is
+              actually active and an explicit env flag allows badges. */}
+          {showLocalSessionBadge && (
             <div
               style={{
                 margin: '10px 0 4px',
@@ -180,9 +179,9 @@ export default async function DealerLayout({ children }: { children: React.React
                 textTransform: 'uppercase',
                 color: '#fbbf24',
               }}
-              title="Local-only dealer auth bypass is active. Disable by removing DLR_DEV_AUTH_BYPASS from .env.local."
+              title="Local QA session is active."
             >
-              Dev Auth Bypass
+              Local Session
             </div>
           )}
 
@@ -264,8 +263,8 @@ export default async function DealerLayout({ children }: { children: React.React
               </div>
             </div>
 
-            {/* Dev-auth bypass badge in topbar (desktop) */}
-            {bypassActive && (
+            {/* Local QA badge in topbar (desktop) */}
+            {showLocalSessionBadge && (
               <div
                 style={{
                   display: 'inline-flex',
@@ -283,13 +282,13 @@ export default async function DealerLayout({ children }: { children: React.React
                   position: 'relative',
                   zIndex: 1,
                 }}
-                title="Local-only dealer auth bypass is active."
+                title="Local QA session is active."
               >
                 <span
                   aria-hidden="true"
                   style={{ width: 6, height: 6, borderRadius: '50%', background: '#fbbf24', display: 'inline-block' }}
                 />
-                Dev Auth Bypass
+                Local Session
               </div>
             )}
 
@@ -302,11 +301,6 @@ export default async function DealerLayout({ children }: { children: React.React
                 <span className="nb">{inboxCount > 99 ? '99+' : inboxCount}</span>
               )}
             </a>
-
-            {/* Notifications icon button */}
-            <button className="icon-btn" aria-label="Notifications">
-              <Bell size={18} />
-            </button>
 
             {/* Settings icon (visible on mobile when sidebar is hidden) */}
             <a href="/dealer/settings" className="icon-btn" aria-label="Settings">

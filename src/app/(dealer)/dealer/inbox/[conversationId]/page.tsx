@@ -7,6 +7,7 @@ import { conversations } from '@/lib/db/schema'
 import { MessageThread } from '@/components/inbox/MessageThread'
 import { ReplyBox } from '@/components/inbox/ReplyBox'
 import { TakeOverBanner } from '@/components/inbox/TakeOverBanner'
+import { ConfirmTelLink } from '@/components/dealer/ConfirmTelLink'
 import {
   Phone,
   Car,
@@ -18,6 +19,7 @@ import {
   CheckCircle2,
   Ban,
   Tag,
+  AlertTriangle,
 } from 'lucide-react'
 
 const STATE_BADGE: Record<string, { label: string; className: string }> = {
@@ -155,22 +157,41 @@ export default async function DealerConversationPage({
               <span style={{ color: 'rgba(255,255,255,0.4)' }}>Received {new Date(conversation.messages[0]?.createdAt ?? conversation.updatedAt).toLocaleDateString()}</span>
             </p>
           </div>
-          <a
-            href={`tel:${conversation.leadPhone}`}
-            className="inline-flex items-center justify-center w-10 h-10 rounded-lg transition-colors"
+          <ConfirmTelLink
+            phone={conversation.leadPhone}
+            className="inline-flex items-center gap-2 rounded-lg transition-colors px-3 h-10"
             style={{
               background: 'rgba(255,255,255,0.04)',
               border: '1px solid rgba(255,255,255,0.08)',
               color: 'rgba(255,255,255,0.85)',
             }}
             title="Call lead"
+            ariaLabel="Call lead"
+            confirmMessage="Call this lead now? This opens your phone app and places a live call."
           >
             <Phone size={15} />
-          </a>
+            <span className="text-xs font-semibold uppercase tracking-wider">Call lead</span>
+          </ConfirmTelLink>
         </div>
 
         {/* Red pulse line under header */}
         <div className="dlr-pulse-line flex-shrink-0" />
+
+        <div
+          className="flex-shrink-0 px-5 py-2.5"
+          style={{
+            background: 'rgba(255,255,255,0.03)',
+            borderBottom: '1px solid rgba(255,255,255,0.06)',
+          }}
+        >
+          <p className="text-[11px] flex items-start gap-2" style={{ color: 'rgba(255,255,255,0.58)' }}>
+            <AlertTriangle size={12} style={{ marginTop: 2, color: '#fbbf24', flexShrink: 0 }} />
+            <span>
+              Call actions open your phone app directly. Choose <strong style={{ color: '#fff' }}>Call lead</strong>{' '}
+              only when you&apos;re ready to place a live call, then confirm the prompt.
+            </span>
+          </p>
+        </div>
 
         {/* Take-over banner */}
         {showTakeOverBanner && (
@@ -385,14 +406,17 @@ export default async function DealerConversationPage({
           <div className="p-5">
             <p className="dlr-cmd-label" style={{ color: '#ff5252' }}>Actions</p>
             <div className="mt-3 space-y-2">
-              <a
-                href={`tel:${conversation.leadPhone}`}
+              <ConfirmTelLink
+                phone={conversation.leadPhone}
                 className="dlr-btn-secondary w-full"
                 style={{ height: 40, fontSize: 12, justifyContent: 'flex-start' }}
+                ariaLabel="Call lead"
+                title="Call lead"
+                confirmMessage="Call this lead now? This opens your phone app and places a live call."
               >
                 <Phone size={13} />
-                Call Lead
-              </a>
+                Call lead now
+              </ConfirmTelLink>
               {isOpen && !isHumanOwned && (
                 <div
                   className="rounded-lg px-3 py-2 text-[11px] flex items-start gap-2"

@@ -456,14 +456,17 @@ export function CreateBatchButton({
   compact = false,
   apiBase = '/api/admin/dlr/pilot-leads',
   bucketSectionTitle = 'Auto-assigned bucket workflows',
+  successRedirectPath,
 }: {
   tenantId:   string
   importIds:  string[]
   bucketPlan: BucketPlanItem[]
   compact?:   boolean
   apiBase?:   string
-  /** Override the bucket-plan section heading. Defaults to admin wording; dealer pages pass "Auto-assigned campaign groups". */
+  /** Override the panel heading. Dealer pages pass "Auto-assigned campaign groups". */
   bucketSectionTitle?: string
+  /** Override the post-create redirect. Dealer pages pass '/dealer/batches'. */
+  successRedirectPath?: string
 }) {
   const [stage,   setStage]   = useState<'idle' | 'confirming' | 'loading'>('idle')
   const [error,   setError]   = useState<string | null>(null)
@@ -485,12 +488,18 @@ export function CreateBatchButton({
         error?:   string
       }
       if (data.ok && data.batches?.length) {
-        // Navigate to batch queue showing ALL newly created batches, not just the first
         const ids = data.batches.map((b: { batchId: string }) => b.batchId).join(',')
-        window.location.href =
-          `/admin/dlr/pilot-leads/batch-queue` +
-          `?tenantId=${encodeURIComponent(tenantId)}` +
-          `&ids=${encodeURIComponent(ids)}`
+        if (successRedirectPath) {
+          const url = new URL(successRedirectPath, window.location.origin)
+          url.searchParams.set('ids', ids)
+          window.location.href = url.toString()
+        } else {
+          // Admin default: navigate to batch queue showing all newly created batches.
+          window.location.href =
+            `/admin/dlr/pilot-leads/batch-queue` +
+            `?tenantId=${encodeURIComponent(tenantId)}` +
+            `&ids=${encodeURIComponent(ids)}`
+        }
       } else {
         setError(data.error ?? 'Unknown error')
         setStage('idle')
