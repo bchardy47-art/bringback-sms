@@ -78,8 +78,15 @@ const CONSENT_LABEL: Record<string, string> = {
 }
 
 function friendlyWarning(raw: string): string {
+  if (raw.startsWith('date-source: ')) {
+    return raw.slice('date-source: '.length)
+  }
   if (raw.startsWith('Contact date missing — imported before age classification was wired')) {
     return 'Missing contact date — re-upload this lead with a contact date to include it.'
+  }
+  // Translate the updated no-date warning to something even shorter for the UI
+  if (raw.startsWith('No usable CRM date found')) {
+    return 'No usable CRM date found'
   }
   return raw
 }
@@ -589,9 +596,15 @@ export default async function DealerImportPage({
                             {lead.leadAgeDays === 1 ? '1 day ago' : `${lead.leadAgeDays} days ago`}
                           </span>
                         )}
-                        {(lead.warnings as string[] | null)?.map((w, i) => (
-                          <span key={i} className="text-amber-400 font-medium">⚠ {friendlyWarning(w)}</span>
-                        ))}
+                        {(lead.warnings as string[] | null)?.map((w, i) =>
+                          w.startsWith('date-source: ') ? (
+                            <span key={i} style={{ color: 'rgba(255,255,255,0.42)' }}>
+                              📅 {friendlyWarning(w)}
+                            </span>
+                          ) : (
+                            <span key={i} className="text-amber-400 font-medium">⚠ {friendlyWarning(w)}</span>
+                          )
+                        )}
                       </div>
 
                       {previews.length > 0 ? (

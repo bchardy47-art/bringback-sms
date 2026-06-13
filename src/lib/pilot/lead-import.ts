@@ -21,7 +21,7 @@ import { and, eq, inArray, isNotNull, or } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import {
   leads, optOuts, pilotBatches, pilotBatchLeads, pilotLeadImports,
-  workflows, workflowSteps, tenants,
+  workflows, tenants,
   FIRST_PILOT_CAP,
   type AgeBucket,
   type PilotLeadImportStatus,
@@ -31,10 +31,9 @@ import {
 import { previewWorkflow } from '@/lib/workflows/preview'
 import {
   classifyLeadAge,
-  extractContactDate,
+  extractCrmDateWithSource,
   parseContactDate,
 } from '@/lib/pilot/age-classification'
-import type { SendSmsConfig } from '@/lib/db/schema'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -45,8 +44,9 @@ export type LeadImportInput = {
   email?:            string | null
   vehicleName?:      string | null  // maps to vehicleOfInterest
   leadSource?:       string | null
-  contactDate?:      string | null  // dealership's day-1 contact date; drives age bucket assignment
-  originalInquiryAt?: string | null // ISO string or parseable date string
+  contactDate?:       string | null  // dealership's day-1 contact date; drives age bucket assignment
+  contactDateSource?: string | null  // dealer-friendly label for the source column (e.g. "Using last activity date")
+  originalInquiryAt?: string | null  // ISO string or parseable date string
   consentStatus?:    string | null  // explicit | implied | unknown | revoked
   consentSource?:    string | null
   consentCapturedAt?: string | null
@@ -179,19 +179,22 @@ export function csvRowToImportInput(row: Record<string, string>): LeadImportInpu
   const get = (...keys: string[]): string | undefined =>
     keys.map(k => row[k]).find(v => v !== undefined && v !== '')
 
-  // Try all known contact-date column aliases first; fall back to originalInquiryAt
-  const contactDateParsed = extractContactDate(row)
-  const contactDate = contactDateParsed ? contactDateParsed.toISOString() : null
+  // Source-type-aware CRM date extraction. Detects lead type (internet/lot/unknown)
+  // from the source field, applies the appropriate priority order, and returns a
+  // dealer-friendly label when a non-obvious fallback column was used.
+  const crmDate = extractCrmDateWithSource(row)
+  const contactDate = crmDate.date ? crmDate.date.toISOString() : null
 
   return {
-    firstName:         get('firstName', 'first_name', 'First Name', 'firstname') ?? '',
-    lastName:          get('lastName', 'last_name', 'Last Name', 'lastname') ?? '',
-    phone:             get('phone', 'Phone', 'mobile', 'Mobile', 'cell') ?? '',
-    email:             get('email', 'Email') ?? null,
-    vehicleName:       get('vehicleName', 'vehicle_name', 'vehicleInterest', 'vehicle_of_interest', 'Vehicle') ?? null,
-    leadSource:        get('leadSource', 'lead_source', 'source', 'Source') ?? null,
+    firstName:          get('firstName', 'first_name', 'First Name', 'firstname') ?? '',
+    lastName:           get('lastName', 'last_name', 'Last Name', 'lastname') ?? '',
+    phone:              get('phone', 'Phone', 'mobile', 'Mobile', 'cell') ?? '',
+    email:              get('email', 'Email') ?? null,
+    vehicleName:        get('vehicleName', 'vehicle_name', 'vehicleInterest', 'vehicle_of_interest', 'Vehicle') ?? null,
+    leadSource:         get('leadSource', 'lead_source', 'source', 'Source') ?? null,
     contactDate,
-    originalInquiryAt: get('originalInquiryAt', 'original_inquiry_at', 'inquiryDate', 'inquiry_date') ?? null,
+    contactDateSource:  crmDate.sourceLabel ?? null,
+    originalInquiryAt:  get('originalInquiryAt', 'original_inquiry_at', 'inquiryDate', 'inquiry_date') ?? null,
     consentStatus:     get('consentStatus', 'consent_status', 'consent') ?? null,
     consentSource:     get('consentSource', 'consent_source') ?? null,
     consentCapturedAt: get('consentCapturedAt', 'consent_captured_at') ?? null,
@@ -381,6 +384,14 @@ export async function importLeads(
     // that says the same thing in different words.
     const allWarnings = [...validation.warnings]
     if (ageResult.warning) allWarnings.push(ageResult.warning)
+
+    // Emit an informational date-source note when a non-obvious fallback
+    // column was used for the revival date (e.g. last_customer_reply_at
+    // instead of inquiry_date). Prefix "date-source: " so the dealer UI
+    // can render it as a dim info note rather than an amber warning.
+    if (input.contactDateSource && parsedContactDate) {
+      allWarnings.push(`date-source: ${input.contactDateSource}`)
+    }
     // Missing or unparseable date → 'needs_review' status. Previously this
     // promoted eligible → warning, which let the dealer accidentally select
     // a date-less row that then failed downstream batch creation with a
