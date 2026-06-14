@@ -189,7 +189,7 @@ export default async function DealerDashboardPage() {
     if (status !== 'needs_your_action') return null
     switch (stepKey) {
       case 'payment':
-        return { label: 'Complete payment', href: '/dealer/settings' }
+        return { label: 'Finish payment setup', href: '/dealer/settings' }
       case 'form':
         return intakeToken
           ? { label: 'Open setup form',     href: `/intake/${intakeToken}` }
@@ -379,6 +379,11 @@ export default async function DealerDashboardPage() {
                 All Campaigns <ArrowRight size={13} />
               </a>
             </div>
+            {!hasAnyBatch && (
+              <p style={{ fontSize: 11, color: 'var(--tx-lo)', marginBottom: 8, marginTop: -4, lineHeight: 1.4 }}>
+                Campaign templates are ready — upload leads to create personalized campaigns.
+              </p>
+            )}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {campaignGroups.map((g, i) => {
                 const reviewable = pilotActionable && draftCount > 0

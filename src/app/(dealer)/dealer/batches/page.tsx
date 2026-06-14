@@ -222,9 +222,9 @@ export default async function DealerBatchesPage() {
               border: '1px dashed rgba(255,27,27,0.4)',
             }}
           >
-            <p className="text-lg font-black uppercase tracking-wider text-white mb-2">No campaigns yet</p>
+            <p className="text-lg font-black uppercase tracking-wider text-white mb-2">No prepared campaigns yet</p>
             <p className="text-sm max-w-sm mx-auto mb-5" style={{ color: 'rgba(255,255,255,0.6)' }}>
-              Upload leads from the dashboard and DLR will prepare ready-to-review campaigns.
+              Campaign templates are ready. Upload leads and DLR will prepare personalized message sequences for your review — nothing sends until you approve.
             </p>
             <a href="/dealer/import" className="dlr-btn-primary inline-flex">
               Upload Leads

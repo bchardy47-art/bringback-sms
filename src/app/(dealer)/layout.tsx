@@ -75,7 +75,6 @@ export default async function DealerLayout({ children }: { children: React.React
   const setupLabel = isLive ? 'View pipeline' : 'Continue setup'
 
   const tachSegs  = isLive ? TACH_LIVE : TACH_STANDBY
-  const powerValue = isLive ? 100 : 45
   // Needle position as percentage from the top of the tach track.
   // Live = needle between seg 3 and 4 (peak zone); standby = seg 9 and 10.
   const needleTopPct = isLive ? 12.5 : 40.5
@@ -137,8 +136,17 @@ export default async function DealerLayout({ children }: { children: React.React
             <div className="power-label">DLR Power Level</div>
             <div className="power-gauge-wrap">
               <div className="power-info">
-                <div className="power-value">
-                  {powerValue}<span>%</span>
+                <div
+                  className="power-value"
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 800,
+                    letterSpacing: '0.08em',
+                    textTransform: 'uppercase',
+                    color: isLive ? 'var(--green)' : 'var(--amber)',
+                  }}
+                >
+                  {isLive ? 'Live' : 'Standby'}
                 </div>
                 <div className="power-foot">
                   {isLive ? 'Engines hot — leads are being revived.' : 'Complete setup to ignite revival mode.'}

@@ -87,11 +87,12 @@ export function computeDealerSetupStatus(p: DealerSetupInputs): DealerSetupStatu
     intake?.paymentStatus === 'paid' ||
     intake?.paymentStatus === 'manual_billing'
   const payment: DealerSetupStep = {
-    key: 'payment', label: 'Payment received',
+    key: 'payment',
+    label: paid ? 'Payment received' : 'Payment setup required',
     status: paid ? 'done' : 'needs_your_action',
     detail: paid
       ? null
-      : 'Click Complete payment to unlock campaign review and final launch activation.',
+      : 'Finish payment setup to unlock campaign review and final launch activation.',
   }
 
   const stage2Done = !!intake?.submittedAt
