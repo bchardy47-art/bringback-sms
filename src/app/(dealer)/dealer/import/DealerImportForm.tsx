@@ -50,7 +50,7 @@ const CSV_COLUMNS = [
   { name: 'email',             required: false, note: '' },
   { name: 'vehicleName',       required: false, note: 'Used in message templates' },
   { name: 'leadSource',        required: false, note: '' },
-  { name: 'originalInquiryAt', required: false, note: 'ISO date, e.g. 2024-03-15' },
+  { name: 'originalInquiryAt', required: false, note: 'ISO date — or any of: Lead Date, Lead Created, Created At, Last Activity, Last Contacted, Last Customer Reply' },
   { name: 'consentSource',     required: false, note: '' },
   { name: 'consentCapturedAt', required: false, note: '' },
   { name: 'smsConsentNotes',   required: false, note: '' },
@@ -258,8 +258,12 @@ export function DealerImportForm({ tenantId, apiBase = '/api/dealer/pilot-leads'
           <button
             type="button"
             onClick={() => setShowColumns(v => !v)}
-            className="flex items-center gap-1.5 text-xs font-medium"
-            style={{ color: '#ff5252' }}
+            className="flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-lg transition-colors"
+            style={{
+              color: '#ff5252',
+              background: 'rgba(255,27,27,0.08)',
+              border: '1px solid rgba(255,27,27,0.25)',
+            }}
           >
             <svg
               className={`w-3.5 h-3.5 transition-transform ${showColumns ? 'rotate-90' : ''}`}
@@ -305,6 +309,19 @@ export function DealerImportForm({ tenantId, apiBase = '/api/dealer/pilot-leads'
                 <strong>consentStatus rules:</strong> Only <code>explicit</code> and <code>implied</code> leads
                 can be selected for the pilot. <code className="ml-1">unknown</code> is imported but blocked
                 from selection. <code className="ml-1">revoked</code> leads are hard-blocked and cannot be imported.
+              </div>
+              <div
+                className="border-t px-4 py-2 text-xs"
+                style={{
+                  borderColor: 'rgba(255,255,255,0.06)',
+                  background: 'rgba(255,255,255,0.02)',
+                  color: 'rgba(255,255,255,0.5)',
+                }}
+              >
+                <strong style={{ color: 'rgba(255,255,255,0.7)' }}>Date column aliases:</strong>{' '}
+                DLR recognizes many CRM export formats — Lead Date, Lead Created, Inquiry Date,
+                Created At, Last Activity, Last Contacted, Last Customer Reply, Visit Date, and more.
+                Exact match not required.
               </div>
             </div>
           )}

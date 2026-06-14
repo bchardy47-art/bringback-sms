@@ -53,7 +53,7 @@ const STATUS_LABEL: Record<string, string> = {
   excluded:     '— Excluded',
   pending:      '… Pending',
   held:         '⏳ Held',
-  needs_review: '? Needs Date',
+  needs_review: 'Needs Date',
 }
 
 const BUCKET_COLOR: Record<AgeBucket, { bg: string; text: string; border: string }> = {
@@ -144,11 +144,34 @@ export default async function DealerImportPage({
   const eligibleCount     = allLeads.filter(r => ['eligible', 'warning', 'selected'].includes(r.importStatus)).length
   const blockedCount      = allLeads.filter(r => r.importStatus === 'blocked').length
   const heldCount         = allLeads.filter(r => r.importStatus === 'held').length
-  const needsReviewCount  = allLeads.filter(r =>
-    r.contactDate == null &&
-    r.importStatus !== 'blocked' &&
-    r.importStatus !== 'excluded'
-  ).length
+  const needsReviewStatusCount = allLeads.filter(r => r.importStatus === 'needs_review').length
+  const unknownConsentCount    = allLeads.filter(r => {
+    const c = (r.consentStatus ?? 'unknown').toLowerCase().trim()
+    return (c === 'unknown' || c === '') && r.importStatus !== 'blocked'
+  }).length
+  const missingVehicleCount    = allLeads.filter(r => !r.vehicleOfInterest && r.importStatus !== 'blocked').length
+
+  const issueGroups: Array<{ issue: string; action: string; severity: 'orange' | 'amber' | 'muted' }> = []
+  if (needsReviewStatusCount > 0) issueGroups.push({
+    issue:    `No usable CRM date on ${needsReviewStatusCount} lead${needsReviewStatusCount !== 1 ? 's' : ''}`,
+    action:   'Add or map a CRM date column such as Lead Created, Last Activity, or Last Contacted.',
+    severity: 'orange',
+  })
+  if (unknownConsentCount > 0) issueGroups.push({
+    issue:    `Consent status missing on ${unknownConsentCount} lead${unknownConsentCount !== 1 ? 's' : ''}`,
+    action:   'Confirm consent before including these leads.',
+    severity: 'amber',
+  })
+  if (missingVehicleCount > 0) issueGroups.push({
+    issue:    `Vehicle of interest missing on ${missingVehicleCount} lead${missingVehicleCount !== 1 ? 's' : ''}`,
+    action:   'Vehicle is optional — campaign copy may be more generic without it.',
+    severity: 'muted',
+  })
+  if (blockedCount > 0) issueGroups.push({
+    issue:    `${blockedCount} lead${blockedCount !== 1 ? 's' : ''} blocked (invalid phone, opt-out, or revoked consent)`,
+    action:   'Blocked leads are excluded automatically — no action needed.',
+    severity: 'muted',
+  })
 
   const selectedLeads    = allLeads.filter(r => r.importStatus === 'selected')
   const selectedImportIds = selectedLeads.map(r => r.id)
@@ -191,21 +214,6 @@ export default async function DealerImportPage({
   const leadsReady = selectedCount > 0 && bucketPlan.length > 0
   const importedCount = allLeads.length
 
-  // Six age-grouping metrics for the neon card row.
-  type AgeAccent = 'green' | 'violet' | 'amber' | 'red' | null
-  const ageMetrics: Array<{ label: string; value: number; accent: AgeAccent }> = [
-    { label: 'Imported',   value: importedCount,    accent: null },
-    { label: 'Ready',      value: eligibleCount,    accent: importedCount > 0 && eligibleCount > 0 ? 'green' : null },
-    { label: 'Held',       value: heldCount,        accent: heldCount > 0 ? 'violet' : null },
-    { label: 'Needs Date', value: needsReviewCount, accent: needsReviewCount > 0 ? 'amber' : null },
-    { label: 'Blocked',    value: blockedCount,     accent: blockedCount > 0 ? 'red' : null },
-    {
-      label: bucketPlan.length > 1 ? 'Selected across groups' :
-             bucketPlan.length === 1 ? 'Selected for group' : 'Selected',
-      value: selectedCount,
-      accent: selectedCount > 0 ? 'red' : null,
-    },
-  ]
 
   return (
     <div className="dlr-app-bg min-h-full text-white">
@@ -322,12 +330,13 @@ export default async function DealerImportPage({
           </div>
         </div>
 
-        {/* ── Age grouping cards (6-up neon row) ─────────────────── */}
+        {/* ── Import outcome (4-card) ─────────────────────────────── */}
         {importedCount > 0 && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-            {ageMetrics.map((m) => (
-              <AgeMetricCard key={m.label} {...m} />
-            ))}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <AgeMetricCard label="Ready for revival"     value={eligibleCount}          accent={eligibleCount > 0 ? 'green' : null} />
+            <AgeMetricCard label="Needs review"          value={needsReviewStatusCount} accent={needsReviewStatusCount > 0 ? 'amber' : null} />
+            <AgeMetricCard label="Blocked for safety"    value={blockedCount}           accent={blockedCount > 0 ? 'red' : null} />
+            <AgeMetricCard label="Selected for campaign" value={selectedCount}          accent={selectedCount > 0 ? 'green' : null} />
           </div>
         )}
 
@@ -346,6 +355,48 @@ export default async function DealerImportPage({
               held because {heldCount === 1 ? 'this lead is' : 'these leads are'} too fresh for campaign messaging.
               {heldCount === 1 ? ' It' : ' They'}&apos;ll become eligible at the 14-day mark.
             </span>
+          </div>
+        )}
+
+        {/* ── What DLR needs from you ─────────────────────────────── */}
+        {importedCount > 0 && issueGroups.length > 0 && (
+          <div
+            className="rounded-xl px-4 py-4 space-y-3"
+            style={{
+              background: 'rgba(8,8,10,0.6)',
+              border: '1px solid rgba(245,158,11,0.28)',
+            }}
+          >
+            <p className="text-xs font-bold uppercase tracking-wider" style={{ color: '#fbbf24' }}>
+              What DLR needs from you
+            </p>
+            <div className="space-y-2.5">
+              {issueGroups.map((ig, idx) => (
+                <div key={idx} className="flex items-start gap-2.5 text-xs">
+                  <span
+                    className="mt-0.5 flex-shrink-0 rounded-full flex items-center justify-center font-black"
+                    style={{
+                      width: 16, height: 16, fontSize: 9,
+                      ...(ig.severity === 'orange'
+                        ? { background: 'rgba(251,146,60,0.18)', color: '#fb923c', border: '1px solid rgba(251,146,60,0.4)' }
+                        : ig.severity === 'amber'
+                        ? { background: 'rgba(245,158,11,0.18)', color: '#fbbf24', border: '1px solid rgba(245,158,11,0.4)' }
+                        : { background: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.45)', border: '1px solid rgba(255,255,255,0.15)' }),
+                    }}
+                  >!</span>
+                  <div>
+                    <p className="font-semibold leading-snug" style={{
+                      color: ig.severity === 'orange' ? '#fb923c' : ig.severity === 'amber' ? '#fbbf24' : 'rgba(255,255,255,0.6)',
+                    }}>
+                      {ig.issue}
+                    </p>
+                    <p className="mt-0.5" style={{ color: 'rgba(255,255,255,0.45)' }}>
+                      {ig.action}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
@@ -514,6 +565,42 @@ export default async function DealerImportPage({
               </div>
             </header>
 
+            {/* ── No eligible leads yet ─────────────────────────── */}
+            {eligibleCount === 0 && (
+              <div
+                className="mx-5 my-4 rounded-xl px-4 py-4 space-y-2"
+                style={{
+                  background: 'rgba(245,158,11,0.07)',
+                  border: '1px solid rgba(245,158,11,0.28)',
+                }}
+              >
+                <p className="text-sm font-bold" style={{ color: '#fbbf24' }}>
+                  No leads are ready for revival yet
+                </p>
+                <p className="text-xs leading-relaxed" style={{ color: 'rgba(255,255,255,0.6)' }}>
+                  DLR protected you from launching this list because the upload is missing consent or date
+                  fields. Use the <strong style={{ color: 'rgba(255,255,255,0.8)' }}>required columns guide</strong>{' '}
+                  in the upload form above, or export a CRM file that includes a consent column and a lead date column.
+                </p>
+                {needsReviewStatusCount > 0 && (
+                  <p className="text-xs" style={{ color: 'rgba(255,255,255,0.48)' }}>
+                    💡 {needsReviewStatusCount} lead{needsReviewStatusCount !== 1 ? 's are' : ' is'} missing a
+                    date — try columns like <code className="bg-white/5 px-1 rounded">Lead Date</code>,{' '}
+                    <code className="bg-white/5 px-1 rounded">Created</code>, or{' '}
+                    <code className="bg-white/5 px-1 rounded">Last Activity</code>.
+                  </p>
+                )}
+                {unknownConsentCount > 0 && (
+                  <p className="text-xs" style={{ color: 'rgba(255,255,255,0.48)' }}>
+                    💡 {unknownConsentCount} lead{unknownConsentCount !== 1 ? 's have' : ' has'} unknown
+                    consent — add a <code className="bg-white/5 px-1 rounded">consentStatus</code> column
+                    with <code className="bg-white/5 px-1 rounded">explicit</code> or{' '}
+                    <code className="bg-white/5 px-1 rounded">implied</code>.
+                  </p>
+                )}
+              </div>
+            )}
+
             <div>
               <div className="divide-y" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
                 {actionableLeads.map(lead => {
@@ -596,15 +683,30 @@ export default async function DealerImportPage({
                             {lead.leadAgeDays === 1 ? '1 day ago' : `${lead.leadAgeDays} days ago`}
                           </span>
                         )}
-                        {(lead.warnings as string[] | null)?.map((w, i) =>
-                          w.startsWith('date-source: ') ? (
-                            <span key={i} style={{ color: 'rgba(255,255,255,0.42)' }}>
-                              📅 {friendlyWarning(w)}
-                            </span>
-                          ) : (
-                            <span key={i} className="text-amber-400 font-medium">⚠ {friendlyWarning(w)}</span>
+                        {(lead.warnings as string[] | null)
+                          ?.filter(w =>
+                            // skip the long date-missing message — the status badge already says "Needs Date"
+                            !(lead.importStatus === 'needs_review' &&
+                              (w.startsWith('No usable CRM date found') || w.startsWith('Contact date missing')))
                           )
-                        )}
+                          .map((w, i) =>
+                            w.startsWith('date-source: ') ? (
+                              <span key={i} style={{ color: 'rgba(255,255,255,0.42)' }}>
+                                📅 {w.slice('date-source: '.length)}
+                              </span>
+                            ) : (w.startsWith('Lead is ') && w.includes('year')) ? (
+                              <span key={i} className="px-1.5 py-0.5 rounded text-[10px] font-semibold"
+                                style={{ background: 'rgba(245,158,11,0.12)', color: '#fbbf24', border: '1px solid rgba(245,158,11,0.25)' }}>
+                                ⚠ Old lead
+                              </span>
+                            ) : (
+                              <span key={i} className="px-1.5 py-0.5 rounded text-[10px] font-semibold"
+                                style={{ background: 'rgba(245,158,11,0.12)', color: '#fbbf24', border: '1px solid rgba(245,158,11,0.25)' }}>
+                                ⚠ {friendlyWarning(w)}
+                              </span>
+                            )
+                          )
+                        }
                       </div>
 
                       {previews.length > 0 ? (
