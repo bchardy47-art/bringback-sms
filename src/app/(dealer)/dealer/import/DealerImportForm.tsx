@@ -7,6 +7,7 @@
  */
 
 import { useState, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { LEAD_UPLOAD_CERT_TEXT } from '@/lib/compliance/attestation-text'
 
 type Props = {
@@ -58,6 +59,7 @@ const CSV_COLUMNS = [
 ]
 
 export function DealerImportForm({ tenantId, apiBase = '/api/dealer/pilot-leads' }: Props) {
+  const router                        = useRouter()
   const [mode, setMode]               = useState<'csv' | 'manual'>('csv')
   const [loading, setLoading]         = useState(false)
   const [result, setResult]           = useState<ImportResponse | null>(null)
@@ -127,7 +129,7 @@ export function DealerImportForm({ tenantId, apiBase = '/api/dealer/pilot-leads'
         return
       }
       setResult(data)
-      setTimeout(() => window.location.reload(), 1200)
+      setTimeout(() => router.refresh(), 1200)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Network error')
     } finally {

@@ -130,7 +130,6 @@ export default async function DealerImportPage({
     .orderBy(pilotLeadImports.createdAt)
 
   const allLeads = allLeadsRaw.filter(r =>
-    r.importStatus !== 'warning' &&
     r.importStatus !== 'held' &&
     !(r.leadId && testLeadIds.has(r.leadId)) &&
     !(r.importStatus === 'selected' && r.leadId == null),
