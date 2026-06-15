@@ -17,7 +17,7 @@
  *   - Batch will not send until Phase 13 confirmation gate is passed
  */
 
-import { and, eq, inArray, isNotNull, or } from 'drizzle-orm'
+import { and, eq, inArray, isNotNull, notInArray, or } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import {
   leads, optOuts, pilotBatches, pilotBatchLeads, pilotLeadImports,
@@ -67,6 +67,118 @@ export type ImportValidationResult = {
   duplicateOfImportId: string | null
 }
 
+// ── Cross-session dedupe types ────────────────────────────────────────────────
+//
+// Same CSV uploaded a second time should not silently add duplicate rows to
+// the dealer's review queue. We pre-fetch the tenant's "active" pilot import
+// rows (anything not currently `excluded` or `held` — same convention as the
+// /dealer/import filter) and skip any input row whose normalized phone or
+// email matches an active row.
+//
+// `excluded` and `held` rows are intentionally treated as inactive:
+//   - `excluded` means the dealer manually X'd it out; let them re-add it.
+//   - `held` means too-fresh; re-uploading is harmless and lets classification
+//     run again.
+
+/** A single input row that was NOT written because the tenant already has
+ *  an active pilot_lead_imports row with a matching normalized phone or
+ *  email. The dealer-facing UI surfaces these as "already in your queue". */
+export type ImportRunSkipped = {
+  /** The original input row. */
+  input:               LeadImportInput
+  /** Normalized E.164 phone for the input row, if normalisation succeeded. */
+  phone:               string | null
+  /** Lowercased / trimmed email for the input row, if present. */
+  email:               string | null
+  /** Which field caused the skip. */
+  reason:              'duplicate_phone' | 'duplicate_email' | 'duplicate_phone_and_email'
+  /** The existing pilot_lead_imports.id that matched. */
+  duplicateOfImportId: string | null
+}
+
+/** Dealer-friendly summary of the run. */
+export type ImportRunSummary = {
+  /** Rows submitted by the caller. */
+  totalInput:      number
+  /** New pilot_lead_imports rows written this run. */
+  created:         number
+  /** Input rows skipped because the tenant already had a matching active row. */
+  alreadyInQueue:  number
+  /** Counts of new rows by importStatus (sums to `created`). */
+  eligible:        number
+  warning:         number
+  needsReview:     number
+  blocked:         number
+  held:            number
+  selected:        number
+}
+
+/** Full result of an importLeads run — extends what the previous shape
+ *  returned (the inserted rows) with the cross-session dedupe data. */
+export type ImportRunResult = {
+  inserted: Array<typeof pilotLeadImports.$inferSelect>
+  skipped:  ImportRunSkipped[]
+  summary:  ImportRunSummary
+}
+
+/**
+ * Pure helper — decide whether an input row should be skipped because the
+ * tenant already has an active pilot import row with the same phone/email.
+ *
+ * Extracted as a pure function so it can be tested without a database.
+ */
+export function classifyImportDedupe(
+  phone:        string | null,
+  email:        string | null,
+  tenantPhones: ReadonlyMap<string, string>,
+  tenantEmails: ReadonlyMap<string, string>,
+): { duplicate: false } | {
+  duplicate:           true
+  reason:              ImportRunSkipped['reason']
+  duplicateOfImportId: string | null
+} {
+  const phoneMatch = phone ? tenantPhones.get(phone) ?? null : null
+  const emailMatch = email && isValidNormalizedEmail(email)
+    ? tenantEmails.get(email) ?? null
+    : null
+  if (!phoneMatch && !emailMatch) return { duplicate: false }
+
+  const reason: ImportRunSkipped['reason'] =
+    phoneMatch && emailMatch ? 'duplicate_phone_and_email' :
+    phoneMatch                ? 'duplicate_phone' :
+                                'duplicate_email'
+
+  return {
+    duplicate:           true,
+    reason,
+    duplicateOfImportId: phoneMatch ?? emailMatch ?? null,
+  }
+}
+
+/**
+ * Pure helper — build the dealer-facing summary from a list of newly-inserted
+ * rows and the count of rows that were skipped as duplicates. Pure so it can
+ * be unit-tested.
+ */
+export function summarizeImportRun(
+  inserted:       ReadonlyArray<{ importStatus: string }>,
+  skippedCount:   number,
+  totalInputCount: number,
+): ImportRunSummary {
+  const byStatus = (s: string) => inserted.filter(r => r.importStatus === s).length
+  return {
+    totalInput:     totalInputCount,
+    created:        inserted.length,
+    alreadyInQueue: skippedCount,
+    eligible:       byStatus('eligible'),
+    warning:        byStatus('warning'),
+    needsReview:    byStatus('needs_review'),
+    blocked:        byStatus('blocked'),
+    held:           byStatus('held'),
+    selected:       byStatus('selected'),
+  }
+}
+
 export type CreateBatchParams = {
   tenantId:    string
   workflowId:  string
@@ -90,6 +202,20 @@ export function normalizePhone(raw: string): string | null {
 
 export function isValidE164(phone: string): boolean {
   return /^\+[1-9]\d{6,14}$/.test(phone)
+}
+
+/**
+ * Minimal format check for a normalized (trimmed, lowercased) email.
+ * Requires at least one character before @, and a domain with a dot and
+ * at least 3 characters (e.g. "a.b"). Does not validate TLD length or
+ * international formats — just filters clearly malformed values so they
+ * don't participate in dedupe matching.
+ */
+export function isValidNormalizedEmail(email: string): boolean {
+  const at = email.indexOf('@')
+  if (at < 1) return false
+  const domain = email.slice(at + 1)
+  return domain.includes('.') && domain.length >= 3
 }
 
 // ── CSV parser ─────────────────────────────────────────────────────────────────
@@ -243,7 +369,7 @@ export async function validateImportRow(
 
   // 3. Intra-session dedup (by email)
   const email = input.email?.trim().toLowerCase() || null
-  if (email && seenEmails.has(email)) {
+  if (email && isValidNormalizedEmail(email) && seenEmails.has(email)) {
     if (!duplicateOfImportId) duplicateOfImportId = seenEmails.get(email) ?? null
     warnings.push(`Duplicate email in this import session (${email})`)
   }
@@ -337,16 +463,49 @@ export async function validateImportRow(
  * Validates each row (phone normalization, dedup, consent, opt-out)
  * and stores results in pilot_lead_imports.
  *
+ * Cross-session dedupe: input rows whose normalized phone or email match an
+ * existing active pilot_lead_imports row for this tenant are skipped without
+ * inserting a new row. They appear in `result.skipped` instead, and the
+ * dealer UI surfaces them as "already in your queue". Active = anything not
+ * currently in importStatus `excluded` or `held` — mirroring the convention
+ * used by /dealer/import.
+ *
+ * Returns `{ inserted, skipped, summary }`. Callers that previously treated
+ * the return as the inserted-row array now read `result.inserted`.
+ *
  * Does NOT enroll leads, does NOT send SMS.
  */
 export async function importLeads(
   rows: LeadImportInput[],
   tenantId: string,
   importedBy: string,
-): Promise<Array<typeof pilotLeadImports.$inferSelect>> {
+): Promise<ImportRunResult> {
   const seenPhones = new Map<string, string>()   // phone → importId
   const seenEmails = new Map<string, string>()   // email → importId
   const results: Array<typeof pilotLeadImports.$inferSelect> = []
+  const skipped: ImportRunSkipped[] = []
+
+  // ── Pre-fetch tenant's active pilot import rows for cross-session dedupe ──
+  // We read only the three columns we need so the query is cheap even on
+  // tenants with thousands of rows.
+  const existingActiveRows = await db
+    .select({
+      id:    pilotLeadImports.id,
+      phone: pilotLeadImports.phone,
+      email: pilotLeadImports.email,
+    })
+    .from(pilotLeadImports)
+    .where(and(
+      eq(pilotLeadImports.tenantId, tenantId),
+      notInArray(pilotLeadImports.importStatus, ['excluded', 'held']),
+    ))
+
+  const tenantPhones = new Map<string, string>()   // phone → existing importId
+  const tenantEmails = new Map<string, string>()   // email → existing importId
+  for (const row of existingActiveRows) {
+    if (row.phone) tenantPhones.set(row.phone, row.id)
+    if (row.email) tenantEmails.set(row.email, row.id)
+  }
 
   // Pre-fetch all bucket workflows for this tenant (at most 4, one per bucket)
   const bucketWorkflowRows = await db
@@ -362,6 +521,22 @@ export async function importLeads(
   const today = new Date()
 
   for (const input of rows) {
+    // ── Cross-session dedupe — runs before validation/insert so we save
+    //    the per-row DB lookups when the row is going to be skipped anyway.
+    const inputPhone = normalizePhone(input.phone)
+    const inputEmail = input.email?.trim().toLowerCase() || null
+    const dedupe = classifyImportDedupe(inputPhone, inputEmail, tenantPhones, tenantEmails)
+    if (dedupe.duplicate) {
+      skipped.push({
+        input,
+        phone:               inputPhone,
+        email:               inputEmail,
+        reason:              dedupe.reason,
+        duplicateOfImportId: dedupe.duplicateOfImportId,
+      })
+      continue
+    }
+
     const validation = await validateImportRow(input, tenantId, seenPhones, seenEmails)
 
     // ── Age classification ─────────────────────────────────────────────────────
@@ -461,20 +636,36 @@ export async function importLeads(
       seenEmails.set(emailKey, inserted.id)
     }
 
+    // Also extend the tenant-wide dedupe maps so the next row in this same
+    // import (e.g. the same CSV listing the same phone twice) is treated as
+    // a duplicate against the row we just wrote, not silently inserted twice.
+    if (validation.phone && !tenantPhones.has(validation.phone)) {
+      tenantPhones.set(validation.phone, inserted.id)
+    }
+    if (emailKey && !tenantEmails.has(emailKey)) {
+      tenantEmails.set(emailKey, inserted.id)
+    }
+
     results.push(inserted)
   }
 
-  return results
+  return {
+    inserted: results,
+    skipped,
+    summary:  summarizeImportRun(results, skipped.length, rows.length),
+  }
 }
 
 /**
- * Parse a CSV string and import all rows for a tenant.
+ * Parse a CSV string and import all rows for a tenant. Returns the same
+ * {inserted, skipped, summary} shape as importLeads() so the caller can
+ * surface the cross-session dedupe count to the dealer.
  */
 export async function importLeadsFromCSV(
   csv: string,
   tenantId: string,
   importedBy: string,
-): Promise<Array<typeof pilotLeadImports.$inferSelect>> {
+): Promise<ImportRunResult> {
   const rawRows = parseCSV(csv)
   const inputs  = rawRows.map(csvRowToImportInput)
   return importLeads(inputs, tenantId, importedBy)
