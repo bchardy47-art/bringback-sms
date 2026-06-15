@@ -53,6 +53,7 @@ export default async function DealerDashboardPage() {
     messagesSentRow,
     recentInboxThreads,
     recentBatchesRaw,
+    importQueueRow,
   ] = await Promise.all([
     db.select({
       name:               tenants.name,
@@ -154,6 +155,21 @@ export default async function DealerDashboardPage() {
       orderBy: (pb, { desc: desc_ }) => [desc_(pb.createdAt)],
       limit: 16,
     }),
+
+    // Import-review queue total — mirrors the denominator on /dealer/import
+    // (the "(N of M leads)" header). We use this to surface a small "+X in
+    // review" hint under the Total Leads KPI so the dashboard count and the
+    // upload page count don't read as contradictory. Filter logic matches
+    // /dealer/import: exclude only `excluded` + `held` + test leads.
+    db.select({ count: count() })
+      .from(pilotLeadImports)
+      .leftJoin(leads, eq(pilotLeadImports.leadId, leads.id))
+      .where(and(
+        eq(pilotLeadImports.tenantId, tenantId),
+        notInArray(pilotLeadImports.importStatus, ['excluded', 'held']),
+        or(isNull(pilotLeadImports.leadId), eq(leads.isTest, false)),
+      ))
+      .then(r => r[0]?.count ?? 0),
   ])
 
   const dealershipName = tenantRow?.name ?? 'Dealer'
@@ -162,6 +178,16 @@ export default async function DealerDashboardPage() {
   const activeCount    = approvedRow as number
   const completedCount = completedRow as number
   const messagesSent   = messagesSentRow as number
+  const importQueueCount = importQueueRow as number
+
+  // Rows the dealer can still see on /dealer/import that are NOT yet counted
+  // as promoted customer records (warning / needs_review / blocked / selected
+  // without a leadId). Surfaced as a small "+N in review" chip on the Total
+  // Leads KPI so a dealer who sees the upload page's "of M leads" header
+  // doesn't think DLR has silently dropped records. Clamped to >= 0 because
+  // the two queries use slightly different filters and can in edge cases
+  // produce a negative diff for hand-curated datasets.
+  const inReviewOrBlockedCount = Math.max(0, importQueueCount - importCount)
 
   const needsReviewCount = openConvosForBreakdown.filter(c =>
     !c.humanTookOverAt && c.messages[0]?.direction === 'inbound',
@@ -256,8 +282,16 @@ export default async function DealerDashboardPage() {
   const reviewLocked     = !pilotActionable && draftCount > 0
   const paymentPending   = setup.steps.find(s => s.key === 'payment')?.status === 'needs_your_action'
 
-  const pulseStats = [
-    { label: 'New Leads',         value: importCount },
+  // Today's Pulse panel. `Customer Leads` reads as the count of records
+  // promoted into the leads table after import validation (i.e. the same
+  // number shown in the Total Leads KPI). The optional `In review` row only
+  // renders when there's a non-zero queue waiting, to keep the panel quiet
+  // on fresh tenants.
+  const pulseStats: Array<{ label: string; value: number | string }> = [
+    { label: 'Customer Leads',    value: importCount },
+    ...(inReviewOrBlockedCount > 0
+      ? [{ label: 'In Review',    value: inReviewOrBlockedCount }]
+      : []),
     { label: 'Messages Sent',     value: messagesSent },
     { label: 'Conversations',     value: inboxCount },
     { label: 'Appointments Set',  value: '—' },
@@ -454,9 +488,23 @@ export default async function DealerDashboardPage() {
           </div>
         )}
 
-        {/* ── SECTION 2: KPI GRID ────────────────────────────────── */}
+        {/* ── SECTION 2: KPI GRID ──────────────────────────────────
+            Customer Leads is the count of records promoted into the leads
+            table after import validation. The `hint` chip surfaces any
+            queue still on /dealer/import so the dashboard total and the
+            upload-page header don't read as contradictory. The card's
+            `subtitle` makes the relationship explicit. */}
         <div className="kpi-grid">
-          <KpiCard icon={<Users size={20} />}        label="Total Leads"   value={importCount}    href="/dealer/import" />
+          <KpiCard
+            icon={<Users size={20} />}
+            label="Customer Leads"
+            value={importCount}
+            href="/dealer/import"
+            hint={inReviewOrBlockedCount > 0 ? `+${inReviewOrBlockedCount} in review` : undefined}
+            subtitle={inReviewOrBlockedCount > 0
+              ? 'Promoted to your CRM after import validation. Upload Leads also shows rows still in review.'
+              : 'Promoted to your CRM after import validation.'}
+          />
           <KpiCard icon={<Send size={20} />}          label="Messages Sent" value={messagesSent}   href={inboxHref} />
           <KpiCard icon={<MessageSquare size={20} />} label="Conversations" value={inboxCount}     href={inboxHref} />
           <KpiCard icon={<CalendarCheck size={20} />} label="Appointments"  value="—"              hint="Coming soon" />
@@ -633,12 +681,19 @@ function KpiCard({
   value,
   href,
   hint,
+  subtitle,
 }: {
   icon: React.ReactNode
   label: string
   value: number | string
   href?: string
+  /** Small inline chip rendered next to the stat value (e.g. "Coming soon",
+   *  "+49 in review"). */
   hint?: string
+  /** Optional small explanatory line under the value row. Used when the
+   *  number's meaning needs disambiguation (e.g. Customer Leads vs the
+   *  Upload Leads queue count). */
+  subtitle?: string
 }) {
   const inner = (
     <div className="kpi glass">
@@ -651,6 +706,11 @@ function KpiCard({
             <span style={{ fontSize: 11, color: 'var(--tx-lo)', whiteSpace: 'nowrap' }}>{hint}</span>
           )}
         </div>
+        {subtitle && (
+          <p style={{ fontSize: 11, color: 'var(--tx-lo)', marginTop: 4, lineHeight: 1.4 }}>
+            {subtitle}
+          </p>
+        )}
       </div>
     </div>
   )
