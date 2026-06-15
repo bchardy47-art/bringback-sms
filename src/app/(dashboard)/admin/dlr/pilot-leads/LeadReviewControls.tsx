@@ -542,7 +542,7 @@ export function CreateBatchButton({
                 onClick={handleConfirm}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg transition-colors"
               >
-                Yes, create pilot →
+                Yes, build draft campaigns →
               </button>
               <button
                 onClick={() => setStage('idle')}
@@ -602,7 +602,7 @@ export function CreateBatchButton({
               onClick={handleConfirm}
               className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg transition-colors"
             >
-              Yes, create pilot →
+              Yes, build draft campaigns →
             </button>
             <button
               onClick={() => setStage('idle')}
@@ -628,8 +628,8 @@ export function CreateBatchButton({
             className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-bold rounded-lg transition-colors"
           >
             {stage === 'loading'
-              ? 'Creating…'
-              : `Create ${bucketPlan.length === 1 ? 'Campaign' : 'Campaigns'} (${totalLeads} lead${totalLeads !== 1 ? 's' : ''}) →`
+              ? 'Building draft…'
+              : `Build draft ${bucketPlan.length === 1 ? 'campaign' : 'campaigns'} (${totalLeads} lead${totalLeads !== 1 ? 's' : ''}) →`
             }
           </button>
         </>
