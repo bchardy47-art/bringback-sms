@@ -13,6 +13,7 @@
  */
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import type { PilotImportDryRunReport } from '@/lib/db/schema'
 
 // ── Auto-Select All Eligible ──────────────────────────────────────────────────
@@ -366,6 +367,7 @@ export function LeadCheckbox({
   canSelect: boolean
   apiBase?: string
 }) {
+  const router = useRouter()
   const [loading, setLoading] = useState(false)
 
   async function handleChange() {
@@ -377,10 +379,9 @@ export function LeadCheckbox({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tenantId, selected: !isSelected }),
       })
-      window.location.reload()
+      router.refresh()
     } catch {
-      // ignore — reload anyway to sync state
-      window.location.reload()
+      router.refresh()
     } finally {
       setLoading(false)
     }
@@ -409,31 +410,48 @@ export function ExcludeButton({
   tenantId: string
   apiBase?: string
 }) {
-  const [loading, setLoading] = useState(false)
+  const router = useRouter()
+  const [loading, setLoading]   = useState(false)
+  const [excluded, setExcluded] = useState(false)
 
   async function handleExclude() {
-    if (!confirm('Exclude this lead from the import session?')) return
+    if (!confirm(
+      'Exclude this lead from the pilot?\n\n' +
+      'Their information won\'t be deleted — you can re-upload this contact later if needed.',
+    )) return
     setLoading(true)
     try {
-      await fetch(`${apiBase}/${leadId}?tenantId=${tenantId}`, {
+      const res = await fetch(`${apiBase}/${leadId}?tenantId=${tenantId}`, {
         method: 'DELETE',
       })
-      window.location.reload()
+      if (res.ok) {
+        setExcluded(true)
+        // Brief feedback, then refresh so the row disappears from the list.
+        setTimeout(() => router.refresh(), 1500)
+      } else {
+        setLoading(false)
+      }
     } catch {
-      window.location.reload()
-    } finally {
       setLoading(false)
     }
+  }
+
+  if (excluded) {
+    return (
+      <span className="text-xs font-semibold" style={{ color: 'rgba(255,255,255,0.45)' }}>
+        Excluded ✓
+      </span>
+    )
   }
 
   return (
     <button
       onClick={handleExclude}
       disabled={loading}
-      title="Exclude this lead"
+      title="Exclude this lead from the pilot"
       className="text-gray-300 hover:text-red-500 transition-colors text-base disabled:opacity-40"
     >
-      ×
+      {loading ? '…' : '×'}
     </button>
   )
 }

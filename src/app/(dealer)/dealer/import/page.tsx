@@ -16,7 +16,6 @@ import { getDealerSession } from '@/lib/dealer/dev-auth-bypass'
 import { DealerImportForm } from './DealerImportForm'
 import { DealerConsentGate } from './DealerConsentGate'
 import {
-  AutoSelectEligible,
   BulkClearButton,
   MarkReviewedButton,
   DryRunReportPanel,
@@ -26,6 +25,7 @@ import {
   CreateBatchButton,
   type BucketPlanItem,
 } from '@/app/(dashboard)/admin/dlr/pilot-leads/LeadReviewControls'
+import { DealerSelectAllButton } from './DealerSelectAllButton'
 import type { PilotPreviewMessage } from '@/lib/db/schema'
 import { FIRST_PILOT_CAP, type AgeBucket } from '@/lib/db/schema'
 import { DEALER_BUCKET_LABEL } from '@/lib/pilot/age-classification'
@@ -131,8 +131,7 @@ export default async function DealerImportPage({
 
   const allLeads = allLeadsRaw.filter(r =>
     r.importStatus !== 'held' &&
-    !(r.leadId && testLeadIds.has(r.leadId)) &&
-    !(r.importStatus === 'selected' && r.leadId == null),
+    !(r.leadId && testLeadIds.has(r.leadId)),
   )
 
   const displayLeads = statusFilter
@@ -460,10 +459,14 @@ export default async function DealerImportPage({
           </div>
         </details>
 
-        {/* ── Auto-select CTA ────────────────────────────────────── */}
+        {/* ── Select-all CTA ────────────────────────────────────── */}
         {eligibleCount > 0 && selectedCount === 0 && (
           <div className="dlr-card-red p-5">
-            <AutoSelectEligible tenantId={tenantId} apiBase={apiBase} />
+            <DealerSelectAllButton
+              tenantId={tenantId}
+              apiBase={apiBase}
+              eligibleCount={eligibleCount}
+            />
           </div>
         )}
 
@@ -624,13 +627,23 @@ export default async function DealerImportPage({
                     >
                       <div className="flex items-start gap-3">
                         <div className="mt-0.5 shrink-0">
-                          <LeadCheckbox
-                            leadId={lead.id}
-                            tenantId={tenantId}
-                            isSelected={isSelected}
-                            canSelect={canSelect}
-                            apiBase={apiBase}
-                          />
+                          {/* needs_review rows cannot be selected — omit the checkbox entirely
+                              so dealers cannot click it and wonder why nothing happens. */}
+                          {lead.importStatus !== 'needs_review' && (
+                            <LeadCheckbox
+                              leadId={lead.id}
+                              tenantId={tenantId}
+                              isSelected={isSelected}
+                              canSelect={canSelect}
+                              apiBase={apiBase}
+                            />
+                          )}
+                          {lead.importStatus === 'needs_review' && (
+                            <span
+                              style={{ display: 'inline-block', width: 16, height: 16 }}
+                              title="Needs a valid contact date before it can be selected"
+                            />
+                          )}
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
@@ -650,12 +663,17 @@ export default async function DealerImportPage({
                           </div>
                         </div>
                         <div className="flex items-center gap-3 shrink-0">
-                          <MarkReviewedButton
-                            importId={lead.id}
-                            tenantId={tenantId}
-                            alreadyReviewed={lead.reviewed}
-                            apiBase={apiBase}
-                          />
+                          {/* "Mark reviewed" only renders for rows that can actually progress
+                              to campaign selection — omit it for needs_review so it doesn't
+                              imply the row is campaign-ready when it still lacks a date. */}
+                          {lead.importStatus !== 'needs_review' && (
+                            <MarkReviewedButton
+                              importId={lead.id}
+                              tenantId={tenantId}
+                              alreadyReviewed={lead.reviewed}
+                              apiBase={apiBase}
+                            />
+                          )}
                           <ExcludeButton leadId={lead.id} tenantId={tenantId} apiBase={apiBase} />
                         </div>
                       </div>
