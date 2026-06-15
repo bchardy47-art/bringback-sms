@@ -10,6 +10,7 @@ import {
   dealerIntakes,
   leads,
   messages,
+  workflows,
 } from '@/lib/db/schema'
 import {
   computeDealerSetupStatus,
@@ -51,6 +52,7 @@ export default async function DealerDashboardPage() {
     intakeRow,
     messagesSentRow,
     recentInboxThreads,
+    recentBatchesRaw,
   ] = await Promise.all([
     db.select({
       name:               tenants.name,
@@ -140,6 +142,18 @@ export default async function DealerDashboardPage() {
       orderBy: [desc(conversations.updatedAt)],
       limit: 8,
     }).then(rows => rows.filter(c => !c.lead?.isTest).slice(0, 4)),
+
+    // Recent pilot batches for the Campaign Overview section. We cap at 16
+    // because the dashboard only ever renders one card per ageBucket (a/b/c/d),
+    // and the dedupe-by-bucket step prefers the newest batch in each bucket.
+    // Test leads are filtered out so a tenant whose only "lead" is a test
+    // record is treated the same as a zero-batch tenant.
+    db.query.pilotBatches.findMany({
+      where: (pb, { eq: eq_ }) => eq_(pb.tenantId, tenantId),
+      with: { leads: { with: { lead: { columns: { isTest: true } } } } },
+      orderBy: (pb, { desc: desc_ }) => [desc_(pb.createdAt)],
+      limit: 16,
+    }),
   ])
 
   const dealershipName = tenantRow?.name ?? 'Dealer'
@@ -250,12 +264,93 @@ export default async function DealerDashboardPage() {
     { label: 'Deals Revived',     value: completedCount },
   ]
 
+  // ── Campaign Overview — real draft batches vs template fallback ──────────
+  //
+  // Previously this card always rendered a static 4-row template list, even
+  // when the dealer had real PREVIEW ONLY drafts on `/dealer/batches`. That
+  // contradicted the Campaigns page and made the dashboard's first impression
+  // misleading. We now query the dealer's actual batches up top (limit 16)
+  // and surface up to one per ageBucket here. Each card links to the matching
+  // batch detail page. When the dealer has zero batches we keep the existing
+  // template list as a fallback — no behaviour change for new tenants.
+
+  /** Per-bucket display copy. Kept aligned with `/dealer/batches`'s
+   *  CAMPAIGN_BUCKETS array so the dashboard and Campaigns page tell the same
+   *  story when both are open side-by-side. */
+  const CAMPAIGN_BUCKET_DISPLAY: Record<'a' | 'b' | 'c' | 'd', { label: string; description: string }> = {
+    a: { label: '14–30 Day Follow-Up', description: 'Recently quiet leads — a short re-engagement window.'   },
+    b: { label: '31–60 Day Follow-Up', description: 'Cooling leads — a gentle nudge back to the dealership.' },
+    c: { label: '61–90 Day Revival',   description: 'Aging leads — strong revival candidates.'               },
+    d: { label: '91+ Day Revival',     description: 'Long-cold leads — last-chance outreach.'                },
+  }
+
   const campaignGroups = [
-    { key: '14-30', label: '14–30 Day Follow-Up', desc: 'Recently dead leads — highest revival potential.' },
-    { key: '31-60', label: '31–60 Day Follow-Up', desc: 'Mid-window leads cooling off.' },
-    { key: '61-90', label: '61–90 Day Revival',   desc: 'Cooling leads needing aggressive outreach.' },
-    { key: '91+',   label: '91+ Day Revival',     desc: 'Long-dormant pipeline — revival sequence.' },
+    { key: '14-30', label: CAMPAIGN_BUCKET_DISPLAY.a.label, desc: 'Recently dead leads — highest revival potential.' },
+    { key: '31-60', label: CAMPAIGN_BUCKET_DISPLAY.b.label, desc: 'Mid-window leads cooling off.' },
+    { key: '61-90', label: CAMPAIGN_BUCKET_DISPLAY.c.label, desc: 'Cooling leads needing aggressive outreach.' },
+    { key: '91+',   label: CAMPAIGN_BUCKET_DISPLAY.d.label, desc: 'Long-dormant pipeline — revival sequence.' },
   ]
+
+  // Strip test leads from every batch, mirroring `/dealer/batches`.
+  const recentBatches = recentBatchesRaw.map(b => ({
+    ...b,
+    leads: b.leads.filter(bl => !bl.lead?.isTest),
+  }))
+
+  // Pull workflow rows for the batches so we know each one's ageBucket. Only
+  // one extra query, and only when batches exist.
+  const recentWorkflowIds = Array.from(
+    new Set(recentBatches.map(b => b.workflowId).filter((id): id is string => !!id)),
+  )
+  const recentWorkflowRows = recentWorkflowIds.length > 0
+    ? await db
+        .select({ id: workflows.id, name: workflows.name, ageBucket: workflows.ageBucket })
+        .from(workflows)
+        .where(inArray(workflows.id, recentWorkflowIds))
+    : []
+  const recentWorkflowMap = new Map(recentWorkflowRows.map(w => [w.id, w]))
+
+  type DashboardCampaignCard = {
+    id:          string
+    bucket:      'a' | 'b' | 'c' | 'd'
+    label:       string
+    description: string
+    leadCount:   number
+    status:      'preview' | 'ready' | 'live'
+    href:        string
+  }
+
+  /** Map a pilot-batch status into the dashboard's preview/ready/live tri-state. */
+  function dashboardStatusFor(status: string): 'preview' | 'ready' | 'live' {
+    if (status === 'sending' || status === 'active' || status === 'completed') return 'live'
+    if (status === 'approved') return 'ready'
+    return 'preview' // draft | previewed | anything else
+  }
+
+  // Dedupe by ageBucket, keeping the newest batch per bucket (the Promise.all
+  // query is ordered desc, so the first batch we see for each bucket wins).
+  const dashboardCampaignCards: DashboardCampaignCard[] = []
+  const seenBucketsForCards = new Set<'a' | 'b' | 'c' | 'd'>()
+  for (const batch of recentBatches) {
+    const wf     = batch.workflowId ? recentWorkflowMap.get(batch.workflowId) : null
+    const bucket = wf?.ageBucket
+    if (bucket !== 'a' && bucket !== 'b' && bucket !== 'c' && bucket !== 'd') continue
+    if (seenBucketsForCards.has(bucket)) continue
+    seenBucketsForCards.add(bucket)
+    const display = CAMPAIGN_BUCKET_DISPLAY[bucket]
+    dashboardCampaignCards.push({
+      id:          batch.id,
+      bucket,
+      label:       display.label,
+      description: display.description,
+      leadCount:   batch.leads.length,
+      status:      dashboardStatusFor(batch.status),
+      href:        `/dealer/batches/${batch.id}`,
+    })
+  }
+  dashboardCampaignCards.sort((a, b) => a.bucket.localeCompare(b.bucket))
+
+  const hasRealCampaignCards = dashboardCampaignCards.length > 0
 
   // ── CTA hierarchy ─────────────────────────────────────────────────────────
   // Hero always leads with a product action. Admin/billing steps are never
@@ -371,7 +466,7 @@ export default async function DealerDashboardPage() {
         {/* ── SECTION 4: WORK GRID ───────────────────────────────── */}
         <div className="work-grid">
 
-          {/* Campaign Overview */}
+          {/* Campaign Overview — real draft batches when present, templates otherwise */}
           <div className="glass" style={{ padding: 'var(--pad)' }}>
             <div className="card-hd">
               <span className="card-title">Campaign Overview</span>
@@ -379,28 +474,44 @@ export default async function DealerDashboardPage() {
                 All Campaigns <ArrowRight size={13} />
               </a>
             </div>
-            {!hasAnyBatch && (
+            {hasRealCampaignCards ? (
               <p style={{ fontSize: 11, color: 'var(--tx-lo)', marginBottom: 8, marginTop: -4, lineHeight: 1.4 }}>
-                Campaign templates are ready — upload leads to create personalized campaigns.
+                Your draft campaigns are ready for review.
+              </p>
+            ) : (
+              <p style={{ fontSize: 11, color: 'var(--tx-lo)', marginBottom: 8, marginTop: -4, lineHeight: 1.4 }}>
+                Campaign templates are ready — upload leads to start.
               </p>
             )}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {campaignGroups.map((g, i) => {
-                const reviewable = pilotActionable && draftCount > 0
-                const status: 'preview' | 'ready' | 'live' =
-                  isLive && i < liveSendsCount ? 'live' :
-                  reviewable                    ? 'ready' :
-                                                  'preview'
-                return (
-                  <CampaignOverviewRow
-                    key={g.key}
-                    label={g.label}
-                    description={g.desc}
-                    status={status}
-                    reviewLocked={reviewLocked}
-                  />
-                )
-              })}
+              {hasRealCampaignCards
+                ? dashboardCampaignCards.map(card => (
+                    <CampaignOverviewRow
+                      key={card.id}
+                      label={card.label}
+                      description={card.description}
+                      status={card.status}
+                      reviewLocked={false}
+                      href={card.href}
+                      leadCount={card.leadCount}
+                    />
+                  ))
+                : campaignGroups.map((g, i) => {
+                    const reviewable = pilotActionable && draftCount > 0
+                    const status: 'preview' | 'ready' | 'live' =
+                      isLive && i < liveSendsCount ? 'live' :
+                      reviewable                    ? 'ready' :
+                                                      'preview'
+                    return (
+                      <CampaignOverviewRow
+                        key={g.key}
+                        label={g.label}
+                        description={g.desc}
+                        status={status}
+                        reviewLocked={reviewLocked}
+                      />
+                    )
+                  })}
             </div>
           </div>
 
@@ -555,20 +666,28 @@ function CampaignOverviewRow({
   description,
   status,
   reviewLocked,
+  href,
+  leadCount,
 }: {
-  label: string
+  label:       string
   description: string
-  status: 'preview' | 'ready' | 'live'
+  status:      'preview' | 'ready' | 'live'
   reviewLocked: boolean
+  /** When set, the entire row becomes an anchor pointing at this href (used
+   *  for real draft batches that link into the batch detail page). */
+  href?:       string
+  /** Optional lead count rendered as a small meta line under the description.
+   *  Only used for the real-draft variant; template fallback never sets it. */
+  leadCount?:  number
 }) {
   const badge =
     status === 'live'  ? <span className="badge badge-green">Live</span>  :
     status === 'ready' ? <span className="badge badge-red">Ready</span>   :
-                          <span className="badge badge-ghost">Preview</span>
+                          <span className="badge badge-ghost">Preview only</span>
 
   const Icon = status === 'live' ? Rocket : status === 'ready' ? Zap : Eye
 
-  return (
+  const body = (
     <div className="co-item">
       <div
         className="co-thumb"
@@ -584,8 +703,21 @@ function CampaignOverviewRow({
         <p style={{ fontSize: 12, color: 'var(--tx-mid)', marginTop: 3, lineHeight: 1.4 }}>
           {reviewLocked && status !== 'live' ? 'Unlocks after payment' : description}
         </p>
+        {typeof leadCount === 'number' && (
+          <p style={{ fontSize: 11, color: 'var(--tx-lo)', marginTop: 4, fontWeight: 600 }}>
+            {leadCount} lead{leadCount === 1 ? '' : 's'}
+          </p>
+        )}
       </div>
     </div>
+  )
+
+  return href ? (
+    <a href={href} style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
+      {body}
+    </a>
+  ) : (
+    body
   )
 }
 
