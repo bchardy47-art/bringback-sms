@@ -10,7 +10,7 @@
 
 import { db } from '@/lib/db'
 import { pilotLeadImports, workflows, leads } from '@/lib/db/schema'
-import { eq, and, ne, inArray } from 'drizzle-orm'
+import { eq, and, ne } from 'drizzle-orm'
 import { redirect } from 'next/navigation'
 import { getDealerSession } from '@/lib/dealer/dev-auth-bypass'
 import { DealerImportForm } from './DealerImportForm'
@@ -23,12 +23,12 @@ import {
   LeadCheckbox,
   ExcludeButton,
   CreateBatchButton,
-  type BucketPlanItem,
 } from '@/app/(dashboard)/admin/dlr/pilot-leads/LeadReviewControls'
 import { DealerSelectAllButton } from './DealerSelectAllButton'
 import type { PilotPreviewMessage } from '@/lib/db/schema'
 import { FIRST_PILOT_CAP, type AgeBucket } from '@/lib/db/schema'
 import { DEALER_BUCKET_LABEL } from '@/lib/pilot/age-classification'
+import { computeBucketPlan } from '@/lib/pilot/bucket-plan'
 import { DlrHeroArt } from '@/components/dealer/DlrHeroArt'
 import { ShieldCheck, CheckCircle2, AlertTriangle, Upload } from 'lucide-react'
 
@@ -174,35 +174,22 @@ export default async function DealerImportPage({
   const selectedLeads    = allLeads.filter(r => r.importStatus === 'selected')
   const selectedImportIds = selectedLeads.map(r => r.id)
 
-  const assignedWorkflowIds = Array.from(
-    new Set(selectedLeads.map(r => r.assignedWorkflowId).filter(Boolean) as string[]),
+  // Step 3 readiness now keys off ageBucket, not assignedWorkflowId. A freshly
+  // onboarded tenant has no per-bucket workflow rows yet — the create-batch API
+  // auto-provisions them on submit. Per-row reasons for any selected lead that
+  // truly can't be bucketed come back in `unassignableSelected` so we can show
+  // an actionable list instead of the old "re-import with a contact date" copy.
+  const { bucketPlan, unassignable: unassignableSelected } = computeBucketPlan(
+    selectedLeads.map(r => ({
+      id:                 r.id,
+      firstName:          r.firstName,
+      lastName:           r.lastName,
+      importStatus:       r.importStatus,
+      ageBucket:          r.ageBucket,
+      assignedWorkflowId: r.assignedWorkflowId,
+      enrollAfter:        r.enrollAfter,
+    })),
   )
-  const bucketWorkflowDetails = assignedWorkflowIds.length > 0
-    ? await db
-        .select({ id: workflows.id, name: workflows.name, ageBucket: workflows.ageBucket })
-        .from(workflows)
-        .where(inArray(workflows.id, assignedWorkflowIds))
-    : []
-  const wfById = new Map(bucketWorkflowDetails.map(w => [w.id, w]))
-
-  const bucketPlanMap = new Map<string, BucketPlanItem>()
-  for (const lead of selectedLeads) {
-    if (!lead.assignedWorkflowId) continue
-    const wf = wfById.get(lead.assignedWorkflowId)
-    if (!wf) continue
-    if (!bucketPlanMap.has(lead.assignedWorkflowId)) {
-      bucketPlanMap.set(lead.assignedWorkflowId, {
-        workflowId:   wf.id,
-        workflowName: wf.name,
-        ageBucket:    wf.ageBucket,
-        bucketLabel:  wf.ageBucket ? DEALER_BUCKET_LABEL[wf.ageBucket as AgeBucket] : 'Unknown',
-        leadCount:    0,
-      })
-    }
-    bucketPlanMap.get(lead.assignedWorkflowId)!.leadCount++
-  }
-  const bucketPlan = Array.from(bucketPlanMap.values())
-    .sort((a, b) => (a.ageBucket ?? 'z').localeCompare(b.ageBucket ?? 'z'))
 
   const actionableLeads = displayLeads.filter(r => r.importStatus !== 'blocked')
   const blockedLeads    = displayLeads.filter(r => r.importStatus === 'blocked')
@@ -459,13 +446,20 @@ export default async function DealerImportPage({
           </div>
         </details>
 
-        {/* ── Select-all CTA ────────────────────────────────────── */}
-        {eligibleCount > 0 && selectedCount === 0 && (
+        {/* ── Select-all CTA ──────────────────────────────────────
+            Shown whenever there are eligible leads AND room under the
+            first-pilot cap. Previously hidden once any lead was selected,
+            which left dealers with no bulk option after picking a single
+            row. The button caps at FIRST_PILOT_CAP and only counts the
+            cap-headroom toward the suggested count. */}
+        {eligibleCount > 0 && selectedCount < FIRST_PILOT_CAP && (
           <div className="dlr-card-red p-5">
             <DealerSelectAllButton
               tenantId={tenantId}
               apiBase={apiBase}
               eligibleCount={eligibleCount}
+              selectedCount={selectedCount}
+              cap={FIRST_PILOT_CAP}
             />
           </div>
         )}
@@ -848,7 +842,7 @@ export default async function DealerImportPage({
               <div>
                 <h2 className="text-sm font-black text-white uppercase tracking-wider">
                   {(() => {
-                    const noun = bucketPlan.length > 1 ? 'Create Campaigns' : 'Create Campaign'
+                    const noun = bucketPlan.length > 1 ? 'Build Draft Campaigns' : 'Build Draft Campaign'
                     if (selectedCount === 0) return `${noun} — select leads above first`
                     const groupSuffix = bucketPlan.length > 1 ? ` across ${bucketPlan.length} groups` : ''
                     const leadWord    = selectedCount === 1 ? 'lead' : 'leads'
@@ -856,7 +850,7 @@ export default async function DealerImportPage({
                   })()}
                 </h2>
                 <p className="text-xs mt-0.5" style={{ color: selectedCount > 0 ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.4)' }}>
-                  Creates a <strong>draft campaign only</strong>. You&apos;ll review each campaign before anything is sent.
+                  <strong>No messages send from this step.</strong> You will review every preview before approval.
                 </p>
               </div>
             </header>
@@ -864,25 +858,63 @@ export default async function DealerImportPage({
             {selectedCount > 0 ? (
               <div className="p-5">
                 {bucketPlan.length > 0 ? (
-                  <CreateBatchButton
-                    tenantId={tenantId}
-                    importIds={selectedImportIds}
-                    bucketPlan={bucketPlan}
-                    apiBase={apiBase}
-                    bucketSectionTitle="Auto-assigned campaign groups"
-                    successRedirectPath="/dealer/batches"
-                  />
+                  <>
+                    <CreateBatchButton
+                      tenantId={tenantId}
+                      importIds={selectedImportIds}
+                      bucketPlan={bucketPlan}
+                      apiBase={apiBase}
+                      bucketSectionTitle="Auto-assigned campaign groups"
+                      successRedirectPath="/dealer/batches"
+                    />
+                    {unassignableSelected.length > 0 && (
+                      <div
+                        className="mt-4 rounded-lg px-4 py-3 text-xs space-y-1.5"
+                        style={{
+                          background: 'rgba(245,158,11,0.1)',
+                          border: '1px solid rgba(245,158,11,0.38)',
+                          color: '#fde68a',
+                        }}
+                      >
+                        <p className="font-semibold">
+                          ⚠ {unassignableSelected.length} selected lead
+                          {unassignableSelected.length === 1 ? '' : 's'} will be left out of this draft:
+                        </p>
+                        <ul className="space-y-0.5" style={{ color: 'rgba(253,230,138,0.85)' }}>
+                          {unassignableSelected.map(u => (
+                            <li key={u.id}>
+                              <span className="font-medium">{u.firstName} {u.lastName}:</span> {u.reason}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </>
                 ) : (
                   <div
-                    className="rounded-lg px-4 py-3 text-xs"
+                    className="rounded-lg px-4 py-3 text-xs space-y-1.5"
                     style={{
                       background: 'rgba(245,158,11,0.1)',
                       border: '1px solid rgba(245,158,11,0.38)',
                       color: '#fde68a',
                     }}
                   >
-                    <p className="font-semibold">⚠ These selected leads are not assigned to a campaign group yet</p>
-                    <p className="mt-0.5" style={{ color: 'rgba(253,230,138,0.75)' }}>Clear these leads and re-import with a contact date column.</p>
+                    <p className="font-semibold">
+                      ⚠ None of the {selectedCount} selected lead{selectedCount === 1 ? '' : 's'} can be grouped into a campaign yet
+                    </p>
+                    {unassignableSelected.length > 0 ? (
+                      <ul className="space-y-0.5" style={{ color: 'rgba(253,230,138,0.85)' }}>
+                        {unassignableSelected.map(u => (
+                          <li key={u.id}>
+                            <span className="font-medium">{u.firstName} {u.lastName}:</span> {u.reason}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p style={{ color: 'rgba(253,230,138,0.75)' }}>
+                        Check Step 2 for per-row warnings.
+                      </p>
+                    )}
                   </div>
                 )}
               </div>

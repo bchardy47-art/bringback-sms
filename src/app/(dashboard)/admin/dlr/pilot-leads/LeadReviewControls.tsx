@@ -15,6 +15,11 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import type { PilotImportDryRunReport } from '@/lib/db/schema'
+import type { BucketPlanItem } from '@/lib/pilot/bucket-plan'
+
+// BucketPlanItem is canonical in @/lib/pilot/bucket-plan. Re-exported here so
+// existing imports of `BucketPlanItem` from this module continue to work.
+export type { BucketPlanItem } from '@/lib/pilot/bucket-plan'
 
 // ── Auto-Select All Eligible ──────────────────────────────────────────────────
 // Fires once on mount when eligible leads exist but none are selected yet.
@@ -459,14 +464,6 @@ export function ExcludeButton({
 // ── Create Batch Button ────────────────────────────────────────────────────────
 // Auto-assigns leads to bucket workflows — no manual workflow selection needed.
 
-export type BucketPlanItem = {
-  workflowId:   string
-  workflowName: string
-  ageBucket:    string | null
-  bucketLabel:  string
-  leadCount:    number
-}
-
 export function CreateBatchButton({
   tenantId,
   importIds,
@@ -560,10 +557,11 @@ export function CreateBatchButton({
             onClick={() => setStage('confirming')}
             disabled={stage === 'loading'}
             className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-bold rounded-xl transition-colors shadow-sm"
+            title="No messages send from this step. You will review every preview before approval."
           >
             {stage === 'loading'
-              ? 'Creating…'
-              : `Create ${bucketPlan.length === 1 ? 'Campaign' : 'Campaigns'} (${totalLeads} lead${totalLeads !== 1 ? 's' : ''}) →`}
+              ? 'Building draft…'
+              : `Build draft ${bucketPlan.length === 1 ? 'campaign' : 'campaigns'} (${totalLeads} lead${totalLeads !== 1 ? 's' : ''}) →`}
           </button>
         )}
         {error && <p className="text-sm text-red-600 font-medium">⚠ {error}</p>}
@@ -617,6 +615,9 @@ export function CreateBatchButton({
       ) : (
         <>
           <div className="rounded-lg border border-gray-100 bg-gray-50 px-4 py-3 text-xs text-gray-600 space-y-1">
+            <p className="font-semibold text-gray-700">
+              No messages send from this step. You will review every preview before approval.
+            </p>
             <p>• Every selected lead has <strong>confirmed</strong> SMS consent on file</p>
             <p>• Each campaign group has correct message templates for this dealer</p>
           </div>

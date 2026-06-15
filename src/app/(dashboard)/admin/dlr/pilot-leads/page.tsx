@@ -10,8 +10,8 @@
  */
 
 import { db } from '@/lib/db'
-import { pilotLeadImports, tenants, workflows } from '@/lib/db/schema'
-import { eq, and, ne, inArray } from 'drizzle-orm'
+import { pilotLeadImports, tenants } from '@/lib/db/schema'
+import { eq, and, ne } from 'drizzle-orm'
 import { getServerSession } from 'next-auth'
 import { redirect } from 'next/navigation'
 import { authOptions } from '@/lib/auth'
@@ -25,11 +25,11 @@ import {
   LeadCheckbox,
   ExcludeButton,
   CreateBatchButton,
-  type BucketPlanItem,
 } from './LeadReviewControls'
 import { TenantSelector } from './TenantSelector'
 import type { PilotPreviewMessage } from '@/lib/db/schema'
 import { FIRST_PILOT_CAP, AGE_BUCKET_LABELS, type AgeBucket } from '@/lib/db/schema'
+import { computeBucketPlan } from '@/lib/pilot/bucket-plan'
 
 // ── Style maps ────────────────────────────────────────────────────────────────
 
@@ -112,15 +112,6 @@ export default async function PilotLeadsPage({
     : null
   const tenantId = currentTenant?.id ?? null
 
-  // Workflows for this tenant
-  const tenantWorkflows = tenantId
-    ? await db
-        .select({ id: workflows.id, name: workflows.name })
-        .from(workflows)
-        .where(eq(workflows.tenantId, tenantId))
-        .orderBy(workflows.name)
-    : []
-
   // All non-excluded leads (used for stats)
   const allLeads = tenantId
     ? await db
@@ -151,8 +142,6 @@ export default async function PilotLeadsPage({
     r.importStatus !== 'blocked' &&
     r.importStatus !== 'excluded'
   ).length
-  const reviewedCount     = allLeads.filter(r => r.reviewed).length
-
   const bucketCounts: Record<AgeBucket, number> = {
     a: allLeads.filter(r => r.ageBucket === 'a').length,
     b: allLeads.filter(r => r.ageBucket === 'b').length,
@@ -160,44 +149,23 @@ export default async function PilotLeadsPage({
     d: allLeads.filter(r => r.ageBucket === 'd').length,
   }
 
-  // Build the bucket plan for the CreateBatchButton (selected leads grouped by workflow)
+  // Build the bucket plan via the shared helper. Grouping is by ageBucket so
+  // a fresh tenant without pre-seeded bucket workflows still shows a plan; the
+  // create-batch API auto-provisions the workflow on submit.
   const selectedLeads = allLeads.filter(r => r.importStatus === 'selected')
   const selectedImportIds = selectedLeads.map(r => r.id)
 
-  const assignedWorkflowIds = Array.from(
-    new Set(selectedLeads.map(r => r.assignedWorkflowId).filter(Boolean) as string[]),
+  const { bucketPlan, unassignable: unassignableSelected } = computeBucketPlan(
+    selectedLeads.map(r => ({
+      id:                 r.id,
+      firstName:          r.firstName,
+      lastName:           r.lastName,
+      importStatus:       r.importStatus,
+      ageBucket:          r.ageBucket,
+      assignedWorkflowId: r.assignedWorkflowId,
+      enrollAfter:        r.enrollAfter,
+    })),
   )
-  const bucketWorkflowDetails = assignedWorkflowIds.length > 0
-    ? await db
-        .select({ id: workflows.id, name: workflows.name, ageBucket: workflows.ageBucket })
-        .from(workflows)
-        .where(inArray(workflows.id, assignedWorkflowIds))
-    : []
-  const wfById = new Map(bucketWorkflowDetails.map(w => [w.id, w]))
-
-  // Group selected leads by assignedWorkflowId → one BucketPlanItem per group
-  const bucketPlanMap = new Map<string, BucketPlanItem>()
-  for (const lead of selectedLeads) {
-    if (!lead.assignedWorkflowId) continue
-    const wf = wfById.get(lead.assignedWorkflowId)
-    if (!wf) continue
-    const key = lead.assignedWorkflowId
-    if (!bucketPlanMap.has(key)) {
-      bucketPlanMap.set(key, {
-        workflowId:   wf.id,
-        workflowName: wf.name,
-        ageBucket:    wf.ageBucket,
-        bucketLabel:  wf.ageBucket ? AGE_BUCKET_LABELS[wf.ageBucket as AgeBucket] : 'Unknown',
-        leadCount:    0,
-      })
-    }
-    bucketPlanMap.get(key)!.leadCount++
-  }
-  const bucketPlan = Array.from(bucketPlanMap.values())
-    .sort((a, b) => (a.ageBucket ?? 'z').localeCompare(b.ageBucket ?? 'z'))
-
-  // Count selected leads without an assigned workflow (need manual handling)
-  const unassignedSelectedCount = selectedLeads.filter(r => !r.assignedWorkflowId).length
 
   // ── Plain-English summary ───────────────────────────────────────────────────
   // Built from existing counts — no extra queries needed.
@@ -631,7 +599,6 @@ export default async function PilotLeadsPage({
                           </td>
                         </tr>
                         {blockedLeads.map(lead => {
-                          const previews = (lead.previewMessages as PilotPreviewMessage[] | null) ?? []
                           return (
                             <tr key={lead.id} className="bg-red-50/60 opacity-70">
                               <td className="px-4 py-2.5" />
@@ -731,21 +698,43 @@ export default async function PilotLeadsPage({
               {selectedCount > 0 ? (
                 <div className="p-5">
                   {bucketPlan.length > 0 ? (
-                    <CreateBatchButton
-                      tenantId={tenantId}
-                      importIds={selectedImportIds}
-                      bucketPlan={bucketPlan}
-                    />
+                    <>
+                      <CreateBatchButton
+                        tenantId={tenantId}
+                        importIds={selectedImportIds}
+                        bucketPlan={bucketPlan}
+                      />
+                      {unassignableSelected.length > 0 && (
+                        <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800 space-y-1.5">
+                          <p className="font-semibold">
+                            ⚠ {unassignableSelected.length} selected lead{unassignableSelected.length === 1 ? '' : 's'} will not be included in this draft:
+                          </p>
+                          <ul className="space-y-0.5">
+                            {unassignableSelected.map(u => (
+                              <li key={u.id}>
+                                <span className="font-medium">{u.firstName} {u.lastName}:</span> {u.reason}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </>
                   ) : (
-                    <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800 space-y-1">
-                      <p className="font-semibold">⚠ Selected leads have no age-bucket workflow assigned</p>
-                      <p>
-                        Clear these leads, re-import with a contact date column, and ensure the
-                        4 age-bucket workflows are configured for this tenant.
+                    <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800 space-y-1.5">
+                      <p className="font-semibold">
+                        ⚠ None of the {selectedCount} selected lead{selectedCount === 1 ? '' : 's'} can be grouped into a campaign yet
                       </p>
-                      {unassignedSelectedCount > 0 && (
+                      {unassignableSelected.length > 0 ? (
+                        <ul className="space-y-0.5">
+                          {unassignableSelected.map(u => (
+                            <li key={u.id}>
+                              <span className="font-medium">{u.firstName} {u.lastName}:</span> {u.reason}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
                         <p className="text-gray-500">
-                          {unassignedSelectedCount} lead{unassignedSelectedCount === 1 ? '' : 's'} without an assigned workflow.
+                          Selected leads have no age-bucket assignment yet. Check Step 2 for per-row warnings.
                         </p>
                       )}
                     </div>

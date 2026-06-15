@@ -21,7 +21,7 @@ import { and, eq, inArray, isNotNull, or } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import {
   leads, optOuts, pilotBatches, pilotBatchLeads, pilotLeadImports,
-  workflows, tenants,
+  workflows, workflowSteps, tenants,
   FIRST_PILOT_CAP,
   type AgeBucket,
   type PilotLeadImportStatus,
@@ -31,9 +31,11 @@ import {
 import { previewWorkflow } from '@/lib/workflows/preview'
 import {
   classifyLeadAge,
+  DEALER_BUCKET_LABEL,
   extractCrmDateWithSource,
   parseContactDate,
 } from '@/lib/pilot/age-classification'
+import { WORKFLOW_TEMPLATES } from '@/lib/workflows/templates'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -864,9 +866,14 @@ export type BucketBatchResult = {
 /**
  * Auto-create one draft pilot batch per age bucket from the selected import rows.
  *
- * Groups selected leads by assignedWorkflowId (set during import by age-classification).
- * Creates one pilotBatch per unique workflow. Leads without an assignedWorkflowId are skipped
- * with a clear error if ALL selected leads are unassigned.
+ * Groups selected leads by ageBucket. For each bucket present in the selection,
+ * resolves (or auto-provisions) a tenant-level workflow tagged with that bucket
+ * and creates one draft pilotBatch against it. Auto-provisioning is the fix
+ * for the long-standing dealer-import dead-end where a freshly onboarded tenant
+ * had bucket-classified leads but no per-bucket workflow rows yet, so Step 3
+ * silently refused to create a draft. See ensureBucketWorkflow() for the
+ * safety properties of the provisioned workflow (isActive=false,
+ * approvedForLive=false, activationStatus='draft').
  *
  * Returns an array of batch results, one per bucket group created.
  */
@@ -886,34 +893,75 @@ export async function createBucketsFromImport(
       inArray(pilotLeadImports.id, importIds),
     ))
 
-  // Only process rows that have an auto-assigned workflow and are in a batchable status
+  // A row can be included in a draft batch if it has an ageBucket (which means
+  // age-classification placed it in a 14-30 / 31-60 / 61-90 / 91+ window) AND
+  // it is in a batchable status. assignedWorkflowId is intentionally NOT a
+  // precondition — see the function-level comment.
   const assignable = importRows.filter(
-    r => r.assignedWorkflowId != null &&
+    r => r.ageBucket != null &&
     ['selected', 'eligible', 'warning'].includes(r.importStatus),
   )
 
   if (assignable.length === 0) {
-    const unassigned = importRows.filter(r => r.assignedWorkflowId == null)
-    if (unassigned.length > 0) {
-      throw new Error(
-        `${unassigned.length} selected lead${unassigned.length === 1 ? ' has' : 's have'} no auto-assigned workflow. ` +
-        'Re-import with a contact date column so leads can be classified into age buckets, ' +
-        'or ensure bucket workflows are configured for this tenant.',
-      )
-    }
-    throw new Error('No eligible leads found in the provided import IDs.')
+    // Build a precise reason for each lead so the dealer gets a row-level
+    // explanation instead of the generic "re-import with a contact date" copy.
+    const reasons = importRows
+      .map(r => {
+        if (r.importStatus === 'needs_review') {
+          return `${r.firstName} ${r.lastName}: missing a parseable contact date`
+        }
+        if (r.importStatus === 'held') {
+          const after = r.enrollAfter ? new Date(r.enrollAfter).toISOString().slice(0, 10) : 'soon'
+          return `${r.firstName} ${r.lastName}: held until ${after} (within the 14-day fresh-lead window)`
+        }
+        if (r.importStatus === 'blocked' || r.importStatus === 'excluded') {
+          return `${r.firstName} ${r.lastName}: ${r.importStatus}`
+        }
+        if (r.ageBucket == null) {
+          return `${r.firstName} ${r.lastName}: no age bucket assignment`
+        }
+        return `${r.firstName} ${r.lastName}: not in a batchable status (${r.importStatus})`
+      })
+      .join('; ')
+    throw new Error(
+      `No leads in the provided selection can be grouped into a campaign yet. ${reasons}.`,
+    )
   }
 
-  // Group by assignedWorkflowId
-  const groups = new Map<string, typeof assignable>()
+  // Group by ageBucket
+  const groups = new Map<AgeBucket, typeof assignable>()
   for (const row of assignable) {
-    const wfId = row.assignedWorkflowId!
-    if (!groups.has(wfId)) groups.set(wfId, [])
-    groups.get(wfId)!.push(row)
+    const bucket = row.ageBucket as AgeBucket
+    if (!groups.has(bucket)) groups.set(bucket, [])
+    groups.get(bucket)!.push(row)
   }
 
-  // Fetch workflow names for result reporting
-  const workflowIds = Array.from(groups.keys())
+  // Resolve or provision a workflow per bucket present in the selection.
+  // ensureBucketWorkflow() is idempotent — it returns the existing per-tenant
+  // bucket workflow when present, or creates one in a strictly safe state.
+  const bucketToWorkflowId = new Map<AgeBucket, string>()
+  for (const bucket of Array.from(groups.keys())) {
+    const wfId = await ensureBucketWorkflow(tenantId, bucket)
+    bucketToWorkflowId.set(bucket, wfId)
+  }
+
+  // Persist the resolved workflow id back onto any row that didn't have one yet
+  // so the lead row UI in the next render shows the bucket workflow link.
+  const leadsNeedingAssignment = assignable.filter(r => r.assignedWorkflowId == null)
+  if (leadsNeedingAssignment.length > 0) {
+    const updateAt = new Date()
+    for (const row of leadsNeedingAssignment) {
+      const wfId = bucketToWorkflowId.get(row.ageBucket as AgeBucket)
+      if (!wfId) continue
+      await db
+        .update(pilotLeadImports)
+        .set({ assignedWorkflowId: wfId, updatedAt: updateAt })
+        .where(eq(pilotLeadImports.id, row.id))
+    }
+  }
+
+  // Fetch the workflow rows so we can populate workflowName + ageBucket in results
+  const workflowIds = Array.from(bucketToWorkflowId.values())
   const workflowRows = await db
     .select({ id: workflows.id, name: workflows.name, ageBucket: workflows.ageBucket })
     .from(workflows)
@@ -922,7 +970,9 @@ export async function createBucketsFromImport(
 
   // Create one draft batch per bucket group
   const results: BucketBatchResult[] = []
-  for (const [workflowId, rows] of Array.from(groups.entries())) {
+  for (const [bucket, rows] of Array.from(groups.entries())) {
+    const workflowId = bucketToWorkflowId.get(bucket)
+    if (!workflowId) continue   // unreachable — ensureBucketWorkflow throws on failure
     const batchId = await createPilotBatchFromImport({
       tenantId,
       workflowId,
@@ -933,8 +983,8 @@ export async function createBucketsFromImport(
     results.push({
       batchId,
       workflowId,
-      workflowName: wf?.name ?? workflowId,
-      ageBucket:    (wf?.ageBucket as AgeBucket | null) ?? null,
+      workflowName: wf?.name ?? DEALER_BUCKET_LABEL[bucket],
+      ageBucket:    bucket,
       leadCount:    rows.length,
     })
   }
@@ -943,6 +993,89 @@ export async function createBucketsFromImport(
   results.sort((a, b) => (a.ageBucket ?? 'z').localeCompare(b.ageBucket ?? 'z'))
 
   return results
+}
+
+// ── Bucket workflow provisioning ──────────────────────────────────────────────
+
+/**
+ * Slug used for the fallback template cloned when a tenant has no per-bucket
+ * workflow for a given AgeBucket. The "Old Internet Lead Revival" template
+ * has the broadest 3-step revival shape and is dry-run-safe (no triggers,
+ * no live sends until approved).
+ */
+const BUCKET_FALLBACK_TEMPLATE_KEY = 'internet_lead_revival'
+
+/**
+ * Find the tenant's existing workflow for the given AgeBucket, or create one.
+ *
+ * The auto-created workflow is **strictly draft-safe**:
+ *   - isActive            = false  → no trigger auto-enrolls leads
+ *   - isTemplate          = false  → it is a real per-tenant workflow, not a library entry
+ *   - approvedForLive     = false  → live sends remain blocked
+ *   - manualReviewRequired= true   → forces human review before activation
+ *   - activationStatus    = 'draft'
+ *
+ * Steps are cloned from WORKFLOW_TEMPLATES[BUCKET_FALLBACK_TEMPLATE_KEY] so
+ * the draft batch built on top of this workflow has meaningful preview copy
+ * the dealer can review and edit before approval.
+ */
+export async function ensureBucketWorkflow(
+  tenantId: string,
+  ageBucket: AgeBucket,
+): Promise<string> {
+  // 1. Existing per-tenant bucket workflow → return it
+  const existing = await db
+    .select()
+    .from(workflows)
+    .where(and(eq(workflows.tenantId, tenantId), eq(workflows.ageBucket, ageBucket)))
+    .limit(1)
+    .then(r => r[0] ?? null)
+  if (existing) return existing.id
+
+  // 2. Clone the fallback template into a new draft workflow tagged with the bucket
+  const fallback = WORKFLOW_TEMPLATES.find(t => t.key === BUCKET_FALLBACK_TEMPLATE_KEY)
+  if (!fallback) {
+    throw new Error(
+      `Cannot auto-provision a bucket-${ageBucket} workflow: ` +
+      `fallback template "${BUCKET_FALLBACK_TEMPLATE_KEY}" missing from WORKFLOW_TEMPLATES.`,
+    )
+  }
+
+  const bucketLabel = DEALER_BUCKET_LABEL[ageBucket]
+  const [created] = await db
+    .insert(workflows)
+    .values({
+      tenantId,
+      name:                   bucketLabel,
+      description:
+        `Auto-provisioned campaign group for the ${bucketLabel.toLowerCase()} bucket. ` +
+        'Message copy was cloned from the default revival template — edit and approve ' +
+        'before any live sends.',
+      triggerType:            fallback.triggerType,
+      triggerConfig:          fallback.triggerConfig,
+      isActive:               false,
+      isTemplate:             false,
+      key:                    `bucket_${ageBucket}_auto`,
+      ageBucket,
+      approvedForLive:        false,
+      requiresOptOutLanguage: true,
+      manualReviewRequired:   true,
+      activationStatus:       'draft',
+    })
+    .returning()
+
+  if (fallback.steps.length > 0) {
+    await db.insert(workflowSteps).values(
+      fallback.steps.map(s => ({
+        workflowId: created.id,
+        position:   s.position,
+        type:       s.type as 'send_sms' | 'condition' | 'assign',
+        config:     s.config as never,
+      })),
+    )
+  }
+
+  return created.id
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
