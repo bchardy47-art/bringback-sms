@@ -86,8 +86,13 @@ export default async function DealerBatchReviewPage({ params }: RouteContext) {
 
   let fallbackCount = 0
   for (const bl of batchLeadRows) {
+    const lead = leadMap.get(bl.leadId)
     const previews = (bl.previewMessages as PilotPreviewMessage[] | null) ?? []
-    if (previews.some(p => p.usedFallback)) fallbackCount++
+    // P0 #2: only count as fallback if the lead still lacks vehicle data
+    // (stored usedFallback may be stale if vehicle was added after preview ran)
+    if (!lead?.vehicleOfInterest && previews.some(p => p.type === 'send_sms' && p.usedFallback)) {
+      fallbackCount++
+    }
   }
 
   // Hero headline picks a name when there's a single lead; otherwise the
@@ -248,7 +253,10 @@ export default async function DealerBatchReviewPage({ params }: RouteContext) {
           <div className="space-y-4">
             {batchLeadRows.map((bl, idx) => {
               const lead     = leadMap.get(bl.leadId)
-              const previews = (bl.previewMessages as PilotPreviewMessage[] | null) ?? []
+              // P0 #3: render only actual SMS send steps — condition/assign/stop steps
+              // have rendered=null and create blank message cards when included
+              const previews = ((bl.previewMessages as PilotPreviewMessage[] | null) ?? [])
+                .filter(p => p.type === 'send_sms')
               const consentVal = lead?.consentStatus ?? 'unknown'
               const fullName = `${lead?.firstName ?? ''} ${lead?.lastName ?? ''}`.trim() || '—'
 
@@ -273,9 +281,19 @@ export default async function DealerBatchReviewPage({ params }: RouteContext) {
                             {consentVal} consent
                           </span>
                           {bl.approvedForSend && (
-                            <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">
-                              ✓ Approved for send
-                            </span>
+                            /* P0 #1: use status-appropriate copy — "Approved for send"
+                               is only accurate once the dealer has actually approved the
+                               batch; in draft/previewed state it contradicts the safety
+                               copy ("nothing sends until you approve…"). */
+                            isDraft || batch.status === 'previewed' ? (
+                              <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700">
+                                Cleared for review
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">
+                                ✓ Approved for send
+                              </span>
+                            )
                           )}
                         </div>
                         <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs">
@@ -310,7 +328,10 @@ export default async function DealerBatchReviewPage({ params }: RouteContext) {
                                     ? `${Math.round(p.delayHours / 24)} day${Math.round(p.delayHours / 24) !== 1 ? 's' : ''}`
                                     : `${p.delayHours}h`} after previous`
                                 : 'Sends first'}
-                              {p.usedFallback && (
+                              {/* P0 #2: suppress stale fallback warning when the lead
+                                  now has vehicle data — usedFallback may be cached from
+                                  before the vehicle was added to the import record */}
+                              {p.usedFallback && !lead?.vehicleOfInterest && (
                                 <span className="ml-2 text-amber-600 font-medium">
                                   ⚠ no vehicle on file
                                 </span>
