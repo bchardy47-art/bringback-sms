@@ -26,12 +26,12 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({})) as Record<string, unknown>
 
-    let results: Awaited<ReturnType<typeof importLeads>>
+    let runResult: Awaited<ReturnType<typeof importLeads>>
 
     if (typeof body.csv === 'string') {
-      results = await importLeadsFromCSV(body.csv, tenantId, importedBy)
+      runResult = await importLeadsFromCSV(body.csv, tenantId, importedBy)
     } else if (Array.isArray(body.rows)) {
-      results = await importLeads(body.rows as LeadImportInput[], tenantId, importedBy)
+      runResult = await importLeads(body.rows as LeadImportInput[], tenantId, importedBy)
     } else {
       return NextResponse.json(
         { error: 'Provide either "csv" (string) or "rows" (array) in the request body' },
@@ -39,17 +39,18 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const eligible = results.filter(r => r.importStatus === 'eligible').length
-    const warned   = results.filter(r => r.importStatus === 'warning').length
-    const blocked  = results.filter(r => r.importStatus === 'blocked').length
+    const inserted = runResult.inserted
+    const summary  = runResult.summary
 
     return NextResponse.json({
       ok:      true,
-      count:   results.length,
-      eligible,
-      warned,
-      blocked,
-      results: results.map(r => ({
+      count:   inserted.length,
+      eligible: summary.eligible,
+      warned:   summary.warning,
+      blocked:  summary.blocked,
+      // New: includes cross-session dedupe count via `summary.alreadyInQueue`.
+      summary,
+      results: inserted.map(r => ({
         id:             r.id,
         firstName:      r.firstName,
         lastName:       r.lastName,

@@ -26,12 +26,30 @@ type ImportResult = {
   warnings: string[]
 }
 
+/** Cross-session dedupe summary returned by /api/dealer/pilot-leads/import.
+ *  Mirrors `ImportRunSummary` from src/lib/pilot/lead-import. The summary
+ *  field is present on responses from servers that include the dedupe code;
+ *  legacy responses without it fall back to the top-level count fields. */
+type ImportRunSummary = {
+  totalInput:     number
+  created:        number
+  alreadyInQueue: number
+  eligible:       number
+  warning:        number
+  needsReview:    number
+  blocked:        number
+  held:           number
+  selected:       number
+}
+
 type ImportResponse = {
   ok: boolean
   count: number
   eligible: number
   warned: number
   blocked: number
+  /** Present when the server includes cross-session dedupe data. */
+  summary?: ImportRunSummary
   results: ImportResult[]
   error?: string
 }
@@ -460,22 +478,64 @@ export function DealerImportForm({ tenantId, apiBase = '/api/dealer/pilot-leads'
         </div>
       )}
 
-      {/* ── Result summary ──────────────────────────────────────────────────── */}
-      {result && (
-        <div
-          className="rounded-lg px-4 py-3 space-y-1"
-          style={{
-            background: 'rgba(34,197,94,0.1)',
-            border: '1px solid rgba(34,197,94,0.4)',
-          }}
-        >
-          <p className="text-sm font-semibold" style={{ color: '#86efac' }}>
-            ✓ {result.count} lead{result.count !== 1 ? 's' : ''} imported —{' '}
-            {result.eligible} eligible, {result.warned} with warnings, {result.blocked} blocked
-          </p>
-          <p className="text-xs" style={{ color: 'rgba(134,239,172,0.7)' }}>Refreshing page…</p>
-        </div>
-      )}
+      {/* ── Result summary ────────────────────────────────────────────────────
+          Cross-session dedupe is the headline story when it triggers — a
+          dealer who uploads the same CSV twice should see "X already in
+          your queue" rather than wonder why nothing changed. We use the
+          server's `summary` block when present and fall back to the legacy
+          top-level fields for older responses. */}
+      {result && (() => {
+        const summary = result.summary
+        const totalInput     = summary?.totalInput     ?? result.count
+        const created        = summary?.created        ?? result.count
+        const alreadyInQueue = summary?.alreadyInQueue ?? 0
+        const blocked        = summary?.blocked        ?? result.blocked
+        const needsReview    = summary?.needsReview    ?? 0
+        const ready          = summary
+          ? summary.eligible + summary.warning
+          : result.eligible + result.warned
+
+        const allDuplicates = created === 0 && alreadyInQueue > 0
+        const someDuplicates = !allDuplicates && alreadyInQueue > 0
+
+        // Headline: pick the framing that matches what happened.
+        const headline = allDuplicates
+          ? `Already in your queue — no new leads added`
+          : someDuplicates
+          ? `${created} added · ${alreadyInQueue} already in your queue`
+          : `${created} lead${created === 1 ? '' : 's'} added to your queue`
+
+        // Tone: green when something landed, amber when the whole upload
+        // was a no-op duplicate, so the dealer immediately sees this isn't
+        // a generic success.
+        const palette = allDuplicates
+          ? { bg: 'rgba(245,158,11,0.1)', border: 'rgba(245,158,11,0.4)', headline: '#fde68a', body: 'rgba(253,230,138,0.75)' }
+          : { bg: 'rgba(34,197,94,0.1)',  border: 'rgba(34,197,94,0.4)',  headline: '#86efac', body: 'rgba(134,239,172,0.75)' }
+
+        return (
+          <div
+            className="rounded-lg px-4 py-3 space-y-1"
+            style={{
+              background: palette.bg,
+              border: `1px solid ${palette.border}`,
+            }}
+          >
+            <p className="text-sm font-semibold" style={{ color: palette.headline }}>
+              {allDuplicates ? '⚠' : '✓'} {headline}
+            </p>
+            <p className="text-xs" style={{ color: palette.body }}>
+              {totalInput} row{totalInput === 1 ? '' : 's'} processed
+              {ready > 0      ? ` · ${ready} ready for review`         : ''}
+              {needsReview > 0? ` · ${needsReview} need a contact date`: ''}
+              {blocked > 0    ? ` · ${blocked} blocked`                : ''}
+              {alreadyInQueue > 0 && !allDuplicates
+                ? ` · ${alreadyInQueue} already in your queue`
+                : ''}
+            </p>
+            <p className="text-xs" style={{ color: palette.body }}>Refreshing page…</p>
+          </div>
+        )
+      })()}
     </div>
   )
 }

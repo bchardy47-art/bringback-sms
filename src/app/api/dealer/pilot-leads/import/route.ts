@@ -117,26 +117,27 @@ export async function POST(req: NextRequest) {
     }
 
     // ── Import (only runs if attestation succeeded) ──────────────────────
-    let results: Awaited<ReturnType<typeof importLeads>>
-    if (csvString !== null) {
-      results = await importLeadsFromCSV(csvString, tenantId, importedBy)
-    } else {
-      results = await importLeads(rowsArray!, tenantId, importedBy)
-    }
+    const runResult = csvString !== null
+      ? await importLeadsFromCSV(csvString, tenantId, importedBy)
+      : await importLeads(rowsArray!, tenantId, importedBy)
 
-    const eligible = results.filter(r => r.importStatus === 'eligible').length
-    const warned   = results.filter(r => r.importStatus === 'warning').length
-    const blocked  = results.filter(r => r.importStatus === 'blocked').length
+    const inserted = runResult.inserted
+    const summary  = runResult.summary
 
     return NextResponse.json({
       ok:      true,
       uploadId,
       attestationId,
-      count:   results.length,
-      eligible,
-      warned,
-      blocked,
-      results: results.map(r => ({
+      // Back-compat fields — `count` is still the count of NEW rows the dealer
+      // sees on /dealer/import after this upload. The richer breakdown lives
+      // on `summary`.
+      count:   inserted.length,
+      eligible: summary.eligible,
+      warned:   summary.warning,
+      blocked:  summary.blocked,
+      // New: dealer-facing summary including cross-session dedupe.
+      summary,
+      results: inserted.map(r => ({
         id:             r.id,
         firstName:      r.firstName,
         lastName:       r.lastName,
