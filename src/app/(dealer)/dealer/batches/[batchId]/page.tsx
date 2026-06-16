@@ -20,14 +20,23 @@ import type { AgeBucket } from '@/lib/db/schema'
 
 type RouteContext = { params: { batchId: string } }
 
-// Per-lead consent pill (used in the message-preview hero cards next to
-// the lead's name). Mirrors the chip palette used in the small meta strip
-// and on /dealer/batches so the same word always wears the same color.
-const CONSENT_PILL: Record<string, string> = {
-  explicit: 'bg-emerald-100 text-emerald-700',
-  implied:  'bg-amber-100 text-amber-700',
-  unknown:  'bg-gray-100 text-gray-600',
-  revoked:  'bg-red-100 text-red-700',
+// Per-lead consent pill inline styles — dark equivalents of the old light
+// Tailwind chip classes. Kept as a map so each reference is consistent.
+const CONSENT_STYLE: Record<string, { bg: string; fg: string }> = {
+  explicit: { bg: 'rgba(34,197,94,0.12)',   fg: '#4ade80'          },
+  implied:  { bg: 'rgba(245,158,11,0.12)',  fg: '#fbbf24'          },
+  unknown:  { bg: 'rgba(255,255,255,0.06)', fg: 'var(--tx-lo)'     },
+  revoked:  { bg: 'rgba(255,42,42,0.12)',   fg: '#ff8a7a'          },
+}
+
+// Batch status → dealer-friendly label + dark badge colors (matches /dealer/batches list)
+const STATUS_DISPLAY: Record<string, { label: string; bg: string; fg: string }> = {
+  draft:     { label: 'Draft / Preview only',        bg: 'rgba(255,255,255,0.07)', fg: 'var(--tx-mid)'  },
+  previewed: { label: 'Preview only',                bg: 'rgba(255,255,255,0.07)', fg: 'var(--tx-mid)'  },
+  approved:  { label: 'Approved — not sending yet',  bg: 'rgba(34,197,94,0.12)',   fg: '#4ade80'         },
+  sending:   { label: 'Sending',                     bg: 'rgba(255,42,42,0.12)',   fg: '#ff5252'         },
+  completed: { label: 'Completed',                   bg: 'rgba(34,197,94,0.12)',   fg: '#4ade80'         },
+  paused:    { label: 'Paused',                      bg: 'rgba(245,158,11,0.12)',  fg: '#fbbf24'         },
 }
 
 export default async function DealerBatchReviewPage({ params }: RouteContext) {
@@ -110,8 +119,13 @@ export default async function DealerBatchReviewPage({ params }: RouteContext) {
     ? (DEALER_BUCKET_LABEL[workflow.ageBucket as AgeBucket] ?? workflow.name ?? '—')
     : (workflow?.name ?? '—')
 
+  const statusEntry = STATUS_DISPLAY[batch.status] ?? { label: batch.status, bg: 'rgba(255,255,255,0.05)', fg: 'var(--tx-lo)' }
+
   return (
-    <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-6">
+    <div
+      className="p-4 md:p-8 max-w-4xl mx-auto space-y-6"
+      style={{ color: 'var(--tx)', fontFamily: 'var(--f-body)' }}
+    >
 
       {/* ── Header — dealer-friendly framing. Title + subtitle lead with the
             promise (read the exact messages) rather than the compliance frame
@@ -119,8 +133,10 @@ export default async function DealerBatchReviewPage({ params }: RouteContext) {
             missed even when the checklist is collapsed below. */}
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="text-2xl font-bold text-gray-900">Review prepared messages</h1>
-          <p className="mt-1.5 text-sm text-gray-600 leading-relaxed max-w-2xl">
+          <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--tx-hi)', letterSpacing: '-0.015em', lineHeight: 1.15 }}>
+            Review prepared messages
+          </h1>
+          <p style={{ marginTop: 6, fontSize: 14, color: 'var(--tx-mid)', lineHeight: 1.55, maxWidth: 560 }}>
             Read the exact messages before anything sends. Approval only prepares
             the campaign for final launch with DLR.
           </p>
@@ -132,14 +148,16 @@ export default async function DealerBatchReviewPage({ params }: RouteContext) {
             batch.status === 'paused') && (
             <a
               href={`/dealer/campaigns/${params.batchId}/report`}
-              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold"
+              className="dlr-btn-secondary"
+              style={{ height: 32, padding: '0 12px', fontSize: 12, textDecoration: 'none' }}
             >
               {batch.status === 'completed' ? 'View Results' : 'View Status'} →
             </a>
           )}
           <a
             href="/dealer/batches"
-            className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-xs font-medium text-gray-600"
+            className="dlr-btn-secondary"
+            style={{ height: 32, padding: '0 12px', fontSize: 12, textDecoration: 'none' }}
           >
             ← All Campaigns
           </a>
@@ -148,79 +166,96 @@ export default async function DealerBatchReviewPage({ params }: RouteContext) {
 
       {/* Already approved banner */}
       {isApproved && (
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-4">
-          <p className="text-sm font-semibold text-emerald-900">
+        <div style={{
+          borderRadius: 12,
+          border: '1px solid rgba(34,197,94,0.3)',
+          background: 'rgba(34,197,94,0.07)',
+          padding: '14px 20px',
+        }}>
+          <p style={{ fontSize: 14, fontWeight: 600, color: '#4ade80' }}>
             ✓ You approved this campaign
             {batch.approvedAt ? ` on ${new Date(batch.approvedAt).toLocaleDateString()}` : ''}.
           </p>
-          <p className="text-xs text-emerald-700 mt-0.5">
+          <p style={{ fontSize: 12, color: 'rgba(74,222,128,0.75)', marginTop: 3 }}>
             Our team will complete carrier verification before any messages are sent. We&apos;ll be in touch.
           </p>
         </div>
       )}
 
-      {/* ── Compact meta strip — was a bordered batch-summary card + a
-            separate Consent Summary card. Both collapsed here so the
-            metadata stops competing with the message hero below. Group,
-            lead count, created date, approval date, consent breakdown,
-            and fallback count all live in one wrap-line. */}
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs">
-        <span className={`px-2 py-0.5 rounded-full font-bold uppercase tracking-wide ${
-          isDraft    ? 'bg-blue-100 text-blue-700'    :
-          isApproved ? 'bg-blue-100 text-blue-700'    :
-          'bg-emerald-100 text-emerald-700'
-        }`}>
-          {isDraft ? 'Ready for review' : batch.status}
+      {/* ── Compact meta strip — group, lead count, dates, consent breakdown. */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5" style={{ fontSize: 12 }}>
+        <span style={{
+          display: 'inline-flex', alignItems: 'center',
+          padding: '2px 10px', borderRadius: 20,
+          fontSize: 10, fontWeight: 800, letterSpacing: '0.07em', textTransform: 'uppercase',
+          background: statusEntry.bg, color: statusEntry.fg,
+        }}>
+          {statusEntry.label}
         </span>
-        <span className="text-gray-500">
-          <span className="text-gray-400">Group:</span>{' '}
-          <span className="font-semibold text-gray-700">{groupLabel}</span>
+        <span style={{ color: 'var(--tx-lo)' }}>
+          <span style={{ color: 'var(--tx-lo)' }}>Group:</span>{' '}
+          <span style={{ fontWeight: 600, color: 'var(--tx-mid)' }}>{groupLabel}</span>
         </span>
-        <span className="text-gray-300" aria-hidden="true">·</span>
-        <span className="text-gray-500">
-          <span className="font-semibold text-gray-700">{totalLeads}</span>{' '}
+        <span style={{ color: 'var(--tx-lo)' }} aria-hidden="true">·</span>
+        <span style={{ color: 'var(--tx-lo)' }}>
+          <span style={{ fontWeight: 600, color: 'var(--tx-mid)' }}>{totalLeads}</span>{' '}
           lead{totalLeads !== 1 ? 's' : ''}
         </span>
-        <span className="text-gray-300" aria-hidden="true">·</span>
-        <span className="text-gray-500">
-          <span className="text-gray-400">Created:</span>{' '}
-          <span className="font-semibold text-gray-700">
+        <span style={{ color: 'var(--tx-lo)' }} aria-hidden="true">·</span>
+        <span style={{ color: 'var(--tx-lo)' }}>
+          <span>Created:</span>{' '}
+          <span style={{ fontWeight: 600, color: 'var(--tx-mid)' }}>
             {new Date(batch.createdAt).toLocaleDateString()}
           </span>
         </span>
         {batch.approvedAt && (
           <>
-            <span className="text-gray-300" aria-hidden="true">·</span>
-            <span className="text-gray-500">
-              <span className="text-gray-400">Approved:</span>{' '}
-              <span className="font-semibold text-gray-700">
+            <span style={{ color: 'var(--tx-lo)' }} aria-hidden="true">·</span>
+            <span style={{ color: 'var(--tx-lo)' }}>
+              <span>Approved:</span>{' '}
+              <span style={{ fontWeight: 600, color: 'var(--tx-mid)' }}>
                 {new Date(batch.approvedAt).toLocaleDateString()}
                 {batch.approvedBy ? ` by ${batch.approvedBy}` : ''}
               </span>
             </span>
           </>
         )}
-        {Object.entries(consentCounts).map(([status, count]) => (
-          <span
-            key={status}
-            className={`px-2 py-0.5 rounded-full font-semibold ${
-              CONSENT_PILL[status] ?? 'bg-gray-100 text-gray-600'
-            }`}
-          >
-            {count} {status}
-          </span>
-        ))}
+        {Object.entries(consentCounts).map(([status, count]) => {
+          const cs = CONSENT_STYLE[status] ?? CONSENT_STYLE.unknown
+          return (
+            <span
+              key={status}
+              style={{
+                padding: '2px 8px', borderRadius: 20, fontWeight: 600,
+                backgroundColor: cs.bg, color: cs.fg,
+              }}
+            >
+              {count} {status}
+            </span>
+          )
+        })}
         {fallbackCount > 0 && (
-          <span className="px-2 py-0.5 rounded-full font-semibold bg-orange-50 text-orange-700 border border-orange-200">
+          <span style={{
+            padding: '2px 8px', borderRadius: 20, fontWeight: 600,
+            background: 'rgba(245,158,11,0.12)', color: '#fbbf24',
+            border: '1px solid rgba(245,158,11,0.25)',
+          }}>
             {fallbackCount} fallback
           </span>
         )}
       </div>
 
       {!hasVisibleLeads && (
-        <div className="border border-amber-200 bg-amber-50 rounded-xl px-5 py-4">
-          <p className="text-sm font-semibold text-amber-900">No eligible leads in this campaign yet.</p>
-          <p className="text-xs text-amber-700 mt-1">
+        <div style={{
+          borderRadius: 12,
+          border: '1px solid rgba(245,158,11,0.35)',
+          background: 'rgba(245,158,11,0.08)',
+          padding: '16px 20px',
+        }}>
+          <p style={{ fontSize: 14, fontWeight: 600, color: '#fbbf24' }}>
+            No eligible leads in this campaign yet.
+          </p>
+          <p style={{ fontSize: 12, color: 'rgba(251,191,36,0.75)', marginTop: 4 }}>
             Upload more leads in this age window and DLR will prepare them for review here.
           </p>
         </div>
@@ -229,25 +264,35 @@ export default async function DealerBatchReviewPage({ params }: RouteContext) {
       {hasVisibleLeads && (
         <section className="space-y-4">
           {/* ── Hero header — dealer-name-first headline + an inline
-                emerald safety pill so "Nothing sends until you approve…"
+                safety pill so "Nothing sends until you approve…"
                 is still visible even when the approval checklist is
                 collapsed below the messages. */}
           <div className="flex items-baseline justify-between gap-3 flex-wrap">
             <div className="min-w-0">
-              <h2 className="text-lg md:text-xl font-bold text-gray-900 leading-tight">
+              <h2 style={{ fontSize: 18, fontWeight: 800, color: 'var(--tx-hi)', lineHeight: 1.25 }}>
                 {heroHeadline}
               </h2>
-              <p className="text-sm text-gray-500 mt-0.5">
+              <p style={{ fontSize: 13, color: 'var(--tx-lo)', marginTop: 3 }}>
                 These are the exact messages each lead will receive, in order.
               </p>
             </div>
-            <p className="text-xs font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-full px-3 py-1 leading-snug">
+            <p style={{
+              fontSize: 11, fontWeight: 700,
+              color: '#4ade80',
+              background: 'rgba(34,197,94,0.10)',
+              border: '1px solid rgba(34,197,94,0.28)',
+              borderRadius: 20,
+              padding: '4px 12px',
+              lineHeight: 1.5,
+              flexShrink: 0,
+              whiteSpace: 'nowrap',
+            }}>
               Nothing sends until you approve and complete the final launch step with DLR.
             </p>
           </div>
 
           {/* ── Per-lead cards — the visual hero. Each lead is its own
-                card: identity header, then a clean vertical stack of
+                dark card: identity header, then a clean vertical stack of
                 Message 1 / Message 2 / Message 3 with the message body
                 rendered as the primary text. */}
           <div className="space-y-4">
@@ -258,25 +303,36 @@ export default async function DealerBatchReviewPage({ params }: RouteContext) {
               const previews = ((bl.previewMessages as PilotPreviewMessage[] | null) ?? [])
                 .filter(p => p.type === 'send_sms')
               const consentVal = lead?.consentStatus ?? 'unknown'
-              const fullName = `${lead?.firstName ?? ''} ${lead?.lastName ?? ''}`.trim() || '—'
+              const cs         = CONSENT_STYLE[consentVal] ?? CONSENT_STYLE.unknown
+              const fullName   = `${lead?.firstName ?? ''} ${lead?.lastName ?? ''}`.trim() || '—'
 
               return (
                 <article
                   key={bl.id}
-                  className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden"
+                  style={{
+                    background: 'rgba(255,255,255,0.03)',
+                    border: '1px solid rgba(255,255,255,0.09)',
+                    borderRadius: 16,
+                    overflow: 'hidden',
+                  }}
                 >
                   {/* Identity header */}
-                  <header className="px-5 py-4 bg-gradient-to-br from-gray-50 to-white border-b border-gray-100">
+                  <header style={{
+                    padding: '14px 20px',
+                    background: 'rgba(255,255,255,0.035)',
+                    borderBottom: '1px solid rgba(255,255,255,0.07)',
+                  }}>
                     <div className="flex items-start justify-between gap-3 flex-wrap">
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="text-base md:text-lg font-bold text-gray-900 leading-tight">
+                          <h3 style={{ fontSize: 15, fontWeight: 700, color: 'var(--tx-hi)', lineHeight: 1.3 }}>
                             {fullName}
                           </h3>
                           <span
-                            className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-                              CONSENT_PILL[consentVal] ?? 'bg-gray-100 text-gray-600'
-                            }`}
+                            style={{
+                              padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 600,
+                              backgroundColor: cs.bg, color: cs.fg,
+                            }}
                           >
                             {consentVal} consent
                           </span>
@@ -286,28 +342,36 @@ export default async function DealerBatchReviewPage({ params }: RouteContext) {
                                batch; in draft/previewed state it contradicts the safety
                                copy ("nothing sends until you approve…"). */
                             isDraft || batch.status === 'previewed' ? (
-                              <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700">
+                              <span style={{
+                                padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 600,
+                                background: 'rgba(255,255,255,0.07)', color: 'var(--tx-mid)',
+                              }}>
                                 Cleared for review
                               </span>
                             ) : (
-                              <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">
+                              <span style={{
+                                padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 600,
+                                background: 'rgba(34,197,94,0.12)', color: '#4ade80',
+                              }}>
                                 ✓ Approved for send
                               </span>
                             )
                           )}
                         </div>
-                        <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs">
+                        <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5" style={{ fontSize: 12 }}>
                           {lead?.phone && (
-                            <span className="font-mono text-gray-700">{lead.phone}</span>
+                            <span style={{ fontFamily: 'monospace', color: 'var(--tx-mid)' }}>
+                              {lead.phone}
+                            </span>
                           )}
                           {lead?.vehicleOfInterest ? (
-                            <span className="text-gray-600">{lead.vehicleOfInterest}</span>
+                            <span style={{ color: 'var(--tx-mid)' }}>{lead.vehicleOfInterest}</span>
                           ) : (
-                            <span className="italic text-gray-400">No vehicle on file</span>
+                            <span style={{ fontStyle: 'italic', color: 'var(--tx-lo)' }}>No vehicle on file</span>
                           )}
                         </div>
                       </div>
-                      <span className="text-xs text-gray-400 mt-1 whitespace-nowrap">
+                      <span style={{ fontSize: 11, color: 'var(--tx-lo)', marginTop: 2, whiteSpace: 'nowrap' }}>
                         Lead {idx + 1} of {totalLeads}
                       </span>
                     </div>
@@ -315,14 +379,20 @@ export default async function DealerBatchReviewPage({ params }: RouteContext) {
 
                   {/* Message stack */}
                   {previews.length > 0 ? (
-                    <ol className="divide-y divide-gray-100">
+                    <ol>
                       {previews.map((p, i) => (
-                        <li key={i} className="px-5 py-4">
+                        <li
+                          key={i}
+                          style={{
+                            padding: '14px 20px',
+                            borderTop: i > 0 ? '1px solid rgba(255,255,255,0.06)' : undefined,
+                          }}
+                        >
                           <div className="flex items-center justify-between gap-3 mb-2 flex-wrap">
-                            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                            <p style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--tx-lo)' }}>
                               Message {i + 1}
                             </p>
-                            <p className="text-xs text-gray-400">
+                            <p style={{ fontSize: 11, color: 'var(--tx-lo)' }}>
                               {p.delayHours
                                 ? `${p.delayHours >= 24
                                     ? `${Math.round(p.delayHours / 24)} day${Math.round(p.delayHours / 24) !== 1 ? 's' : ''}`
@@ -332,20 +402,20 @@ export default async function DealerBatchReviewPage({ params }: RouteContext) {
                                   now has vehicle data — usedFallback may be cached from
                                   before the vehicle was added to the import record */}
                               {p.usedFallback && !lead?.vehicleOfInterest && (
-                                <span className="ml-2 text-amber-600 font-medium">
+                                <span style={{ marginLeft: 8, color: '#fbbf24', fontWeight: 600 }}>
                                   ⚠ no vehicle on file
                                 </span>
                               )}
                             </p>
                           </div>
-                          <p className="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap">
+                          <p style={{ fontSize: 14, color: 'var(--tx)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
                             {p.rendered}
                           </p>
                         </li>
                       ))}
                     </ol>
                   ) : (
-                    <p className="px-5 py-4 text-xs text-gray-400 italic">
+                    <p style={{ padding: '14px 20px', fontSize: 12, color: 'var(--tx-lo)', fontStyle: 'italic' }}>
                       No message previews available for this lead.
                     </p>
                   )}
@@ -354,17 +424,19 @@ export default async function DealerBatchReviewPage({ params }: RouteContext) {
             })}
           </div>
 
-          {/* ── Fallback-template note — moved out of the consent
-                summary's main eye path. Closed by default so it never
+          {/* ── Fallback-template note — closed by default so it never
                 competes with the message preview hero above. Only shown
                 when at least one preview is actually using a fallback. */}
           {fallbackCount > 0 && (
-            <details className="text-xs text-gray-500">
-              <summary className="cursor-pointer font-medium text-gray-500 hover:text-gray-700 list-none [&::-webkit-details-marker]:hidden inline-flex items-center gap-1">
+            <details style={{ fontSize: 12, color: 'var(--tx-lo)' }}>
+              <summary
+                className="list-none [&::-webkit-details-marker]:hidden inline-flex items-center gap-1"
+                style={{ cursor: 'pointer', fontWeight: 500, color: 'var(--tx-lo)' }}
+              >
                 <span>What does &ldquo;fallback&rdquo; mean?</span>
                 <span aria-hidden="true">▾</span>
               </summary>
-              <p className="mt-1.5 max-w-prose leading-relaxed">
+              <p style={{ marginTop: 6, maxWidth: 520, lineHeight: 1.6, color: 'var(--tx-lo)' }}>
                 Fallback templates are used when a lead&apos;s vehicle of interest
                 isn&apos;t on file — they&apos;re still personalized to first name and
                 dealership.
@@ -382,24 +454,35 @@ export default async function DealerBatchReviewPage({ params }: RouteContext) {
             existing checklist + attestation + server-action gating is
             entirely unchanged. */}
       {isDraft && hasVisibleLeads && (
-        <details className="group rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-          <summary className="cursor-pointer list-none px-5 py-4 flex items-center justify-between gap-3 hover:bg-gray-50 transition-colors [&::-webkit-details-marker]:hidden">
+        <details
+          className="group overflow-hidden"
+          style={{
+            borderRadius: 12,
+            border: '1px solid rgba(255,255,255,0.10)',
+            background: 'rgba(255,255,255,0.02)',
+          }}
+        >
+          <summary
+            className="cursor-pointer list-none px-5 py-4 flex items-center justify-between gap-3 [&::-webkit-details-marker]:hidden"
+            style={{ borderRadius: 'inherit' }}
+          >
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-gray-900">
+              <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx-hi)' }}>
                 Ready to approve? Review safety checklist
               </p>
-              <p className="text-xs text-gray-500 mt-0.5">
+              <p style={{ fontSize: 12, color: 'var(--tx-lo)', marginTop: 2 }}>
                 Final step — open this once the messages above look right to you.
               </p>
             </div>
             <span
               aria-hidden="true"
-              className="text-gray-400 transition-transform duration-150 group-open:rotate-180"
+              className="transition-transform duration-150 group-open:rotate-180"
+              style={{ color: 'var(--tx-lo)' }}
             >
               ▾
             </span>
           </summary>
-          <div className="border-t border-gray-100">
+          <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
             <DealerBatchChecklist
               batchId={params.batchId}
               totalLeads={totalLeads}
@@ -409,10 +492,10 @@ export default async function DealerBatchReviewPage({ params }: RouteContext) {
       )}
 
       {/* Footer nav */}
-      <div className="text-xs text-gray-400 space-x-3">
-        <a href="/dealer/batches" className="text-blue-600 underline">← All Campaigns</a>
-        <a href="/dealer/dashboard" className="text-blue-600 underline">Dashboard</a>
-        <a href="/dealer/inbox" className="text-blue-600 underline">Inbox</a>
+      <div style={{ display: 'flex', gap: 16, fontSize: 12, color: 'var(--tx-lo)', marginTop: 8 }}>
+        <a href="/dealer/batches"  className="link-red" style={{ fontSize: 12 }}>← All Campaigns</a>
+        <a href="/dealer/dashboard" style={{ color: 'var(--tx-lo)', textDecoration: 'none' }}>Dashboard</a>
+        <a href="/dealer/inbox"     style={{ color: 'var(--tx-lo)', textDecoration: 'none' }}>Inbox</a>
       </div>
     </div>
   )

@@ -64,25 +64,35 @@ export function DealerBatchChecklist({ batchId, totalLeads }: Props) {
   }
 
   return (
-    <div className="border-2 border-blue-200 rounded-xl overflow-hidden">
-      <div className="bg-blue-50 px-5 py-3 border-b border-blue-200">
-        <h2 className="text-sm font-semibold text-blue-900">Ready to Approve This Campaign?</h2>
-        <p className="text-xs text-blue-700 mt-0.5">
-          Confirm each item below, then approve. Approving does <strong>not</strong> send messages —
+    <div style={{ padding: '16px 20px 20px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+      {/* Section header */}
+      <div>
+        <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx-hi)' }}>
+          Ready to Approve This Campaign?
+        </p>
+        <p style={{ fontSize: 12, color: 'var(--tx-mid)', marginTop: 3, lineHeight: 1.55 }}>
+          Confirm each item below, then approve. Approving does <strong style={{ color: 'var(--tx-hi)' }}>not</strong> send messages —
           your campaign stays paused until launch is turned on.
         </p>
       </div>
 
-      <div className="px-5 py-4 space-y-2 text-sm text-gray-700">
+      {/* Checklist items */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {checkItems.map((item, i) => (
-          <label key={i} className="flex items-start gap-3 cursor-pointer">
+          <label key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
             <input
               type="checkbox"
               checked={checked[i]}
               onChange={() => toggle(i)}
-              className="mt-0.5 h-4 w-4 rounded border-gray-300 text-blue-600 cursor-pointer"
+              style={{ marginTop: 2, width: 15, height: 15, cursor: 'pointer', accentColor: '#4ade80', flexShrink: 0 }}
             />
-            <span className={checked[i] ? 'text-gray-400 line-through' : 'text-gray-700'}>
+            <span style={{
+              fontSize: 13,
+              color: checked[i] ? 'var(--tx-lo)' : 'var(--tx)',
+              textDecoration: checked[i] ? 'line-through' : 'none',
+              lineHeight: 1.45,
+            }}>
               {item}
             </span>
           </label>
@@ -93,62 +103,87 @@ export function DealerBatchChecklist({ batchId, totalLeads }: Props) {
           A signed audit row is written before the status flip. The exact
           text the dealer ticks here is mirrored in
           CAMPAIGN_APPROVAL_TEXT — bump the version if you change either. */}
-      <div className="px-5 pb-4">
-        <label
-          className={`flex items-start gap-3 cursor-pointer rounded-lg border px-4 py-3 transition-colors ${
-            attested
-              ? 'border-emerald-200 bg-emerald-50'
-              : 'border-amber-200 bg-amber-50'
-          }`}
-        >
-          <input
-            type="checkbox"
-            checked={attested}
-            onChange={(e) => setAttested(e.target.checked)}
-            className="mt-0.5 h-4 w-4 rounded border-gray-300 text-emerald-600 cursor-pointer shrink-0"
-          />
-          <div className="text-sm">
-            <p className={`font-semibold ${attested ? 'text-emerald-900' : 'text-amber-900'}`}>
-              {attested ? '✓ Approval attestation confirmed' : 'Final approval attestation required'}
-            </p>
-            <p className="text-gray-700 mt-0.5 leading-relaxed">
-              {CAMPAIGN_APPROVAL_TEXT}
-            </p>
-          </div>
-        </label>
-      </div>
+      <label
+        style={{
+          display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer',
+          borderRadius: 10, padding: '12px 14px',
+          border: attested ? '1px solid rgba(34,197,94,0.35)'  : '1px solid rgba(245,158,11,0.35)',
+          background: attested ? 'rgba(34,197,94,0.07)'        : 'rgba(245,158,11,0.07)',
+          transition: 'background 0.15s, border-color 0.15s',
+        }}
+      >
+        <input
+          type="checkbox"
+          checked={attested}
+          onChange={(e) => setAttested(e.target.checked)}
+          style={{ marginTop: 2, width: 15, height: 15, cursor: 'pointer', accentColor: '#4ade80', flexShrink: 0 }}
+        />
+        <div>
+          <p style={{
+            fontSize: 13, fontWeight: 600,
+            color: attested ? '#4ade80' : '#fbbf24',
+            marginBottom: 4,
+          }}>
+            {attested ? '✓ Approval attestation confirmed' : 'Final approval attestation required'}
+          </p>
+          <p style={{ fontSize: 12, color: 'var(--tx-mid)', lineHeight: 1.55 }}>
+            {CAMPAIGN_APPROVAL_TEXT}
+          </p>
+        </div>
+      </label>
 
-      <div className="px-5 pb-5 space-y-2">
+      {/* Progress / approve button */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {!canApprove && (
-          <p className="text-xs text-gray-400">
+          <p style={{ fontSize: 11, color: 'var(--tx-lo)' }}>
             {checkedCount} of {checkItems.length} items confirmed
             {!attested && ' · final attestation required'}
           </p>
         )}
 
         {error && (
-          <p className="text-xs text-red-600 font-medium">{error}</p>
+          <p style={{ fontSize: 12, color: '#ff8a7a', fontWeight: 500 }}>{error}</p>
         )}
 
         {canApprove ? (
           <button
             onClick={handleApprove}
             disabled={isPending}
-            className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{
+              alignSelf: 'flex-start',
+              padding: '9px 20px',
+              borderRadius: 8,
+              border: '1px solid rgba(34,197,94,0.4)',
+              background: 'rgba(34,197,94,0.12)',
+              color: '#4ade80',
+              fontSize: 13, fontWeight: 700,
+              cursor: isPending ? 'not-allowed' : 'pointer',
+              opacity: isPending ? 0.5 : 1,
+              transition: 'background 0.15s',
+            }}
           >
             {isPending ? 'Approving…' : 'Approve this campaign →'}
           </button>
         ) : (
           <button
             disabled
-            className="px-5 py-2.5 bg-gray-200 text-gray-400 text-sm font-bold rounded-lg cursor-not-allowed"
             title="Confirm all items + tick the final attestation to approve"
+            style={{
+              alignSelf: 'flex-start',
+              padding: '9px 20px',
+              borderRadius: 8,
+              border: '1px solid rgba(255,255,255,0.07)',
+              background: 'rgba(255,255,255,0.04)',
+              color: 'var(--tx-lo)',
+              fontSize: 13, fontWeight: 700,
+              cursor: 'not-allowed',
+            }}
           >
             Approve this campaign →
           </button>
         )}
 
-        <p className="text-xs text-gray-400">
+        <p style={{ fontSize: 11, color: 'var(--tx-lo)' }}>
           After approval, your campaign remains paused until launch is turned on.
         </p>
       </div>
