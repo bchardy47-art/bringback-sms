@@ -71,7 +71,7 @@ export default async function DealerLayout({ children }: { children: React.React
   const isLive = !!tenantRow?.smsLiveApproved
   const systemLabel = isLive ? 'LIVE' : 'STANDBY'
   const systemDetail = isLive ? 'All systems operational' : 'Preparing for launch'
-  const setupHref = isLive ? '/dealer/batches' : '/dealer/settings'
+  const setupHref = isLive ? '/dealer/batches' : '/dealer/dashboard#setup-progress'
   const setupLabel = isLive ? 'View pipeline' : 'Continue setup'
 
   const tachSegs  = isLive ? TACH_LIVE : TACH_STANDBY

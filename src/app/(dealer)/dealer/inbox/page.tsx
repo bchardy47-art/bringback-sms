@@ -14,7 +14,7 @@ export default async function DealerInboxPage() {
 
   const tenantId = session.user.tenantId
 
-  const [convRows, launchedRows] = await Promise.all([
+  const [convRows, launchedRows, draftRows] = await Promise.all([
     db.select({ c: count() })
       .from(conversations)
       .where(eq(conversations.tenantId, tenantId)),
@@ -24,15 +24,23 @@ export default async function DealerInboxPage() {
         eq(pilotBatches.tenantId, tenantId),
         inArray(pilotBatches.status, ['approved', 'sending', 'paused', 'completed']),
       )),
+    db.select({ c: count() })
+      .from(pilotBatches)
+      .where(and(
+        eq(pilotBatches.tenantId, tenantId),
+        inArray(pilotBatches.status, ['draft', 'previewed']),
+      )),
   ])
   const conversationCount  = convRows[0]?.c ?? 0
   const launchedBatchCount = launchedRows[0]?.c ?? 0
+  const draftBatchCount    = draftRows[0]?.c ?? 0
 
-  type State = 'pick_one' | 'pre_launch' | 'mid_launch'
+  type State = 'pick_one' | 'has_drafts' | 'pre_launch' | 'mid_launch'
   const state: State =
-    conversationCount > 0 ? 'pick_one' :
-    launchedBatchCount === 0 ? 'pre_launch' :
-    'mid_launch'
+    conversationCount > 0            ? 'pick_one'  :
+    launchedBatchCount > 0           ? 'mid_launch' :
+    draftBatchCount > 0              ? 'has_drafts' :
+                                       'pre_launch'
 
   return (
     <div
@@ -102,15 +110,30 @@ export default async function DealerInboxPage() {
           </>
         )}
 
+        {state === 'has_drafts' && (
+          <>
+            <p className="dlr-cmd-label" style={{ color: '#fbbf24' }}>Campaigns Ready</p>
+            <h2 className="text-xl font-black text-white mt-2 uppercase tracking-wide">Replies will appear here after your campaigns send</h2>
+            <p className="text-sm mt-2 leading-relaxed" style={{ color: 'rgba(255,255,255,0.65)' }}>
+              You have {draftBatchCount} draft campaign{draftBatchCount === 1 ? '' : 's'} ready for review.
+              Replies will appear here once your campaigns are approved and messages go out.
+            </p>
+            <a href="/dealer/batches" className="dlr-btn-primary mt-5 inline-flex">
+              Review draft campaigns
+              <Send size={14} />
+            </a>
+          </>
+        )}
+
         {state === 'pre_launch' && (
           <>
             <p className="dlr-cmd-label" style={{ color: '#fbbf24' }}>Pre-Launch</p>
             <h2 className="text-xl font-black text-white mt-2 uppercase tracking-wide">No conversations yet</h2>
             <p className="text-sm mt-2 leading-relaxed" style={{ color: 'rgba(255,255,255,0.65)' }}>
-              Replies will appear here after your first approved campaign sends.
-              You haven&apos;t launched one yet — your dashboard shows the next setup step.
+              Replies will appear here after your first campaign is approved and sends.
+              Check your dashboard to see the next setup step.
             </p>
-            <a href="/dealer/dashboard" className="dlr-btn-primary mt-5 inline-flex">
+            <a href="/dealer/dashboard#setup-progress" className="dlr-btn-primary mt-5 inline-flex">
               Check setup progress
               <Send size={14} />
             </a>

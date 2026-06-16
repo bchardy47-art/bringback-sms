@@ -808,6 +808,7 @@ function SetupProgressCard({
 
   return (
     <section
+      id="setup-progress"
       className="glass"
       style={{
         padding: 0,

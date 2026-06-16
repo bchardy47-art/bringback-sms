@@ -112,8 +112,8 @@ function applyTabFilter(convs: Conversation[], tabKey: string): Conversation[] {
 
 const DEALER_TABS: Array<{ key: TabKey; label: string }> = [
   { key: 'needs_review', label: 'Needs Review' },
-  { key: 'automated',    label: 'Automated' },
-  { key: 'human_owned',  label: 'Taken Over' },
+  { key: 'automated',    label: 'Auto replies' },
+  { key: 'human_owned',  label: 'Handled by you' },
   { key: 'opted_out',    label: 'Opted Out' },
   { key: 'closed',       label: 'Closed' },
 ]
@@ -590,7 +590,7 @@ function EmptyTabState({
       ? 'Replies needing review or already taken over are in the other tabs.'
       : 'Threads DLR is running on autopilot will appear here.'
   } else if (isDealer && activeTab === 'human_owned') {
-    title = 'No conversations you’ve taken over.'
+    title = "No conversations you've taken over."
     detail = otherTabsTotal > 0
       ? 'Automated and needs-review conversations are in the other tabs.'
       : 'Conversations you take over will move here.'
@@ -634,17 +634,17 @@ function DealerEmptyTabState({
   if (activeTab === 'needs_review') {
     title = 'No conversations need review right now.'
     detail = otherTabsTotal > 0
-      ? 'Automated and taken-over conversations are in the other tabs.'
+      ? 'Auto-reply and handled conversations are in the other tabs.'
       : 'Customer replies will appear here when leads start responding.'
   } else if (activeTab === 'automated') {
-    title = 'No automated conversations right now.'
+    title = 'No auto-reply conversations right now.'
     detail = otherTabsTotal > 0
-      ? 'Replies needing review or already taken over are in the other tabs.'
+      ? 'Replies needing review or already handled are in the other tabs.'
       : 'Threads DLR is running on autopilot will appear here.'
   } else if (activeTab === 'human_owned') {
-    title = 'No conversations you’ve taken over.'
+    title = 'No conversations handled by you yet.'
     detail = otherTabsTotal > 0
-      ? 'Automated and needs-review conversations are in the other tabs.'
+      ? 'Auto-reply and review-needed conversations are in the other tabs.'
       : 'Conversations you take over will move here.'
   } else if (activeTab === 'opted_out') {
     title = 'No opted-out conversations.'
