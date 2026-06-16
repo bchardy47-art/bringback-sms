@@ -96,7 +96,7 @@ export function ChangePasswordForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4" noValidate>
+    <form onSubmit={handleSubmit} className="space-y-4" noValidate>
       <PasswordField
         id="currentPassword"
         label="Current password"
@@ -129,7 +129,12 @@ export function ChangePasswordForm() {
       {formError && (
         <div
           role="alert"
-          className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+          style={{
+            borderRadius: 8, padding: '9px 12px', fontSize: 13,
+            border: '1px solid rgba(255,80,80,0.3)',
+            background: 'rgba(255,42,42,0.08)',
+            color: '#ff8a7a',
+          }}
         >
           {formError}
         </div>
@@ -137,18 +142,19 @@ export function ChangePasswordForm() {
       {saved && (
         <div
           role="status"
-          className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800"
+          style={{
+            borderRadius: 8, padding: '9px 12px', fontSize: 13,
+            border: '1px solid rgba(34,197,94,0.3)',
+            background: 'rgba(34,197,94,0.07)',
+            color: '#4ade80',
+          }}
         >
           Password updated. Use your new password the next time you sign in.
         </div>
       )}
 
-      <div className="flex items-center gap-3">
-        <button
-          type="submit"
-          disabled={saving}
-          className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
-        >
+      <div style={{ paddingTop: 4 }}>
+        <button type="submit" disabled={saving} className="dlr-form-save">
           {saving ? 'Updating…' : 'Update password'}
         </button>
       </div>
@@ -177,7 +183,10 @@ function PasswordField({
 }) {
   return (
     <div>
-      <label htmlFor={id} className="block text-sm font-medium text-gray-700">
+      <label
+        htmlFor={id}
+        style={{ display: 'block', fontSize: 12, fontWeight: 600, letterSpacing: '0.04em', color: 'var(--tx-mid)', marginBottom: 5 }}
+      >
         {label}
       </label>
       <input
@@ -191,18 +200,14 @@ function PasswordField({
         disabled={disabled}
         aria-invalid={Boolean(error) || undefined}
         aria-describedby={error ? `${id}-error` : hint ? `${id}-hint` : undefined}
-        className={`mt-1 block w-full max-w-sm rounded-md border px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-1 ${
-          error
-            ? 'border-red-300 focus:border-red-500 focus:ring-red-500'
-            : 'border-gray-300 focus:border-gray-500 focus:ring-gray-500'
-        }`}
+        className={`dlr-input${error ? ' dlr-input-error' : ''}`}
       />
       {error ? (
-        <p id={`${id}-error`} className="mt-1 text-xs text-red-600">
+        <p id={`${id}-error`} style={{ marginTop: 4, fontSize: 12, color: '#ff8a7a' }}>
           {error}
         </p>
       ) : hint ? (
-        <p id={`${id}-hint`} className="mt-1 text-xs text-gray-500">
+        <p id={`${id}-hint`} style={{ marginTop: 4, fontSize: 12, color: 'var(--tx-lo)' }}>
           {hint}
         </p>
       ) : null}

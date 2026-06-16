@@ -1,9 +1,9 @@
 import { redirect } from 'next/navigation'
 import { and, desc, eq, isNotNull } from 'drizzle-orm'
-import { User, Shield, CreditCard } from 'lucide-react'
+import { User, Shield, CreditCard, Building2 } from 'lucide-react'
 import { getDealerSession } from '@/lib/dealer/dev-auth-bypass'
 import { db } from '@/lib/db'
-import { users, dealerIntakes } from '@/lib/db/schema'
+import { users, tenants, dealerIntakes } from '@/lib/db/schema'
 import { DealerProfileEditForm } from '@/components/dealer/DealerProfileEditForm'
 import { ChangePasswordForm } from '@/components/settings/ChangePasswordForm'
 import { BillingPortalButton } from '@/components/settings/BillingPortalButton'
@@ -13,17 +13,31 @@ export default async function DealerSettingsPage() {
   if (!session) redirect('/login?callbackUrl=/dealer/settings')
   if (session.user.role !== 'dealer') redirect('/settings')
 
-  // Same fresh DB lookup pattern the dealer layout uses for the sidebar
-  // display name, so Settings can never disagree with the sidebar. JWT
-  // caches name/email at login and goes stale across profile edits.
-  const [userRow] = await db
-    .select({ name: users.name, email: users.email })
-    .from(users)
-    .where(eq(users.id, session.user.id))
-    .limit(1)
+  // Tenant + user + dealership profile — all read in parallel
+  const [[tenantRow], [userRow], profileIntake] = await Promise.all([
+    db.select({ name: tenants.name, smsLiveApproved: tenants.smsLiveApproved })
+      .from(tenants)
+      .where(eq(tenants.id, session.user.tenantId))
+      .limit(1),
+    db.select({ name: users.name, email: users.email })
+      .from(users)
+      .where(eq(users.id, session.user.id))
+      .limit(1),
+    db.query.dealerIntakes.findFirst({
+      where: eq(dealerIntakes.tenantId, session.user.tenantId),
+      orderBy: [desc(dealerIntakes.createdAt)],
+      columns: {
+        dealershipName:      true,
+        primaryContactName:  true,
+        primaryContactEmail: true,
+        primaryContactPhone: true,
+        approvedSenderName:  true,
+        businessWebsite:     true,
+      },
+    }),
+  ])
 
-  // Billing context: same lookup as the admin settings page — most-recent
-  // intake row for this tenant that has a Stripe customer attached.
+  // Billing context: most-recent intake row that has a Stripe customer attached.
   const billingIntake = await db.query.dealerIntakes.findFirst({
     where: and(
       eq(dealerIntakes.tenantId, session.user.tenantId),
@@ -33,14 +47,7 @@ export default async function DealerSettingsPage() {
     columns: { stripeCustomerId: true, paymentStatus: true, plan: true },
   })
 
-  // Recovery path for the "no billing on file" state: find ANY intake for
-  // this tenant so we can deep-link the dealer back to /intake/<token>/payment.
-  // Only fetched when there's no billing intake — otherwise the dealer
-  // already has the Stripe portal button and doesn't need a recovery link.
-  // Token is used solely as the URL credential for the recovery link;
-  // never rendered as visible text. If no intake row exists (admin-provisioned
-  // tenant without an intake), recoveryHref stays null and the UI falls
-  // back to a support contact prompt.
+  // Recovery path for "no billing on file": deep-link back to payment step.
   const recoveryIntake = billingIntake
     ? null
     : await db.query.dealerIntakes.findFirst({
@@ -52,50 +59,126 @@ export default async function DealerSettingsPage() {
     ? `/intake/${recoveryIntake.token}/payment`
     : null
 
-  // Prefer DB → session fallback. Treat empty strings as missing so the
-  // input never renders blank when the JWT/DB happens to carry "".
-  const dbName    = userRow?.name?.trim()
-  const dbEmail   = userRow?.email?.trim()
-  const sessName  = session.user.name?.trim()
-  const sessEmail = session.user.email?.trim()
-  const name  = dbName  || sessName  || ''
-  const email = dbEmail || sessEmail || ''
+  // Prefer DB over session fallback; treat empty strings as missing.
+  const name  = userRow?.name?.trim()  || session.user.name?.trim()  || ''
+  const email = userRow?.email?.trim() || session.user.email?.trim() || ''
+
+  // Read-only dealership profile values (never expose UUIDs or sending numbers)
+  const dealershipDisplayName = profileIntake?.dealershipName  || tenantRow?.name  || null
+  const approvedSenderName    = profileIntake?.approvedSenderName    || null
+  const primaryContactName    = profileIntake?.primaryContactName    || null
+  const primaryContactPhone   = profileIntake?.primaryContactPhone   || null
+  const businessWebsite       = profileIntake?.businessWebsite       || null
+  // Show contact email only when it differs from the login email (avoid duplication)
+  const showContactEmail = (() => {
+    const v = profileIntake?.primaryContactEmail?.trim().toLowerCase()
+    return v && v !== email.toLowerCase() ? profileIntake!.primaryContactEmail! : null
+  })()
+
+  const isLive = !!tenantRow?.smsLiveApproved
 
   return (
-    <div className="min-h-full bg-gray-50">
-      <div className="bg-white border-b border-gray-200 px-8 py-5">
-        <h1 className="text-xl font-bold text-gray-900">Settings</h1>
-        <p className="text-sm text-gray-500 mt-0.5">Manage your Revival Center account</p>
+    <div style={{ color: 'var(--tx)', fontFamily: 'var(--f-body)' }}>
+
+      {/* Page header */}
+      <div style={{
+        padding: '24px 32px',
+        borderBottom: '1px solid var(--line-red)',
+        background: 'rgba(255,27,27,0.03)',
+      }}>
+        <p className="eyebrow red" style={{ marginBottom: 6 }}>Revival Center</p>
+        <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--tx-hi)', letterSpacing: '-0.015em', lineHeight: 1.1 }}>
+          Settings
+        </h1>
+        <p style={{ color: 'var(--tx-mid)', fontSize: 14, marginTop: 6, lineHeight: 1.4 }}>
+          Manage your account and dealership preferences
+        </p>
       </div>
 
-      <div className="px-8 py-6 max-w-3xl space-y-5">
-        {/* Account */}
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-100">
-            <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center">
-              <User size={18} className="text-blue-500" />
+      <div style={{ padding: '24px 32px', maxWidth: 720, display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+        {/* ── Dealership Profile (read-only) ── */}
+        <div className="glass" style={{ padding: 'var(--pad)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+            <div style={{
+              width: 32, height: 32, borderRadius: 9,
+              background: 'rgba(255,42,42,0.10)',
+              border: '1px solid rgba(255,42,42,0.22)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+            }}>
+              <Building2 size={16} style={{ color: '#ff5252' }} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <div className="card-title">Dealership Profile</div>
+              <div style={{ fontSize: 12, color: 'var(--tx-lo)', marginTop: 2 }}>
+                Managed by DLR · contact support to update
+              </div>
+            </div>
+            {isLive ? (
+              <span className="dlr-badge dlr-badge-live">Live</span>
+            ) : (
+              <span className="dlr-badge dlr-badge-preview">Setup in progress</span>
+            )}
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '16px 28px' }}>
+            {dealershipDisplayName && <ProfileField label="Dealership Name"   value={dealershipDisplayName} />}
+            {approvedSenderName    && <ProfileField label="Sender Name"       value={approvedSenderName}    />}
+            {primaryContactName    && <ProfileField label="Primary Contact"   value={primaryContactName}    />}
+            {showContactEmail      && <ProfileField label="Contact Email"     value={showContactEmail}      />}
+            {primaryContactPhone   && <ProfileField label="Contact Phone"     value={primaryContactPhone}   />}
+            {businessWebsite       && <ProfileField label="Website"           value={businessWebsite}       />}
+          </div>
+
+          <p style={{
+            fontSize: 12, color: 'var(--tx-lo)', marginTop: 20, lineHeight: 1.6,
+            borderTop: '1px solid var(--line)', paddingTop: 14,
+          }}>
+            Need to update sender details, business info, or launch settings?{' '}
+            <a href="mailto:support@dlr-sms.com" style={{ color: 'var(--red-core)', textDecoration: 'none' }}>
+              Contact DLR Support
+            </a>
+            .
+          </p>
+        </div>
+
+        {/* ── Account ── */}
+        <div className="glass" style={{ padding: 'var(--pad)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+            <div style={{
+              width: 32, height: 32, borderRadius: 9,
+              background: 'rgba(255,255,255,0.05)',
+              border: '1px solid rgba(255,255,255,0.10)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+            }}>
+              <User size={16} style={{ color: 'var(--tx-mid)' }} />
             </div>
             <div>
-              <h2 className="text-sm font-semibold text-gray-900">Account</h2>
-              <p className="text-xs text-gray-400">Your dealer profile</p>
+              <div className="card-title">Account</div>
+              <div style={{ fontSize: 12, color: 'var(--tx-lo)', marginTop: 2 }}>Your personal profile</div>
             </div>
           </div>
           <DealerProfileEditForm initialName={name} email={email} />
         </div>
 
-        {/* Billing — Stripe-hosted self-serve portal */}
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-100">
-            <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center">
-              <CreditCard size={18} className="text-emerald-500" />
+        {/* ── Billing ── */}
+        <div className="glass" style={{ padding: 'var(--pad)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+            <div style={{
+              width: 32, height: 32, borderRadius: 9,
+              background: 'rgba(34,197,94,0.09)',
+              border: '1px solid rgba(34,197,94,0.22)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+            }}>
+              <CreditCard size={16} style={{ color: '#4ade80' }} />
             </div>
             <div>
-              <h2 className="text-sm font-semibold text-gray-900">Billing</h2>
-              <p className="text-xs text-gray-400">
+              <div className="card-title">Billing</div>
+              <div style={{ fontSize: 12, color: 'var(--tx-lo)', marginTop: 2 }}>
                 {billingIntake?.plan
                   ? `${billingIntake.plan.charAt(0).toUpperCase() + billingIntake.plan.slice(1)} plan`
-                  : 'Manage your subscription'}
-              </p>
+                  : 'Subscription & payment'}
+              </div>
             </div>
           </div>
           <BillingPortalButton
@@ -105,19 +188,41 @@ export default async function DealerSettingsPage() {
           />
         </div>
 
-        {/* Security — change password */}
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-100">
-            <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center">
-              <Shield size={18} className="text-violet-500" />
+        {/* ── Security ── */}
+        <div className="glass" style={{ padding: 'var(--pad)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+            <div style={{
+              width: 32, height: 32, borderRadius: 9,
+              background: 'rgba(167,139,250,0.09)',
+              border: '1px solid rgba(167,139,250,0.22)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+            }}>
+              <Shield size={16} style={{ color: '#a78bfa' }} />
             </div>
             <div>
-              <h2 className="text-sm font-semibold text-gray-900">Security</h2>
-              <p className="text-xs text-gray-400">Change your password</p>
+              <div className="card-title">Security</div>
+              <div style={{ fontSize: 12, color: 'var(--tx-lo)', marginTop: 2 }}>Change your password</div>
             </div>
           </div>
           <ChangePasswordForm />
         </div>
+
+      </div>
+    </div>
+  )
+}
+
+function ProfileField({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div style={{
+        fontSize: 11, fontWeight: 700, letterSpacing: '0.07em',
+        textTransform: 'uppercase', color: 'var(--tx-lo)', marginBottom: 5,
+      }}>
+        {label}
+      </div>
+      <div style={{ fontSize: 14, color: 'var(--tx-hi)', lineHeight: 1.4, wordBreak: 'break-word' }}>
+        {value}
       </div>
     </div>
   )

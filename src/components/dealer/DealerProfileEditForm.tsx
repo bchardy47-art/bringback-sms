@@ -63,9 +63,12 @@ export function DealerProfileEditForm({
   }
 
   return (
-    <form onSubmit={handleSave} className="px-6 py-5 space-y-4">
+    <form onSubmit={handleSave} className="space-y-4">
       <div>
-        <label htmlFor="dealerName" className="block text-sm font-medium text-gray-700">
+        <label
+          htmlFor="dealerName"
+          style={{ display: 'block', fontSize: 12, fontWeight: 600, letterSpacing: '0.04em', color: 'var(--tx-mid)', marginBottom: 5 }}
+        >
           Name
         </label>
         <input
@@ -75,25 +78,23 @@ export function DealerProfileEditForm({
           type="text"
           defaultValue={initialName}
           autoComplete="name"
-          className="mt-1 block w-full max-w-sm rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-500"
+          className="dlr-input"
           placeholder="Your name"
         />
       </div>
       <div>
-        <p className="text-sm font-medium text-gray-700">Email</p>
-        <p className="mt-1 text-sm text-gray-500 select-all">{email}</p>
+        <p style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.04em', color: 'var(--tx-mid)', marginBottom: 5 }}>
+          Email
+        </p>
+        <p style={{ fontSize: 14, color: 'var(--tx-hi)', userSelect: 'all' }}>{email}</p>
       </div>
 
-      <div className="flex items-center gap-3">
-        <button
-          type="submit"
-          disabled={saving}
-          className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
-        >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, paddingTop: 4 }}>
+        <button type="submit" disabled={saving} className="dlr-form-save">
           {saving ? 'Saving…' : 'Save changes'}
         </button>
-        {saved && <span className="text-xs text-emerald-600 font-medium">✓ Saved</span>}
-        {error && <span className="text-xs text-red-600">{error}</span>}
+        {saved  && <span style={{ fontSize: 12, color: '#4ade80', fontWeight: 600 }}>✓ Saved</span>}
+        {error  && <span style={{ fontSize: 12, color: '#ff8a7a' }}>{error}</span>}
       </div>
     </form>
   )

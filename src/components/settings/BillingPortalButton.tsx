@@ -58,17 +58,17 @@ export function BillingPortalButton({
   }
 
   return (
-    <div className="px-6 py-5 space-y-3">
+    <div className="space-y-3">
       {paymentStatus && (
-        <div className="flex items-center gap-2 text-sm">
-          <span className="text-gray-500">Subscription status:</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
+          <span style={{ color: 'var(--tx-lo)' }}>Subscription status:</span>
           <StatusBadge status={paymentStatus} />
         </div>
       )}
 
       {hasCustomer ? (
         <>
-          <p className="text-sm text-gray-600">
+          <p style={{ fontSize: 13, color: 'var(--tx-mid)', lineHeight: 1.55 }}>
             Update your payment method, download invoices, or cancel your subscription
             from the secure Stripe billing portal.
           </p>
@@ -76,37 +76,39 @@ export function BillingPortalButton({
             type="button"
             onClick={openPortal}
             disabled={busy}
-            className="inline-flex items-center gap-2 rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
+            className="dlr-btn-secondary"
+            style={{ height: 38, fontSize: 13 }}
           >
-            <CreditCard size={15} />
+            <CreditCard size={14} />
             {busy ? 'Opening portal…' : 'Manage billing in Stripe'}
             <ExternalLink size={13} />
           </button>
         </>
       ) : (
         <div className="space-y-3">
-          <p className="text-sm font-semibold text-gray-900">
+          <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--tx-hi)' }}>
             No payment method is on file yet.
           </p>
-          <p className="text-sm text-gray-600">
+          <p style={{ fontSize: 13, color: 'var(--tx-mid)', lineHeight: 1.55 }}>
             Add a payment method to unlock campaign review and final launch
             activation.
           </p>
           {recoveryHref ? (
             <a
               href={recoveryHref}
-              className="inline-flex items-center gap-2 rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 transition-colors"
+              className="dlr-btn-secondary"
+              style={{ display: 'inline-flex', height: 38, fontSize: 13, textDecoration: 'none' }}
             >
-              <CreditCard size={15} />
+              <CreditCard size={14} />
               Finish payment setup
               <span aria-hidden="true">→</span>
             </a>
           ) : (
-            <p className="text-sm text-gray-600">
+            <p style={{ fontSize: 13, color: 'var(--tx-mid)', lineHeight: 1.55 }}>
               Contact{' '}
               <a
                 href="mailto:support@dlr-sms.com"
-                className="font-semibold text-gray-900 underline hover:text-gray-700"
+                style={{ fontWeight: 600, color: 'var(--tx-hi)', textDecoration: 'underline' }}
               >
                 support@dlr-sms.com
               </a>{' '}
@@ -119,7 +121,12 @@ export function BillingPortalButton({
       {error && (
         <div
           role="alert"
-          className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+          style={{
+            borderRadius: 8, padding: '9px 12px', fontSize: 13,
+            border: '1px solid rgba(255,80,80,0.3)',
+            background: 'rgba(255,42,42,0.08)',
+            color: '#ff8a7a',
+          }}
         >
           {error}
         </div>
@@ -130,18 +137,22 @@ export function BillingPortalButton({
 
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { label: string; bg: string; fg: string }> = {
-    paid:            { label: 'Active',          bg: '#dcfce7', fg: '#166534' },
-    awaiting_stripe: { label: 'Awaiting payment',bg: '#fef3c7', fg: '#92400e' },
-    past_due:        { label: 'Past due',        bg: '#fee2e2', fg: '#991b1b' },
-    cancelled:       { label: 'Cancelled',       bg: '#f3f4f6', fg: '#4b5563' },
-    skipped:         { label: 'Billing later',   bg: '#f3f4f6', fg: '#4b5563' },
-    pending:         { label: 'Pending',         bg: '#f3f4f6', fg: '#4b5563' },
+    paid:            { label: 'Active',           bg: 'rgba(34,197,94,0.12)',   fg: '#4ade80' },
+    awaiting_stripe: { label: 'Awaiting payment', bg: 'rgba(245,158,11,0.12)',  fg: '#fbbf24' },
+    past_due:        { label: 'Past due',         bg: 'rgba(255,42,42,0.12)',   fg: '#ff8a7a' },
+    cancelled:       { label: 'Cancelled',        bg: 'rgba(255,255,255,0.05)', fg: 'var(--tx-lo)' },
+    skipped:         { label: 'Billing later',    bg: 'rgba(255,255,255,0.05)', fg: 'var(--tx-lo)' },
+    pending:         { label: 'Pending',          bg: 'rgba(255,255,255,0.05)', fg: 'var(--tx-lo)' },
   }
-  const info = map[status] ?? { label: status, bg: '#f3f4f6', fg: '#4b5563' }
+  const info = map[status] ?? { label: status, bg: 'rgba(255,255,255,0.05)', fg: 'var(--tx-lo)' }
   return (
     <span
-      className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold"
-      style={{ backgroundColor: info.bg, color: info.fg }}
+      style={{
+        display: 'inline-flex', alignItems: 'center',
+        borderRadius: 20, padding: '2px 9px',
+        fontSize: 11, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase',
+        backgroundColor: info.bg, color: info.fg,
+      }}
     >
       {info.label}
     </span>

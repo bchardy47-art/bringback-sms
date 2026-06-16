@@ -259,6 +259,48 @@ body {
 }
 .dlr-btn-secondary:hover { background: rgba(255, 255, 255, 0.09); }
 
+/* Dark input field for dealer settings forms */
+.dlr-input {
+  display: block;
+  width: 100%;
+  max-width: 380px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  padding: 9px 12px;
+  font-size: 14px;
+  font-family: var(--f-body);
+  color: var(--tx-hi);
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.dlr-input:focus {
+  border-color: rgba(255, 42, 42, 0.55);
+  box-shadow: 0 0 0 3px rgba(255, 42, 42, 0.07);
+}
+.dlr-input.dlr-input-error { border-color: rgba(255, 80, 80, 0.5); }
+.dlr-input::placeholder { color: var(--tx-lo); }
+.dlr-input:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Compact save/submit button inside settings forms */
+.dlr-form-save {
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: var(--tx);
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  letter-spacing: 0.02em;
+}
+.dlr-form-save:hover {
+  background: rgba(255, 255, 255, 0.11);
+  border-color: rgba(255, 255, 255, 0.22);
+}
+.dlr-form-save:disabled { opacity: 0.35; cursor: not-allowed; }
+
 .dlr-pulse-line {
   position: relative;
   height: 2px;
