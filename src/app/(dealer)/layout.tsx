@@ -51,7 +51,10 @@ export default async function DealerLayout({ children }: { children: React.React
       .where(and(eq(conversations.tenantId, tenantId), eq(conversations.status, 'open'))),
   ])
 
-  const displayName = userRow?.name ?? session.user.name ?? 'User'
+  const rawName = userRow?.name ?? session.user.name ?? ''
+  const displayName = (!rawName.trim() || rawName.trim().toLowerCase() === 'admin')
+    ? 'Dealership Admin'
+    : rawName.trim()
   const initials = displayName
     .split(' ')
     .map((n: string) => n[0])
@@ -230,6 +233,22 @@ export default async function DealerLayout({ children }: { children: React.React
             <div className="topbar-ekg" aria-hidden="true">
               <EKG height={76} />
             </div>
+            {/* Label anchors the flatline as intentional instrumentation */}
+            <span
+              aria-hidden="true"
+              style={{
+                position: 'absolute',
+                bottom: 6, left: 14,
+                fontSize: 7, fontWeight: 800, letterSpacing: '0.14em',
+                textTransform: 'uppercase',
+                color: 'rgba(255,255,255,0.18)',
+                pointerEvents: 'none',
+                userSelect: 'none',
+                zIndex: 0,
+              }}
+            >
+              System Pulse
+            </span>
 
             {/* Mobile: compact brand mark */}
             <div className="org-switch" style={{

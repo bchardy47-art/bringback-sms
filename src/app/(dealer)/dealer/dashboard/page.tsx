@@ -469,22 +469,40 @@ export default async function DealerDashboardPage() {
             style={{
               display: 'flex', alignItems: 'center', gap: 12,
               padding: '10px 16px', borderRadius: 12,
-              background: 'rgba(255,194,63,0.07)',
-              border: '1px solid rgba(255,194,63,0.28)',
+              background: adminAlert.stepKey === 'payment'
+                ? 'rgba(34,197,94,0.06)'
+                : 'rgba(255,194,63,0.07)',
+              border: adminAlert.stepKey === 'payment'
+                ? '1px solid rgba(34,197,94,0.18)'
+                : '1px solid rgba(255,194,63,0.28)',
             }}
           >
-            <span className="dot dot-amber" aria-hidden="true" />
-            <span style={{ fontSize: 13, color: 'var(--tx-mid)', flex: 1 }}>
-              Action needed:{' '}
-              <strong style={{ color: 'var(--tx-hi)', fontWeight: 600 }}>{adminAlert.stepLabel}</strong>
-            </span>
-            <a
-              href={adminAlert.href}
-              className="link-red"
-              style={{ fontSize: 12, whiteSpace: 'nowrap', flexShrink: 0 }}
-            >
-              {adminAlert.label} <ArrowRight size={12} />
-            </a>
+            <span
+              className={adminAlert.stepKey === 'payment' ? 'dot dot-live' : 'dot dot-amber'}
+              aria-hidden="true"
+            />
+            {adminAlert.stepKey === 'payment' ? (
+              <span style={{ fontSize: 13, color: 'var(--tx-mid)', flex: 1 }}>
+                Free pilot active —{' '}
+                <strong style={{ color: 'var(--tx-hi)', fontWeight: 600 }}>
+                  billing is not required during pilot setup.
+                </strong>
+              </span>
+            ) : (
+              <>
+                <span style={{ fontSize: 13, color: 'var(--tx-mid)', flex: 1 }}>
+                  Action needed:{' '}
+                  <strong style={{ color: 'var(--tx-hi)', fontWeight: 600 }}>{adminAlert.stepLabel}</strong>
+                </span>
+                <a
+                  href={adminAlert.href}
+                  className="link-red"
+                  style={{ fontSize: 12, whiteSpace: 'nowrap', flexShrink: 0 }}
+                >
+                  {adminAlert.label} <ArrowRight size={12} />
+                </a>
+              </>
+            )}
           </div>
         )}
 
@@ -502,8 +520,8 @@ export default async function DealerDashboardPage() {
             href="/dealer/import"
             hint={inReviewOrBlockedCount > 0 ? `+${inReviewOrBlockedCount} in review` : undefined}
             subtitle={inReviewOrBlockedCount > 0
-              ? 'Promoted to your CRM after import validation. Upload Leads also shows rows still in review.'
-              : 'Promoted to your CRM after import validation.'}
+              ? 'Validated leads grouped and ready for revival campaigns. Upload Leads also shows rows still in review.'
+              : 'Validated leads grouped and ready for revival campaigns.'}
           />
           <KpiCard icon={<Send size={20} />}          label="Messages Sent" value={messagesSent}   href={inboxHref} />
           <KpiCard icon={<MessageSquare size={20} />} label="Conversations" value={inboxCount}     href={inboxHref} />
@@ -761,7 +779,7 @@ function CampaignOverviewRow({
           {badge}
         </div>
         <p style={{ fontSize: 12, color: 'var(--tx-mid)', marginTop: 3, lineHeight: 1.4 }}>
-          {reviewLocked && status !== 'live' ? 'Unlocks after payment' : description}
+          {reviewLocked && status !== 'live' ? 'Available once pilot setup is complete' : description}
         </p>
         {typeof leadCount === 'number' && (
           <p style={{ fontSize: 11, color: 'var(--tx-lo)', marginTop: 4, fontWeight: 600 }}>

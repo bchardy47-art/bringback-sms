@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { and, desc, eq, isNotNull } from 'drizzle-orm'
-import { User, Shield, CreditCard, Building2 } from 'lucide-react'
+import { User, Shield, CreditCard, Building2, Headphones, Rocket } from 'lucide-react'
 import { getDealerSession } from '@/lib/dealer/dev-auth-bypass'
 import { db } from '@/lib/db'
 import { users, tenants, dealerIntakes } from '@/lib/db/schema'
@@ -95,7 +95,10 @@ export default async function DealerSettingsPage() {
         </p>
       </div>
 
-      <div style={{ padding: '24px 32px', maxWidth: 720, display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <div style={{ padding: '24px 32px 40px', display: 'flex', gap: 24, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+
+        {/* ── Left column: account cards ── */}
+        <div style={{ flex: '1 1 480px', display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 680 }}>
 
         {/* ── Dealership Profile (read-only) ── */}
         <div className="glass" style={{ padding: 'var(--pad)' }}>
@@ -206,6 +209,75 @@ export default async function DealerSettingsPage() {
           </div>
           <ChangePasswordForm />
         </div>
+
+        </div>{/* end left column */}
+
+        {/* ── Right column: Pilot Support panel ── */}
+        <div style={{ flex: '0 1 300px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+          {/* Pilot status chip */}
+          <div style={{
+            borderRadius: 12,
+            padding: '14px 16px',
+            background: 'rgba(34,197,94,0.06)',
+            border: '1px solid rgba(34,197,94,0.15)',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <Rocket size={13} style={{ color: '#4ade80', flexShrink: 0 }} />
+              <span style={{
+                fontSize: 9, fontWeight: 800, letterSpacing: '0.1em',
+                textTransform: 'uppercase', color: '#4ade80',
+              }}>
+                Pilot Active
+              </span>
+            </div>
+            <p style={{ fontSize: 12, color: 'var(--tx-mid)', lineHeight: 1.55 }}>
+              You are in a free pilot phase. Billing is not required to explore your campaigns.
+              Your DLR team will guide you through launch.
+            </p>
+          </div>
+
+          {/* Support card */}
+          <div className="glass" style={{ padding: 'var(--pad)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+              <div style={{
+                width: 32, height: 32, borderRadius: 9,
+                background: 'rgba(255,42,42,0.10)',
+                border: '1px solid rgba(255,42,42,0.22)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+              }}>
+                <Headphones size={15} style={{ color: '#ff5252' }} />
+              </div>
+              <div>
+                <div className="card-title">DLR Launch Support</div>
+                <div style={{ fontSize: 12, color: 'var(--tx-lo)', marginTop: 2 }}>Your pilot team</div>
+              </div>
+            </div>
+
+            <p style={{ fontSize: 13, color: 'var(--tx-mid)', lineHeight: 1.55, marginBottom: 14 }}>
+              Questions about your campaign, leads, or launch schedule? We are here.
+            </p>
+
+            <a
+              href="mailto:support@dlr-sms.com"
+              className="dlr-btn-secondary"
+              style={{ display: 'inline-flex', height: 36, fontSize: 13, textDecoration: 'none', width: '100%', justifyContent: 'center' }}
+            >
+              Email Support
+            </a>
+
+            <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--line)' }}>
+              <p style={{ fontSize: 11, color: 'var(--tx-lo)', lineHeight: 1.55 }}>
+                Need to update your dealership profile, sender name, or launch settings?{' '}
+                <a href="mailto:support@dlr-sms.com" style={{ color: 'var(--red-core)', textDecoration: 'none' }}>
+                  Contact us
+                </a>{' '}
+                and we will handle it.
+              </p>
+            </div>
+          </div>
+
+        </div>{/* end right column */}
 
       </div>
     </div>
