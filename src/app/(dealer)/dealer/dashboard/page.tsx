@@ -893,11 +893,8 @@ function SetupProgressCard({
           <p style={{ fontFamily: 'var(--f-display)', fontWeight: 800, fontSize: 20, color: '#fff', marginTop: 3, lineHeight: 1 }}>
             {blocked ? (setup.title || 'Account paused') : `Step ${currentStepNumber} of ${totalSteps}`}
           </p>
-          {paymentPending && !blocked && (
-            <p style={{ fontSize: 11, marginTop: 4, fontWeight: 700, color: 'var(--amber)' }}>
-              Payment required
-            </p>
-          )}
+          {/* paymentPending label removed — payment step is now 'waiting_on_dlr'
+              for pilot accounts; 'needs_your_action' can no longer fire here. */}
           <p style={{ fontSize: 12, marginTop: 4, color: 'var(--tx-mid)', lineHeight: 1.4 }}>
             {setup.subtitle || `${dealershipName} setup in progress.`}
           </p>
