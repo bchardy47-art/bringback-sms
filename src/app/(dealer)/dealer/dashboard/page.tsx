@@ -821,7 +821,8 @@ function SetupProgressCard({
   nextStepKey: string | null
   dealershipName: string
 }) {
-  const blocked = setup.overall === 'blocked'
+  const blocked   = setup.overall === 'blocked'
+  const doneCount = setup.steps.filter(s => s.status === 'done').length
   const radius = 36
   const stroke = 6
   const c = 2 * Math.PI * radius
@@ -891,7 +892,7 @@ function SetupProgressCard({
             {blocked ? 'Account Paused' : 'Setup Progress'}
           </span>
           <p style={{ fontFamily: 'var(--f-display)', fontWeight: 800, fontSize: 20, color: '#fff', marginTop: 3, lineHeight: 1 }}>
-            {blocked ? (setup.title || 'Account paused') : `Step ${currentStepNumber} of ${totalSteps}`}
+            {blocked ? (setup.title || 'Account paused') : `${doneCount} of ${totalSteps} steps complete`}
           </p>
           {/* paymentPending label removed — payment step is now 'waiting_on_dlr'
               for pilot accounts; 'needs_your_action' can no longer fire here. */}
