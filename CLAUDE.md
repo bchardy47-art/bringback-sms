@@ -41,3 +41,4 @@ Project-local notes for Claude Code sessions. Keep short and runbook-style.
 ## VPS access
 
 VPS is `root@67.205.143.71`, SSH key at `keys/dlr-vps`. Repo-local `*.command` scripts already SSH with that key. See `reference_dlr_vps_observability.md` in Claude memory for the longer cheatsheet (pm2 process names, Caddy access-log jq slices, test dealer creds).
+
