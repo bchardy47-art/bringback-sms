@@ -703,7 +703,10 @@ body {
   text-transform: uppercase;
 }
 .power-gauge-wrap {
-  flex: 1; min-height: 150px;
+  /* min-height reduced from 150px → 80px so the power widget can compress
+     on shorter viewports (laptops, non-maximised windows) and the user-row
+     stays on-screen without needing sidebar scroll. */
+  flex: 1; min-height: 80px;
   display: flex; gap: 10px; align-items: stretch;
 }
 .power-info {

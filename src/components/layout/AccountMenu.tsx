@@ -75,8 +75,8 @@ export function AccountMenu({ name, email, initials, settingsHref }: Props) {
       {open && (
         <div
           role="menu"
-          className="absolute right-0 mt-2 w-64 rounded-xl bg-white shadow-lg z-50 overflow-hidden"
-          style={{ border: '1px solid #e5e7eb' }}
+          className="absolute right-0 w-64 rounded-xl bg-white shadow-lg z-50 overflow-hidden"
+          style={{ border: '1px solid #e5e7eb', bottom: 'calc(100% + 8px)' }}
         >
           <div className="px-4 py-3" style={{ borderBottom: '1px solid #f3f4f6' }}>
             <p className="text-sm font-semibold text-gray-900 truncate">{name}</p>
