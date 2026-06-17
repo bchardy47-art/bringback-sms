@@ -88,11 +88,14 @@ export function computeDealerSetupStatus(p: DealerSetupInputs): DealerSetupStatu
     intake?.paymentStatus === 'manual_billing'
   const payment: DealerSetupStep = {
     key: 'payment',
-    label: paid ? 'Payment received' : 'Payment setup required',
-    status: paid ? 'done' : 'needs_your_action',
+    label: paid ? 'Payment received' : 'Pilot setup active',
+    // Unpaid pilot state: neutral waiting status so the dashboard renders
+    // no red "ACTION NEEDED" badge and shows no payment CTA.
+    // True paid/live state keeps 'done' as before.
+    status: paid ? 'done' : 'waiting_on_dlr',
     detail: paid
       ? null
-      : 'Finish payment setup to unlock campaign review and final launch activation.',
+      : 'Your DLR team will walk you through payment and activation when you are ready to launch.',
   }
 
   const stage2Done = !!intake?.submittedAt
