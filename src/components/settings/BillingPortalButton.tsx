@@ -86,35 +86,20 @@ export function BillingPortalButton({
         </>
       ) : (
         <div className="space-y-3">
-          <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--tx-hi)' }}>
-            No payment method is on file yet.
+          <p style={{ fontSize: 13, color: 'var(--tx-mid)', lineHeight: 1.55 }}>
+            Payment is not required during your pilot. Your DLR team will walk
+            you through activation when you are ready to launch.
           </p>
           <p style={{ fontSize: 13, color: 'var(--tx-mid)', lineHeight: 1.55 }}>
-            Add a payment method to unlock campaign review and final launch
-            activation.
-          </p>
-          {recoveryHref ? (
+            Contact{' '}
             <a
-              href={recoveryHref}
-              className="dlr-btn-secondary"
-              style={{ display: 'inline-flex', height: 38, fontSize: 13, textDecoration: 'none' }}
+              href="mailto:support@dlr-sms.com"
+              style={{ fontWeight: 600, color: 'var(--tx-hi)', textDecoration: 'underline' }}
             >
-              <CreditCard size={14} />
-              Finish payment setup
-              <span aria-hidden="true">→</span>
-            </a>
-          ) : (
-            <p style={{ fontSize: 13, color: 'var(--tx-mid)', lineHeight: 1.55 }}>
-              Contact{' '}
-              <a
-                href="mailto:support@dlr-sms.com"
-                style={{ fontWeight: 600, color: 'var(--tx-hi)', textDecoration: 'underline' }}
-              >
-                support@dlr-sms.com
-              </a>{' '}
-              and we&apos;ll resend your activation link.
-            </p>
-          )}
+              support@dlr-sms.com
+            </a>{' '}
+            with any billing questions.
+          </p>
         </div>
       )}
 

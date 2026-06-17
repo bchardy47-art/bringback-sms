@@ -206,7 +206,10 @@ export default async function DealerDashboardPage() {
     automatedCount       > 0 ? '/dealer/inbox?tab=automated'    :
                                '/dealer/inbox'
 
-  const firstName = session.user.name?.split(' ')[0] ?? 'there'
+  const rawFirstName = session.user.name?.split(' ')[0]?.trim() ?? ''
+  const firstName = (!rawFirstName || rawFirstName.toLowerCase() === 'admin')
+    ? dealershipName
+    : rawFirstName
 
   // ── Setup progress ────────────────────────────────────────────────────────
   const setup: DealerSetupStatus = computeDealerSetupStatus({

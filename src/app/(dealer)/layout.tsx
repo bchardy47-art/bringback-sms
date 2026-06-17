@@ -154,9 +154,15 @@ export default async function DealerLayout({ children }: { children: React.React
                 <div className="power-foot">
                   {isLive ? 'Engines hot — leads are being revived.' : 'Complete setup to ignite revival mode.'}
                 </div>
-                <a href={setupHref} className="link-red" style={{ fontSize: 11, marginTop: 6 }}>
-                  {setupLabel} <ArrowRight size={11} />
-                </a>
+                {isLive ? (
+                  <a href={setupHref} className="link-red" style={{ fontSize: 11, marginTop: 6 }}>
+                    {setupLabel} <ArrowRight size={11} />
+                  </a>
+                ) : (
+                  <span style={{ fontSize: 11, marginTop: 6, color: 'var(--tx-lo)', display: 'block' }}>
+                    Pilot setup active
+                  </span>
+                )}
               </div>
               <div className="gauge">
                 <div className="tach-label">Power</div>

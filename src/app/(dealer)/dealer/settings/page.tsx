@@ -60,8 +60,10 @@ export default async function DealerSettingsPage() {
     : null
 
   // Prefer DB over session fallback; treat empty strings as missing.
-  const name  = userRow?.name?.trim()  || session.user.name?.trim()  || ''
-  const email = userRow?.email?.trim() || session.user.email?.trim() || ''
+  // Display-only fallback: 'Admin' placeholder reads as unfilled — show 'Dealership Admin' instead.
+  const nameRaw = userRow?.name?.trim() || session.user.name?.trim() || ''
+  const name    = (!nameRaw || nameRaw.toLowerCase() === 'admin') ? 'Dealership Admin' : nameRaw
+  const email   = userRow?.email?.trim() || session.user.email?.trim() || ''
 
   // Read-only dealership profile values (never expose UUIDs or sending numbers)
   const dealershipDisplayName = profileIntake?.dealershipName  || tenantRow?.name  || null
