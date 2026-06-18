@@ -1316,3 +1316,21 @@ export const demoLeads = pgTable('demo_leads', {
   createdAt:         timestamp('created_at').defaultNow().notNull(),
   updatedAt:         timestamp('updated_at').defaultNow().notNull(),
 })
+
+// ── Password Reset Tokens ─────────────────────────────────────────────────────
+
+/**
+ * One-time password reset tokens.
+ * - Only the SHA-256 hash of the raw token is stored here.
+ * - The raw token travels in the reset-link URL only (never in the DB).
+ * - A token is consumed by setting used_at; it cannot be reused afterward.
+ * - expires_at is 60 minutes from creation.
+ */
+export const passwordResetTokens = pgTable('password_reset_tokens', {
+  id:        uuid('id').primaryKey().defaultRandom(),
+  userId:    uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  tokenHash: text('token_hash').notNull(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  usedAt:    timestamp('used_at',    { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+})

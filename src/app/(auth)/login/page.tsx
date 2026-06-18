@@ -2,6 +2,7 @@
 
 import { useState, FormEvent, Suspense } from 'react'
 import Image from 'next/image'
+import Link from 'next/link'
 import { signIn } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 
@@ -177,9 +178,17 @@ export default function LoginPage() {
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-semibold text-gray-700 mb-1.5">
-                Password
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label htmlFor="password" className="block text-sm font-semibold text-gray-700">
+                  Password
+                </label>
+                <Link
+                  href="/forgot-password"
+                  className="text-xs text-gray-500 hover:text-gray-700 transition-colors"
+                >
+                  Forgot your password?
+                </Link>
+              </div>
               <input
                 id="password"
                 type="password"
