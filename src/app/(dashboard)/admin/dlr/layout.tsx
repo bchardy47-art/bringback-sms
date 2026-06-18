@@ -22,6 +22,7 @@ const NAV = [
   { href: '/admin/dlr/handoffs',     label: 'Handoffs' },
   { href: '/admin/dlr/messages',     label: 'Messages' },
   { href: '/admin/dlr/health',       label: 'System Health' },
+  { href: '/admin/dlr/demo-leads',   label: 'Demo Requests' },
 ]
 
 export default async function DlrAdminLayout({

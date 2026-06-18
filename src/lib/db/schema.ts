@@ -1296,3 +1296,23 @@ export type PilotReadinessScore = {
   recommendedNextAction: string
   breakdown:            ReadinessBreakdown
 }
+
+// ── Phase 17: Demo Lead Capture ───────────────────────────────────────────────
+
+/**
+ * Inbound demo requests from the /book-demo landing page.
+ * No tenant association — these are prospects, not yet customers.
+ */
+export const demoLeads = pgTable('demo_leads', {
+  id:                uuid('id').primaryKey().defaultRandom(),
+  dealershipName:    text('dealership_name').notNull(),
+  decisionMakerName: text('decision_maker_name').notNull(),
+  phone:             text('phone').notNull(),
+  email:             text('email').notNull(),
+  status:            text('status').notNull().default('new'),
+  source:            text('source').notNull().default('dlr_email_book_demo'),
+  notes:             text('notes').notNull().default(''),
+  lastContactedAt:   timestamp('last_contacted_at', { withTimezone: true }),
+  createdAt:         timestamp('created_at').defaultNow().notNull(),
+  updatedAt:         timestamp('updated_at').defaultNow().notNull(),
+})
