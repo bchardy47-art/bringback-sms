@@ -7,9 +7,10 @@
  *     server action from completing (the token is already stored).
  *   - Reads SMTP_URL + EMAIL_FROM at runtime; skips gracefully if unset.
  *
- * TODO: populate SMTP_URL and EMAIL_FROM in production .env to enable sending.
+ * Production setup: add SMTP_URL and EMAIL_FROM to Vercel environment variables.
+ * See docs/password-reset-email.md for step-by-step instructions.
  * In development without SMTP, the reset URL is printed to the server console
- * so that engineers can test the full flow locally.
+ * so engineers can test the full flow locally without a real mail server.
  */
 
 import nodemailer from 'nodemailer'
@@ -26,10 +27,16 @@ export async function sendResetPasswordEmail(params: {
   const smtpUrl   = process.env.SMTP_URL
   const emailFrom = process.env.EMAIL_FROM
 
-  // Dev/staging fallback — log the URL so engineers can test without SMTP.
+  // No SMTP credentials — skip sending and warn loudly in server logs.
+  // The user always sees the same generic success message (enumeration prevention).
   if (!smtpUrl || !emailFrom) {
+    console.warn(
+      '[reset-password-email] Password reset email skipped: SMTP_URL or EMAIL_FROM is not configured.',
+    )
+    // Dev/local convenience: print the raw URL so the flow can be tested end-to-end
+    // without a real SMTP server. Never printed when env vars are set.
     console.log(
-      `[reset-password-email] SMTP not configured. Reset URL for ${params.recipientEmail}:\n  ${params.resetUrl}`,
+      `[reset-password-email] Dev reset URL for ${params.recipientEmail}:\n  ${params.resetUrl}`,
     )
     return { sent: false, reason: 'no_smtp' }
   }
