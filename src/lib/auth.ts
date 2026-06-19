@@ -24,8 +24,9 @@ export const authOptions: NextAuthOptions = {
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null
 
+        const email = credentials.email.trim().toLowerCase()
         const user = await db.query.users.findFirst({
-          where: eq(users.email, credentials.email),
+          where: eq(users.email, email),
         })
         if (!user) return null
 
