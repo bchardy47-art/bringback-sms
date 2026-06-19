@@ -31,12 +31,19 @@ function safeCallbackUrl(raw: string | null): string | null {
 // their own shell, producing a visible flash. Pick the right home up front.
 function destinationForRole(role: string, callback: string | null): string {
   const dealerHome = '/dealer/dashboard'
+  const adminHome = '/admin/dlr'
   const teamHome = '/dashboard'
   if (role === 'dealer') {
     if (callback && callback.startsWith('/dealer/')) return callback
     return dealerHome
   }
-  // admin / manager / agent → team shell
+  // admin → admin console directly. Without this admins land on /dashboard
+  // and the middleware bounces them to /admin/dlr, producing a visible flash.
+  if (role === 'admin') {
+    if (callback && !callback.startsWith('/dealer/')) return callback
+    return adminHome
+  }
+  // manager / agent → team shell
   if (callback && !callback.startsWith('/dealer/')) return callback
   return teamHome
 }

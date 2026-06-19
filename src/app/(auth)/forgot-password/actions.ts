@@ -63,7 +63,18 @@ export async function requestPasswordReset(
       expiresAt,
     })
 
-    const baseUrl  = process.env.NEXTAUTH_URL ?? process.env.APP_URL ?? 'http://localhost:3000'
+    // Base URL for the reset link. NEXTAUTH_URL must be the public origin in
+    // production (e.g. https://dlr-sms.com) or the emailed link points at
+    // localhost and is unusable — even when SMTP delivery itself succeeds.
+    const rawBase = process.env.NEXTAUTH_URL ?? process.env.APP_URL
+    if (!rawBase && process.env.NODE_ENV === 'production') {
+      console.error(
+        '[requestPasswordReset] NEXTAUTH_URL/APP_URL is not set in production — ' +
+          'reset links will point at localhost and be unusable. Set NEXTAUTH_URL ' +
+          'to the public origin (e.g. https://dlr-sms.com).',
+      )
+    }
+    const baseUrl  = (rawBase ?? 'http://localhost:3000').replace(/\/$/, '')
     const resetUrl = `${baseUrl}/reset-password?token=${rawToken}`
 
     // Fire-and-forget — email failure must not surface as a user-visible error
@@ -103,8 +114,15 @@ export async function resetPassword(
     return { ok: false, error: INVALID_TOKEN_MSG }
   }
 
-  if (!newPassword || newPassword.length < 8) {
-    return { ok: false, error: 'Password must be at least 8 characters.' }
+  // Mirror the in-app change-password rule (src/app/api/users/me/password):
+  // 10+ chars with at least one letter and one number. Keeps both password
+  // entry points on one standard so a reset can't set a weaker password.
+  if (!newPassword || newPassword.length < 10) {
+    return { ok: false, error: 'Password must be at least 10 characters.' }
+  }
+
+  if (!/[A-Za-z]/.test(newPassword) || !/\d/.test(newPassword)) {
+    return { ok: false, error: 'Password must include at least one letter and one number.' }
   }
 
   if (newPassword !== confirmPassword) {

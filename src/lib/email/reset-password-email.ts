@@ -30,14 +30,18 @@ export async function sendResetPasswordEmail(params: {
   // No SMTP credentials — skip sending and warn loudly in server logs.
   // The user always sees the same generic success message (enumeration prevention).
   if (!smtpUrl || !emailFrom) {
+    const missing = [!smtpUrl && 'SMTP_URL', !emailFrom && 'EMAIL_FROM'].filter(Boolean).join(', ')
     console.warn(
-      '[reset-password-email] Password reset email skipped: SMTP_URL or EMAIL_FROM is not configured.',
+      `[reset-password-email] Password reset email skipped: ${missing} not configured in environment.`,
     )
     // Dev/local convenience: print the raw URL so the flow can be tested end-to-end
-    // without a real SMTP server. Never printed when env vars are set.
-    console.log(
-      `[reset-password-email] Dev reset URL for ${params.recipientEmail}:\n  ${params.resetUrl}`,
-    )
+    // without a real SMTP server. Gated on non-production — reset token URLs must
+    // never appear in production logs.
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(
+        `[reset-password-email] Dev reset URL for ${params.recipientEmail}:\n  ${params.resetUrl}`,
+      )
+    }
     return { sent: false, reason: 'no_smtp' }
   }
 

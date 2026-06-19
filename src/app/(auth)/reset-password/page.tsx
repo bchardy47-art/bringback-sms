@@ -90,11 +90,11 @@ function ResetPasswordForm() {
           type="password"
           autoComplete="new-password"
           required
-          minLength={8}
+          minLength={10}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           className="block w-full rounded-lg border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 shadow-sm transition-colors focus:border-gray-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-gray-300"
-          placeholder="At least 8 characters"
+          placeholder="At least 10 characters"
         />
       </div>
 
@@ -107,7 +107,7 @@ function ResetPasswordForm() {
           type="password"
           autoComplete="new-password"
           required
-          minLength={8}
+          minLength={10}
           value={confirmPassword}
           onChange={(e) => setConfirmPassword(e.target.value)}
           className="block w-full rounded-lg border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 shadow-sm transition-colors focus:border-gray-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-gray-300"
@@ -192,7 +192,7 @@ export default function ResetPasswordPage() {
             Choose a new password
           </h1>
           <p className="mt-2 text-sm text-gray-500 leading-relaxed">
-            Pick something strong — at least 8 characters.
+            Pick something strong — at least 10 characters, with a letter and a number.
           </p>
         </div>
 

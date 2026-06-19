@@ -12,7 +12,7 @@ The app reads two environment variables at runtime:
 | Variable    | Purpose                                        |
 |-------------|------------------------------------------------|
 | `SMTP_URL`  | Full SMTP connection string (nodemailer format) |
-| `EMAIL_FROM`| Display name + address for the From header     |
+| `EMAIL_FROM`| Bare sender address for the From header        |
 
 If either is absent the email is silently skipped and the server logs:
 
@@ -51,8 +51,11 @@ smtps://brian%40dlr-sms.com:YOUR_APP_PASSWORD@smtp.gmail.com:465
 
 **`EMAIL_FROM`**
 ```
-Dead Lead Revival <brian@dlr-sms.com>
+brian@dlr-sms.com
 ```
+> **Important:** bare email address only — do NOT include a display name like `Dead Lead Revival <addr>`.
+> Each email function in the codebase prepends its own display name (e.g. `DLR Security <brian@dlr-sms.com>`).
+> Adding a display name here produces a malformed `From:` header and may cause delivery failures.
 
 3. Click **Save** for each variable.
 4. Go to **Deployments** → click the three-dot menu on the latest Production deployment → **Redeploy** (this picks up the new env vars without a code push).
