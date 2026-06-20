@@ -1,64 +1,86 @@
 /**
  * Password-reset email — sent when a user requests a reset link.
  *
- * Mirrors src/lib/intake/dealer-invite-email.ts:
+ * Uses the Resend HTTP API (resend.com) for reliable delivery from Vercel
+ * serverless functions. Resend does not require outbound SMTP TCP connections,
+ * which are unreliable from cloud environments.
+ *
  *   - Returns a structured result so callers can log the outcome.
  *   - All errors are caught internally; a failed send must never block the
  *     server action from completing (the token is already stored).
- *   - Reads SMTP_URL + EMAIL_FROM at runtime; skips gracefully if unset.
+ *   - Reads RESEND_API_KEY + EMAIL_FROM at runtime; skips gracefully if unset.
  *
- * Production setup: add SMTP_URL and EMAIL_FROM to Vercel environment variables.
+ * Production setup: set RESEND_API_KEY and EMAIL_FROM in Vercel env vars.
  * See docs/password-reset-email.md for step-by-step instructions.
- * In development without SMTP, the reset URL is printed to the server console
- * so engineers can test the full flow locally without a real mail server.
+ *
+ * Local dev: leave RESEND_API_KEY unset. The reset URL is printed to the
+ * server console so the full flow can be tested without a live email service.
  */
 
-import nodemailer from 'nodemailer'
+import { Resend } from 'resend'
 
 export type ResetPasswordEmailResult =
   | { sent: true;  recipient: string }
-  | { sent: false; reason: 'no_smtp' | 'send_failed' }
+  | { sent: false; reason: 'no_config' | 'send_failed' }
 
 export async function sendResetPasswordEmail(params: {
   recipientEmail: string
   resetUrl:       string
   expiresAt:      Date
 }): Promise<ResetPasswordEmailResult> {
-  const smtpUrl   = process.env.SMTP_URL
+  const apiKey    = process.env.RESEND_API_KEY
   const emailFrom = process.env.EMAIL_FROM
 
-  // No SMTP credentials — skip sending and warn loudly in server logs.
+  // No Resend credentials — skip and warn loudly in server logs.
   // The user always sees the same generic success message (enumeration prevention).
-  if (!smtpUrl || !emailFrom) {
-    const missing = [!smtpUrl && 'SMTP_URL', !emailFrom && 'EMAIL_FROM'].filter(Boolean).join(', ')
+  if (!apiKey || !emailFrom) {
+    const missing = [!apiKey && 'RESEND_API_KEY', !emailFrom && 'EMAIL_FROM']
+      .filter(Boolean)
+      .join(', ')
     console.warn(
       `[reset-password-email] Password reset email skipped: ${missing} not configured in environment.`,
     )
     // Dev/local convenience: print the raw URL so the flow can be tested end-to-end
-    // without a real SMTP server. Gated on non-production — reset token URLs must
+    // without a live email service. Gated on non-production — reset token URLs must
     // never appear in production logs.
     if (process.env.NODE_ENV !== 'production') {
       console.log(
         `[reset-password-email] Dev reset URL for ${params.recipientEmail}:\n  ${params.resetUrl}`,
       )
     }
-    return { sent: false, reason: 'no_smtp' }
+    return { sent: false, reason: 'no_config' }
   }
 
   try {
-    const transporter = nodemailer.createTransport(smtpUrl)
-    await transporter.sendMail({
-      from:    `DLR Security <${emailFrom}>`,
-      to:      params.recipientEmail,
+    const resend = new Resend(apiKey)
+
+    const { error } = await resend.emails.send({
+      from:     `DLR Security <${emailFrom}>`,
+      to:       params.recipientEmail,
       replyTo: 'support@dlr-sms.com',
-      subject: 'Reset your DLR password',
-      text:    buildPlainText(params),
-      html:    buildHtml(params),
+      subject:  'Reset your DLR password',
+      text:     buildPlainText(params),
+      html:     buildHtml(params),
     })
+
+    if (error) {
+      // Log error name + message only — no API key, no raw SMTP response.
+      console.error(
+        `[reset-password-email] Send failed for ${params.recipientEmail}:`,
+        error.name,
+        error.message,
+      )
+      return { sent: false, reason: 'send_failed' }
+    }
+
     console.log(`[reset-password-email] Sent reset link to ${params.recipientEmail}`)
     return { sent: true, recipient: params.recipientEmail }
   } catch (err) {
-    console.error(`[reset-password-email] Send failed for ${params.recipientEmail}:`, err)
+    // Network-level or unexpected SDK error.
+    console.error(
+      `[reset-password-email] Unexpected error for ${params.recipientEmail}:`,
+      err instanceof Error ? err.message : String(err),
+    )
     return { sent: false, reason: 'send_failed' }
   }
 }
