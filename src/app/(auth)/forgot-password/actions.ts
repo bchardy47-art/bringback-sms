@@ -77,15 +77,19 @@ export async function requestPasswordReset(
     const baseUrl  = (rawBase ?? 'http://localhost:3000').replace(/\/$/, '')
     const resetUrl = `${baseUrl}/reset-password?token=${rawToken}`
 
-    // Fire-and-forget — email failure must not surface as a user-visible error
-    // (it would reveal whether the account exists).
-    sendResetPasswordEmail({
-      recipientEmail: user.email,
-      resetUrl,
-      expiresAt,
-    }).catch((err) =>
-      console.error('[requestPasswordReset] email send threw unexpectedly:', err),
-    )
+    // Await the send so Vercel keeps the function alive until SMTP completes.
+    // Email failure must NOT surface to the user (would reveal account existence)
+    // — catch server-side only.
+    try {
+      await sendResetPasswordEmail({
+        recipientEmail: user.email,
+        resetUrl,
+        expiresAt,
+      })
+    } catch (err) {
+      console.error('[requestPasswordReset] email send failed:', err)
+      // Intentionally swallowed — user still sees generic success.
+    }
   } catch (err) {
     // Log server-side but return the same generic success to the client.
     console.error('[requestPasswordReset] unexpected error:', err)
