@@ -358,7 +358,7 @@ export async function validateImportRow(
   // 1. Phone normalization
   const phone = normalizePhone(input.phone)
   if (!phone) {
-    blocked.push(`Invalid phone number: "${input.phone}" — cannot be normalized to E.164`)
+    blocked.push(`Invalid phone number: "${input.phone}" — enter a valid 10-digit US phone number`)
   }
 
   // 2. Intra-session dedup (by phone)

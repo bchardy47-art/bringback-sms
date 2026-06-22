@@ -170,15 +170,45 @@ export default async function DealerBatchReviewPage({ params }: RouteContext) {
           borderRadius: 12,
           border: '1px solid rgba(34,197,94,0.3)',
           background: 'rgba(34,197,94,0.07)',
-          padding: '14px 20px',
+          padding: '18px 20px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 14,
         }}>
-          <p style={{ fontSize: 14, fontWeight: 600, color: '#4ade80' }}>
-            ✓ You approved this campaign
-            {batch.approvedAt ? ` on ${new Date(batch.approvedAt).toLocaleDateString()}` : ''}.
-          </p>
-          <p style={{ fontSize: 12, color: 'rgba(74,222,128,0.75)', marginTop: 3 }}>
-            Our team will complete carrier verification before any messages are sent. We&apos;ll be in touch.
-          </p>
+          <div>
+            <p style={{ fontSize: 14, fontWeight: 700, color: '#4ade80' }}>
+              ✓ Campaign approved — paused until DLR launches
+            </p>
+            <p style={{ fontSize: 12, color: 'rgba(74,222,128,0.75)', marginTop: 4 }}>
+              Approved{batch.approvedAt ? ` on ${new Date(batch.approvedAt).toLocaleDateString()}` : ''}. No messages will go out until DLR completes setup and gives the green light.
+            </p>
+          </div>
+          <div style={{ borderTop: '1px solid rgba(34,197,94,0.18)', paddingTop: 14 }}>
+            <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(74,222,128,0.6)', marginBottom: 10 }}>
+              What happens next
+            </p>
+            <ol style={{ display: 'flex', flexDirection: 'column', gap: 8, listStyle: 'none', margin: 0, padding: 0 }}>
+              {[
+                'DLR verifies your carrier registration (10DLC).',
+                'DLR runs a compliance review of your campaign messages.',
+                'You receive a confirmation before any messages are sent.',
+                'Campaign goes live — DLR monitors the first sends with you.',
+              ].map((step, i) => (
+                <li key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>
+                  <span style={{
+                    flexShrink: 0,
+                    width: 20, height: 20, borderRadius: '50%',
+                    background: 'rgba(34,197,94,0.14)',
+                    border: '1px solid rgba(34,197,94,0.35)',
+                    color: '#4ade80',
+                    fontSize: 10, fontWeight: 800,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>{i + 1}</span>
+                  <span style={{ lineHeight: 1.5, paddingTop: 2 }}>{step}</span>
+                </li>
+              ))}
+            </ol>
+          </div>
         </div>
       )}
 

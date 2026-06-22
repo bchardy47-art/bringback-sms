@@ -18,7 +18,7 @@
  *   6. not_enrolled     — not already in an active enrollment for this workflow
  */
 
-import { and, eq, inArray, ne } from 'drizzle-orm'
+import { and, eq, inArray } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { leads, optOuts, workflowEnrollments } from '@/lib/db/schema'
 import type { PilotEligibilityResult } from '@/lib/db/schema'
@@ -86,8 +86,8 @@ export async function checkLeadEligibility(
     id: 'valid_phone',
     passed: phoneOk,
     detail: phoneOk
-      ? `Phone ${lead.phone} is valid E.164`
-      : `Phone "${lead.phone ?? '(missing)'}" is not valid E.164 format`,
+      ? `Phone ${lead.phone} is valid`
+      : `Phone number "${lead.phone ?? '(missing)'}" is not a valid US number`,
   })
 
   // ── 4. Not opted out ────────────────────────────────────────────────────────
