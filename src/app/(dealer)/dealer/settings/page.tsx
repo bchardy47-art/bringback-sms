@@ -116,7 +116,7 @@ export default async function DealerSettingsPage() {
             <div style={{ flex: 1 }}>
               <div className="card-title">Dealership Profile</div>
               <div style={{ fontSize: 12, color: 'var(--tx-lo)', marginTop: 2 }}>
-                Managed by DLR · contact support to update
+                Verified for compliance. Contact DLR support to request changes.
               </div>
             </div>
             {isLive ? (
@@ -257,7 +257,7 @@ export default async function DealerSettingsPage() {
             </div>
 
             <p style={{ fontSize: 13, color: 'var(--tx-mid)', lineHeight: 1.55, marginBottom: 14 }}>
-              Questions about your campaign, leads, or launch schedule? We are here.
+              Need help? Email support@dlr-sms.com. DLR will respond within 1 business day during setup.
             </p>
 
             <a
@@ -270,11 +270,11 @@ export default async function DealerSettingsPage() {
 
             <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--line)' }}>
               <p style={{ fontSize: 11, color: 'var(--tx-lo)', lineHeight: 1.55 }}>
-                Need to update your dealership profile, sender name, or launch settings?{' '}
+                To update your dealership profile, sender name, or launch settings, email{' '}
                 <a href="mailto:support@dlr-sms.com" style={{ color: 'var(--red-core)', textDecoration: 'none' }}>
-                  Contact us
+                  support@dlr-sms.com
                 </a>{' '}
-                and we will handle it.
+                and DLR will handle it.
               </p>
             </div>
           </div>

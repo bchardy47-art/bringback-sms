@@ -64,7 +64,7 @@ const CONSENT_OPTIONS = [
 const CSV_COLUMNS = [
   { name: 'firstName',         required: true,  note: '' },
   { name: 'lastName',          required: true,  note: '' },
-  { name: 'phone',             required: true,  note: 'Normalized to E.164 automatically' },
+  { name: 'phone',             required: true,  note: 'US phone numbers accepted (any format)' },
   { name: 'consentStatus',     required: true,  note: 'explicit · implied · unknown · revoked' },
   { name: 'email',             required: false, note: '' },
   { name: 'vehicleName',       required: false, note: 'Used in message templates' },
@@ -273,6 +273,19 @@ export function DealerImportForm({ tenantId, apiBase = '/api/dealer/pilot-leads'
               onChange={handleCSVUpload}
             />
           </div>
+
+          {/* Template download */}
+          <p className="text-xs text-center" style={{ color: 'rgba(255,255,255,0.45)' }}>
+            Need a starting point?{' '}
+            <a
+              href="/templates/dealer-leads-template.csv"
+              download="dealer-leads-template.csv"
+              style={{ color: '#ff5252', textDecoration: 'none', fontWeight: 600 }}
+            >
+              Download the CSV template
+            </a>
+            {' '}— include first_name, last_name, phone, email, vehicle, notes.
+          </p>
 
           {/* Column reference (collapsible) */}
           <button

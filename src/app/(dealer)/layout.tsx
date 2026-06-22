@@ -136,7 +136,7 @@ export default async function DealerLayout({ children }: { children: React.React
 
           {/* ── Vertical tachometer power gauge ── */}
           <div className="power-block">
-            <div className="power-label">DLR Power Level</div>
+            <div className="power-label">Account Status</div>
             <div className="power-gauge-wrap">
               <div className="power-info">
                 <div
@@ -149,10 +149,10 @@ export default async function DealerLayout({ children }: { children: React.React
                     color: isLive ? 'var(--green)' : 'var(--amber)',
                   }}
                 >
-                  {isLive ? 'Live' : 'Standby'}
+                  {isLive ? 'Live' : 'In guided setup'}
                 </div>
                 <div className="power-foot">
-                  {isLive ? 'Engines hot — leads are being revived.' : 'Complete setup to ignite revival mode.'}
+                  {isLive ? 'Campaigns are active.' : 'Setup in progress with DLR.'}
                 </div>
                 {isLive ? (
                   <a href={setupHref} className="link-red" style={{ fontSize: 11, marginTop: 6 }}>
