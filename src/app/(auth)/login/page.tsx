@@ -143,7 +143,7 @@ export default function LoginPage() {
             Dealer Revival Portal
           </p>
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">
-            Sign in to your Revival Center
+            Sign in to your account
           </h1>
           <p className="mt-2 text-sm text-gray-500 leading-relaxed">
             Access your dealership&apos;s lead revival campaigns,

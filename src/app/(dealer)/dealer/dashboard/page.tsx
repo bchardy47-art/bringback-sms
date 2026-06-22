@@ -24,7 +24,6 @@ import {
   Users,
   Send,
   MessageSquare,
-  CalendarCheck,
   Zap,
   Eye,
   Hourglass,
@@ -297,7 +296,6 @@ export default async function DealerDashboardPage() {
       : []),
     { label: 'Messages Sent',     value: messagesSent },
     { label: 'Conversations',     value: inboxCount },
-    { label: 'Appointments Set',  value: '—' },
     { label: 'Deals Revived',     value: completedCount },
   ]
 
@@ -528,7 +526,6 @@ export default async function DealerDashboardPage() {
           />
           <KpiCard icon={<Send size={20} />}          label="Messages Sent" value={messagesSent}   href={inboxHref} />
           <KpiCard icon={<MessageSquare size={20} />} label="Conversations" value={inboxCount}     href={inboxHref} />
-          <KpiCard icon={<CalendarCheck size={20} />} label="Appointments"  value="—"              hint="Coming soon" />
           <KpiCard icon={<Zap size={20} />}           label="Deals Revived" value={completedCount} href="/dealer/batches" />
         </div>
 
