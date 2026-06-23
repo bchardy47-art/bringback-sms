@@ -31,7 +31,7 @@ const DEALER_BATCH_STATUS: Record<string, DealerBatchStatusInfo> = {
 const STATUS_LEGEND = [
   {
     label:   'Preview only',
-    meaning: 'Draft campaigns, not ready for approval yet.',
+    meaning: 'DLR is preparing your pilot. Campaigns become reviewable once your account is activated.',
     Icon:    Eye,
     color:   'rgba(255,255,255,0.5)',
     glow:    'none',
@@ -166,7 +166,7 @@ export default async function DealerBatchesPage() {
               className="dlr-btn-secondary mt-2"
               style={{ height: 38, padding: '0 16px', fontSize: 12 }}
             >
-              Upload more leads
+              Upload Leads
               <ArrowRight size={14} />
             </a>
           </div>

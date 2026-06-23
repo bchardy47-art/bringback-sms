@@ -279,6 +279,26 @@ export default async function DealerSettingsPage() {
             </div>
           </div>
 
+          {/* Sign out */}
+          <div style={{ marginTop: 8 }}>
+            <a
+              href="/logout"
+              style={{
+                display: 'block',
+                textAlign: 'center',
+                fontSize: 13,
+                color: 'var(--tx-lo)',
+                padding: '10px 0',
+                borderRadius: 8,
+                border: '1px solid var(--line)',
+                textDecoration: 'none',
+                transition: 'color 0.15s, border-color 0.15s',
+              }}
+            >
+              Sign out
+            </a>
+          </div>
+
         </div>{/* end right column */}
 
       </div>

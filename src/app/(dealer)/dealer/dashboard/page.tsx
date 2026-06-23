@@ -886,10 +886,10 @@ function SetupProgressCard({
 
         <div style={{ flex: 1, minWidth: 0 }}>
           <span className="eyebrow red">
-            {blocked ? 'Account Paused' : 'Setup Progress'}
+            {blocked ? 'Pilot Active' : 'Setup Progress'}
           </span>
           <p style={{ fontFamily: 'var(--f-display)', fontWeight: 800, fontSize: 20, color: '#fff', marginTop: 3, lineHeight: 1 }}>
-            {blocked ? (setup.title || 'Account paused') : `${doneCount} of ${totalSteps} steps complete`}
+            {blocked ? 'Pilot active — setup in progress' : `${doneCount} of ${totalSteps} steps complete`}
           </p>
           {/* paymentPending label removed — payment step is now 'waiting_on_dlr'
               for pilot accounts; 'needs_your_action' can no longer fire here. */}
@@ -983,6 +983,25 @@ function SetupStepRow({
 
 // ── Lightweight pulse chart (pure SVG, no new data calls) ────────────────────
 function PerformancePulse({ messagesSent, conversations }: { messagesSent: number; conversations: number }) {
+  if (messagesSent === 0 && conversations === 0) {
+    return (
+      <div style={{
+        marginTop: 12,
+        height: 160,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderRadius: 8,
+        border: '1px dashed rgba(255,255,255,0.08)',
+        background: 'rgba(255,255,255,0.02)',
+      }}>
+        <p style={{ fontSize: 13, color: 'var(--tx-lo)', textAlign: 'center', lineHeight: 1.5 }}>
+          No activity yet — check back once your first campaign is live.
+        </p>
+      </div>
+    )
+  }
+
   const days = 14
   const maxScale = Math.max(messagesSent, conversations, 10)
   const seedM = (i: number) =>
