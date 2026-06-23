@@ -81,6 +81,7 @@ export default async function DealerSettingsPage() {
 
   return (
     <div style={{ color: 'var(--tx)', fontFamily: 'var(--f-body)' }}>
+    <div style={{ maxWidth: 1048, margin: '0 auto' }}>
 
       {/* Page header */}
       <div style={{
@@ -97,10 +98,10 @@ export default async function DealerSettingsPage() {
         </p>
       </div>
 
-      <div style={{ padding: '24px 32px 40px', display: 'flex', gap: 24, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+      <div style={{ padding: '24px 28px 48px', display: 'flex', gap: 24, alignItems: 'flex-start', flexWrap: 'wrap' }}>
 
         {/* ── Left column: account cards ── */}
-        <div style={{ flex: '1 1 480px', display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 680 }}>
+        <div style={{ flex: '1 1 480px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 660 }}>
 
         {/* ── Dealership Profile (read-only) ── */}
         <div className="glass" style={{ padding: 'var(--pad)' }}>
@@ -215,7 +216,7 @@ export default async function DealerSettingsPage() {
         </div>{/* end left column */}
 
         {/* ── Right column: Pilot Support panel ── */}
-        <div style={{ flex: '0 1 300px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div style={{ flex: '1 1 270px', maxWidth: 300, display: 'flex', flexDirection: 'column', gap: 16 }}>
 
           {/* Pilot status chip */}
           <div style={{
@@ -279,8 +280,43 @@ export default async function DealerSettingsPage() {
             </div>
           </div>
 
+          {/* Pilot roadmap */}
+          {!isLive && (
+            <div className="glass" style={{ padding: 'var(--pad)' }}>
+              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--tx-lo)', marginBottom: 14 }}>
+                Pilot Roadmap
+              </div>
+              <ol style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 11 }}>
+                {[
+                  { label: 'Account configured',        done: true  },
+                  { label: 'Leads uploaded',            done: true  },
+                  { label: 'Campaign messages previewed', done: true },
+                  { label: 'DLR compliance review',     done: false },
+                  { label: '10DLC registration',        done: false },
+                  { label: 'First campaign launched',   done: false },
+                ].map(item => (
+                  <li key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                    <span style={{
+                      width: 16, height: 16, borderRadius: '50%', flexShrink: 0,
+                      border: `1.5px solid ${item.done ? '#4ade80' : 'rgba(255,255,255,0.15)'}`,
+                      background: item.done ? 'rgba(34,197,94,0.14)' : 'transparent',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      {item.done && (
+                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#4ade80', display: 'block' }} />
+                      )}
+                    </span>
+                    <span style={{ fontSize: 12, color: item.done ? 'var(--tx-hi)' : 'var(--tx-lo)', lineHeight: 1.3 }}>
+                      {item.label}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
+
           {/* Sign out */}
-          <div style={{ marginTop: 8 }}>
+          <div>
             <a
               href="/logout"
               style={{
@@ -292,7 +328,6 @@ export default async function DealerSettingsPage() {
                 borderRadius: 8,
                 border: '1px solid var(--line)',
                 textDecoration: 'none',
-                transition: 'color 0.15s, border-color 0.15s',
               }}
             >
               Sign out
@@ -302,6 +337,7 @@ export default async function DealerSettingsPage() {
         </div>{/* end right column */}
 
       </div>
+    </div>{/* end max-width wrapper */}
     </div>
   )
 }
