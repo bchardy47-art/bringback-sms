@@ -17,8 +17,25 @@ export function AccountMenu({ name, email, initials, settingsHref }: Props) {
   const [open, setOpen] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  // Fixed-position coordinates for the dropdown. The sidebar that hosts this
+  // menu uses `overflow-y: auto`, which clips any absolutely-positioned child —
+  // so an `absolute` dropdown opens but is invisible ("chevron does nothing").
+  // Rendering it `fixed`, anchored to the trigger's viewport rect, escapes the
+  // clip entirely.
+  const [coords, setCoords] = useState<{ left: number; bottom: number } | null>(null)
+  const MENU_WIDTH = 256
 
-  // Close on outside click / Escape
+  function toggle() {
+    if (!open && triggerRef.current) {
+      const r = triggerRef.current.getBoundingClientRect()
+      const left = Math.max(12, Math.min(r.left, window.innerWidth - MENU_WIDTH - 12))
+      setCoords({ left, bottom: window.innerHeight - r.top + 8 })
+    }
+    setOpen((v) => !v)
+  }
+
+  // Close on outside click / Escape / scroll / resize (fixed coords would drift)
   useEffect(() => {
     if (!open) return
     function onDocClick(e: MouseEvent) {
@@ -27,11 +44,18 @@ export function AccountMenu({ name, email, initials, settingsHref }: Props) {
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape') setOpen(false)
     }
+    function onReflow() {
+      setOpen(false)
+    }
     document.addEventListener('mousedown', onDocClick)
     document.addEventListener('keydown', onKey)
+    window.addEventListener('scroll', onReflow, true)
+    window.addEventListener('resize', onReflow)
     return () => {
       document.removeEventListener('mousedown', onDocClick)
       document.removeEventListener('keydown', onKey)
+      window.removeEventListener('scroll', onReflow, true)
+      window.removeEventListener('resize', onReflow)
     }
   }, [open])
 
@@ -43,8 +67,9 @@ export function AccountMenu({ name, email, initials, settingsHref }: Props) {
   return (
     <div ref={rootRef} className="relative">
       <button
+        ref={triggerRef}
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={toggle}
         aria-haspopup="menu"
         aria-expanded={open}
         className="flex items-center gap-2 rounded-lg p-1 transition-colors hover:bg-gray-100"
@@ -72,11 +97,16 @@ export function AccountMenu({ name, email, initials, settingsHref }: Props) {
         </svg>
       </button>
 
-      {open && (
+      {open && coords && (
         <div
           role="menu"
-          className="absolute right-0 w-64 rounded-xl bg-white shadow-lg z-50 overflow-hidden"
-          style={{ border: '1px solid #e5e7eb', bottom: 'calc(100% + 8px)' }}
+          className="fixed rounded-xl bg-white shadow-lg z-50 overflow-hidden"
+          style={{
+            border: '1px solid #e5e7eb',
+            left: coords.left,
+            bottom: coords.bottom,
+            width: MENU_WIDTH,
+          }}
         >
           <div className="px-4 py-3" style={{ borderBottom: '1px solid #f3f4f6' }}>
             <p className="text-sm font-semibold text-gray-900 truncate">{name}</p>

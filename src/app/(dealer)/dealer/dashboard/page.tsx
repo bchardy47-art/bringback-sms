@@ -394,7 +394,7 @@ export default async function DealerDashboardPage() {
     nextStep?.stepKey === 'leads'  ? { label: 'Upload Leads',      href: '/dealer/import' }  :
     nextStep?.stepKey === 'pilot'  ? { label: 'Review Campaign',   href: '/dealer/batches' } :
     draftCount + activeCount > 0   ? { label: 'Review Campaigns',  href: '/dealer/batches' } :
-    importCount > 0                ? { label: 'Upload More Leads', href: '/dealer/import' }  :
+    importCount > 0                ? { label: 'Upload Leads',      href: '/dealer/import' }  :
                                      { label: 'Upload Leads',      href: '/dealer/import' }
 
   // Only surfaces when account setup needs non-product admin action
@@ -886,10 +886,10 @@ function SetupProgressCard({
 
         <div style={{ flex: 1, minWidth: 0 }}>
           <span className="eyebrow red">
-            {blocked ? 'Pilot Active' : 'Setup Progress'}
+            {blocked ? setup.title : 'Setup Progress'}
           </span>
           <p style={{ fontFamily: 'var(--f-display)', fontWeight: 800, fontSize: 20, color: '#fff', marginTop: 3, lineHeight: 1 }}>
-            {blocked ? 'Pilot active — setup in progress' : `${doneCount} of ${totalSteps} steps complete`}
+            {blocked ? 'Your pilot is being set up' : `${doneCount} of ${totalSteps} steps complete`}
           </p>
           {/* paymentPending label removed — payment step is now 'waiting_on_dlr'
               for pilot accounts; 'needs_your_action' can no longer fire here. */}
@@ -995,9 +995,14 @@ function PerformancePulse({ messagesSent, conversations }: { messagesSent: numbe
         border: '1px dashed rgba(255,255,255,0.08)',
         background: 'rgba(255,255,255,0.02)',
       }}>
-        <p style={{ fontSize: 13, color: 'var(--tx-lo)', textAlign: 'center', lineHeight: 1.5 }}>
-          No activity yet — check back once your first campaign is live.
-        </p>
+        <div style={{ textAlign: 'center', lineHeight: 1.5 }}>
+          <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx-mid)' }}>
+            No sends yet
+          </p>
+          <p style={{ fontSize: 12, color: 'var(--tx-lo)', marginTop: 4 }}>
+            Performance data will appear after your first campaign launches.
+          </p>
+        </div>
       </div>
     )
   }

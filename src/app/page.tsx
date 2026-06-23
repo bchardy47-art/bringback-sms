@@ -1,5 +1,5 @@
 export const metadata = {
-  title: 'DLR — Dead Lead Revival | BCHardy LLC',
+  title: 'DLR — Dead Lead Revival',
   description:
     'Dead Lead Revival (DLR) is an SMS re-engagement platform for independent automotive dealerships. ' +
     'We help dealers safely text old internet leads, review every message before launch, and route replies to a human.',

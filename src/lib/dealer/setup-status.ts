@@ -264,10 +264,13 @@ export function computeDealerSetupStatus(p: DealerSetupInputs): DealerSetupStatu
 
   if (tenant?.complianceBlocked || tenant?.automationPaused) {
     overall = 'blocked'
-    title = 'Account paused'
+    // Avoid the scary "account paused" framing. For a pilot account, automation
+    // is intentionally paused during setup — present it as in-progress, not as a
+    // problem. A genuine compliance hold keeps its own (still calm) wording.
+    title = tenant.complianceBlocked ? 'Account on hold' : 'Pilot setup in progress'
     subtitle = tenant.complianceBlocked
       ? 'A compliance issue is on hold. DLR ops will reach out shortly with next steps.'
-      : 'Automation is currently paused. DLR will re-enable it after a short review.'
+      : 'Automation is safely paused until your first campaign is reviewed and launched with DLR.'
     nextHint = null
   } else if (steps.every(s => s.status === 'done')) {
     overall = 'live_ready'
