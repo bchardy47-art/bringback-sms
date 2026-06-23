@@ -1,0 +1,13 @@
+firstName,lastName,phone,email,vehicleName,leadSource,lead_created_at,last_activity_at,consentStatus,consentSource,consentCapturedAt,smsConsentNotes
+Mason,Reed,+15550120001,mason.reed.demo+01@dlr-sms.test,2024 Ford F-150 XLT,Cars.com,2026-05-22,,explicit,web_form,2026-05-22,Opted in via Cars.com web form
+Ava,Cole,+15550120002,ava.cole.demo+02@dlr-sms.test,2024 Honda CR-V EX,Dealer Website,2026-05-18,,explicit,web_form,2026-05-18,Opted in via dealer website form
+Liam,Parker,+15550120003,liam.parker.demo+03@dlr-sms.test,2023 Toyota Camry SE,AutoTrader,,2026-05-01,implied,phone_inquiry,2026-05-01,Customer inquired via phone - implied consent
+Emma,Hayes,+15550120004,emma.hayes.demo+04@dlr-sms.test,2024 Chevrolet Silverado 1500,TrueCar,2026-04-28,,explicit,web_form,2026-04-28,Opted in via TrueCar inquiry form
+Noah,Bryant,+15550120005,noah.bryant.demo+05@dlr-sms.test,2023 Jeep Grand Cherokee,Facebook Lead Ad,2026-04-03,,explicit,web_form,2026-04-03,Opted in via Facebook Lead Ad form
+Olivia,Ward,+15550120006,olivia.ward.demo+06@dlr-sms.test,2024 Hyundai Tucson SEL,KSL,2026-03-28,,implied,phone_inquiry,2026-03-28,Customer responded to KSL listing - implied consent
+Ethan,Price,+15550120007,ethan.price.demo+07@dlr-sms.test,2022 Nissan Rogue SV,Dealer Website,2026-02-14,,explicit,web_form,2026-02-14,Opted in via dealer website form
+Sophia,Bell,+15550120008,sophia.bell.demo+08@dlr-sms.test,2021 Subaru Outback Premium,Cars.com,2026-01-30,,explicit,web_form,2026-01-30,Opted in via Cars.com web form
+Caleb,Morris,+15550120009,caleb.morris.demo+09@dlr-sms.test,2024 Kia Telluride EX,Dealer Website,,,explicit,web_form,2026-05-20,Opted in via web form - date missing from CRM export
+Harper,Ross,+15550120010,harper.ross.demo+10@dlr-sms.test,2024 Mazda CX-50,Chat,not-a-date,,implied,chat,2026-05-12,Customer chatted on website - implied consent
+Logan,Stone,555-INVALID,logan.stone.demo+11@dlr-sms.test,2023 GMC Sierra 1500,Cars.com,2026-04-15,,explicit,web_form,2026-04-15,Valid form fill - phone malformed in CRM export
+Grace,Turner,+15550120012,grace.turner.demo+12@dlr-sms.test,2024 Volkswagen Atlas,AutoTrader,2026-04-08,,revoked,manual,2026-04-08,Customer requested to stop all contact on 2026-04-08

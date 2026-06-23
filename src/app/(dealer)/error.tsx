@@ -39,10 +39,10 @@ export default function DealerError({
         className="glass"
         style={{ maxWidth: 460, padding: 32, textAlign: 'center' }}
       >
-        <p className="dlr-cmd-label" style={{ color: '#ff5252' }}>
+        <p className="eyebrow red">
           Something went wrong
         </p>
-        <h1 className="dlr-headline" style={{ marginTop: 8 }}>
+        <h1 className="page-title" style={{ marginTop: 8, fontSize: 32 }}>
           We hit a snag loading this page
         </h1>
         <p
@@ -66,12 +66,12 @@ export default function DealerError({
             flexWrap: 'wrap',
           }}
         >
-          <button onClick={() => reset()} className="dlr-btn-primary">
+          <button onClick={() => reset()} className="btn btn-primary">
             Try again
           </button>
           <a
             href="/dealer/dashboard"
-            className="dlr-btn-primary"
+            className="btn btn-primary"
             style={{ background: 'transparent', border: '1px solid var(--tx-lo)' }}
           >
             Back to dashboard

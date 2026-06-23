@@ -148,7 +148,7 @@ export function BookDemoForm() {
       <button
         type="submit"
         disabled={isPending}
-        className="dlr-btn-primary"
+        className="btn btn-primary"
         style={{
           marginTop: 4,
           width: '100%',

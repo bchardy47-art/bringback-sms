@@ -191,7 +191,7 @@ export function ConversationListSidebar({
         >
           <div className="flex items-center justify-between mb-3">
             <div>
-              <p className="dlr-cmd-label" style={{ color: '#ff5252' }}>Inbox</p>
+              <p className="eyebrow red">Inbox</p>
               <h1 className="text-base font-black text-white mt-0.5 leading-tight uppercase tracking-wide">{title}</h1>
             </div>
             {needsReviewCount > 0 && (

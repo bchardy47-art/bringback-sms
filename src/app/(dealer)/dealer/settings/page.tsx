@@ -120,9 +120,9 @@ export default async function DealerSettingsPage() {
               </div>
             </div>
             {isLive ? (
-              <span className="dlr-badge dlr-badge-live">Live</span>
+              <span className="badge badge-red">Live</span>
             ) : (
-              <span className="dlr-badge dlr-badge-preview">Setup in progress</span>
+              <span className="badge badge-ghost">Setup in progress</span>
             )}
           </div>
 
@@ -262,8 +262,8 @@ export default async function DealerSettingsPage() {
 
             <a
               href="mailto:support@dlr-sms.com"
-              className="dlr-btn-secondary"
-              style={{ display: 'inline-flex', height: 36, fontSize: 13, textDecoration: 'none', width: '100%', justifyContent: 'center' }}
+              className="btn"
+              style={{ height: 36, fontSize: 13, textDecoration: 'none', width: '100%', justifyContent: 'center' }}
             >
               Email Support
             </a>

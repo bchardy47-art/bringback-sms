@@ -10,21 +10,20 @@ import { desc, inArray } from 'drizzle-orm'
 import { getDealerSession } from '@/lib/dealer/dev-auth-bypass'
 import { db } from '@/lib/db'
 import { pilotBatches, workflows } from '@/lib/db/schema'
-import { DlrHeroArt } from '@/components/dealer/DlrHeroArt'
 import { Eye, Users, Hourglass, Send, ArrowRight, Calendar } from 'lucide-react'
 void pilotBatches
 
 type DealerBatchStatusInfo = { chip: string; label: string }
 
 const DEALER_BATCH_STATUS: Record<string, DealerBatchStatusInfo> = {
-  draft:     { chip: 'dlr-badge-preview', label: 'Draft / Preview only' },
-  previewed: { chip: 'dlr-badge-preview', label: 'Preview only' },
-  approved:  { chip: 'dlr-badge-approved', label: 'Approved — not sending yet' },
-  sending:   { chip: 'dlr-badge-sending',  label: 'Live / Sending' },
-  active:    { chip: 'dlr-badge-sending',  label: 'Live / Sending' },
-  paused:    { chip: 'dlr-badge-approved', label: 'Paused' },
-  completed: { chip: 'dlr-badge-sending',  label: 'Completed' },
-  cancelled: { chip: 'dlr-badge-live',     label: 'Cancelled' },
+  draft:     { chip: 'badge badge-ghost', label: 'Draft / Preview only' },
+  previewed: { chip: 'badge badge-ghost', label: 'Preview only' },
+  approved:  { chip: 'badge badge-amber', label: 'Approved — not sending yet' },
+  sending:   { chip: 'badge badge-green', label: 'Live / Sending' },
+  active:    { chip: 'badge badge-green', label: 'Live / Sending' },
+  paused:    { chip: 'badge badge-amber', label: 'Paused' },
+  completed: { chip: 'badge badge-green', label: 'Completed' },
+  cancelled: { chip: 'badge badge-red',   label: 'Cancelled' },
 }
 
 // Status legend that matches the spec's four-card row.
@@ -35,7 +34,7 @@ const STATUS_LEGEND = [
     Icon:    Eye,
     color:   'rgba(255,255,255,0.5)',
     glow:    'none',
-    chip:    'dlr-badge-preview',
+    chip:    'badge badge-ghost',
   },
   {
     label:   'Ready for review',
@@ -43,7 +42,7 @@ const STATUS_LEGEND = [
     Icon:    Users,
     color:   '#ff5252',
     glow:    '0 0 18px rgba(255,27,27,0.35)',
-    chip:    'dlr-badge-live',
+    chip:    'badge badge-red',
   },
   {
     label:   'Approved — not sending yet',
@@ -51,7 +50,7 @@ const STATUS_LEGEND = [
     Icon:    Hourglass,
     color:   '#fbbf24',
     glow:    '0 0 18px rgba(245,158,11,0.32)',
-    chip:    'dlr-badge-approved',
+    chip:    'badge badge-amber',
   },
   {
     label:   'Live / Sending',
@@ -59,7 +58,7 @@ const STATUS_LEGEND = [
     Icon:    Send,
     color:   '#22c55e',
     glow:    '0 0 18px rgba(34,197,94,0.32)',
-    chip:    'dlr-badge-sending',
+    chip:    'badge badge-green',
   },
 ] as const
 
@@ -137,55 +136,43 @@ export default async function DealerBatchesPage() {
   }
 
   return (
-    <div className="dlr-app-bg min-h-full text-white">
+    <div style={{ color: 'var(--tx)', fontFamily: 'var(--f-body)' }}>
 
       {/* ── HERO ───────────────────────────────────────────────────── */}
-      <section
-        className="relative overflow-hidden"
-        style={{
-          minHeight: 240,
-          borderBottom: '1px solid rgba(255,27,27,0.28)',
-        }}
-      >
-        <DlrHeroArt intensity="high" showTruck />
-        <div className="relative z-10 px-4 md:px-8 lg:px-10 py-8 md:py-10">
-          <div className="flex items-start justify-between gap-4 flex-wrap">
-            <div>
-              <p className="dlr-cmd-label" style={{ color: '#ff5252' }}>Revival Sequences</p>
-              <h1 className="dlr-headline mt-2" style={{ fontSize: 'clamp(32px, 4.6vw, 56px)' }}>
-                Campaigns
-              </h1>
-              <p className="mt-4 max-w-2xl text-sm md:text-base leading-relaxed" style={{ color: 'rgba(255,255,255,0.7)' }}>
-                Your uploaded leads are grouped into ready-to-review campaigns by age.
-                Review every message preview before anything is sent — DLR keeps the
-                approval gate in your hands.
-              </p>
-            </div>
-            <a
-              href="/dealer/import"
-              className="dlr-btn-secondary mt-2"
-              style={{ height: 38, padding: '0 16px', fontSize: 12 }}
-            >
-              Upload more leads
-              <ArrowRight size={14} />
-            </a>
+      <section className="page-hd" style={{ marginBottom: 'var(--gap)' }}>
+        <div className="page-hd-stage" aria-hidden="true">
+          <div className="page-hd-truck" />
+          <div className="page-hd-vig" />
+        </div>
+        <div className="page-hd-txt" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+          <div>
+            <span className="eyebrow red">Revival Sequences</span>
+            <h1 className="page-title" style={{ marginTop: 6 }}>Campaigns</h1>
+            <p style={{ marginTop: 12, maxWidth: 500, fontSize: 14, lineHeight: 1.55, color: 'var(--tx-mid)' }}>
+              Your uploaded leads are grouped into ready-to-review campaigns by age.
+              Review every message preview before anything is sent — DLR keeps the
+              approval gate in your hands.
+            </p>
           </div>
+          <a href="/dealer/import" className="btn" style={{ height: 38, padding: '0 16px', fontSize: 12, flexShrink: 0, alignSelf: 'flex-end' }}>
+            Upload more leads
+            <ArrowRight size={14} />
+          </a>
         </div>
       </section>
 
       {/* ── Body ──────────────────────────────────────────────────── */}
-      <div className="px-4 md:px-8 lg:px-10 py-6 md:py-8 space-y-6">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--gap)' }}>
 
         {/* Status legend row */}
         <section>
-          <p className="dlr-cmd-label mb-3" style={{ color: '#ff5252' }}>
-            Status Legend
-          </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <p className="eyebrow red" style={{ marginBottom: 10 }}>Status Legend</p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10 }}>
             {STATUS_LEGEND.map((row) => (
               <article
                 key={row.label}
-                className="dlr-card px-4 py-4"
+                className="glass flat"
+                style={{ padding: '14px 16px' }}
               >
                 <div className="flex items-start gap-3">
                   <span
@@ -201,9 +188,9 @@ export default async function DealerBatchesPage() {
                   >
                     <row.Icon size={17} />
                   </span>
-                  <div className="min-w-0">
-                    <p className="text-sm font-bold text-white leading-tight">{row.label}</p>
-                    <p className="text-[11px] mt-1 leading-relaxed" style={{ color: 'rgba(255,255,255,0.55)' }}>
+                  <div style={{ minWidth: 0 }}>
+                    <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx-hi)', lineHeight: 1.2 }}>{row.label}</p>
+                    <p style={{ fontSize: 11, marginTop: 4, lineHeight: 1.5, color: 'var(--tx-lo)' }}>
                       {row.meaning}
                     </p>
                   </div>
@@ -216,17 +203,18 @@ export default async function DealerBatchesPage() {
         {/* Empty state */}
         {batches.length === 0 && (
           <div
-            className="rounded-2xl py-12 px-6 text-center"
+            className="glass"
             style={{
-              background: 'rgba(8,8,10,0.6)',
-              border: '1px dashed rgba(255,27,27,0.4)',
+              padding: '48px 24px',
+              textAlign: 'center',
+              border: '1.5px dashed var(--line-redS)',
             }}
           >
-            <p className="text-lg font-black uppercase tracking-wider text-white mb-2">No prepared campaigns yet</p>
-            <p className="text-sm max-w-sm mx-auto mb-5" style={{ color: 'rgba(255,255,255,0.6)' }}>
+            <p style={{ fontSize: 16, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--tx-hi)', marginBottom: 8 }}>No prepared campaigns yet</p>
+            <p style={{ fontSize: 13, maxWidth: 400, margin: '0 auto 20px', color: 'var(--tx-mid)', lineHeight: 1.55 }}>
               Campaign templates are ready. Upload leads and DLR will prepare personalized message sequences for your review — nothing sends until you approve.
             </p>
-            <a href="/dealer/import" className="dlr-btn-primary inline-flex">
+            <a href="/dealer/import" className="btn btn-primary" style={{ display: 'inline-flex' }}>
               Upload Leads
               <ArrowRight size={16} />
             </a>
@@ -235,10 +223,8 @@ export default async function DealerBatchesPage() {
 
         {/* Campaign rows (Concept 4) — always 4 buckets when batches exist */}
         {batches.length > 0 && (
-          <section className="space-y-3">
-            <p className="dlr-cmd-label" style={{ color: '#ff5252' }}>
-              Revival Pipeline
-            </p>
+          <section style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <p className="eyebrow red">Revival Pipeline</p>
             {CAMPAIGN_BUCKETS.map((bucket) => {
               const bucketBatches = batchesByBucket[bucket.key]
               const draftBatch    = bucketBatches.find(b => b.status === 'draft') ?? null
@@ -273,7 +259,7 @@ export default async function DealerBatchesPage() {
                   featuredHref={featured ? `/dealer/batches/${featured.id}` : null}
                   ctaState={ctaState}
                   statusLabel={statusLabel}
-                  statusBadgeClass={statusKey ? DEALER_BATCH_STATUS[statusKey].chip : 'dlr-badge-preview'}
+                  statusBadgeClass={statusKey ? DEALER_BATCH_STATUS[statusKey].chip : 'badge badge-ghost'}
                   leadCount={featuredLeadCount}
                 />
               )
@@ -283,27 +269,32 @@ export default async function DealerBatchesPage() {
 
         {/* Campaign history — compact list under the bucket rows */}
         {historyBatches.length > 0 && (
-          <section className="dlr-card overflow-hidden">
+          <section className="glass" style={{ overflow: 'hidden' }}>
             <header
-              className="px-5 py-4 flex items-center justify-between"
-              style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}
+              style={{
+                padding: '14px 20px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                borderBottom: '1px solid var(--line)',
+              }}
             >
               <div>
-                <p className="dlr-cmd-label" style={{ color: '#ff5252' }}>Campaign History</p>
-                <h3 className="text-white text-sm font-black mt-1">
+                <p className="eyebrow red">Campaign History</p>
+                <h3 style={{ color: 'var(--tx-hi)', fontSize: 13, fontWeight: 800, marginTop: 4 }}>
                   {historyBatches.length} campaign{historyBatches.length !== 1 ? 's' : ''}
                 </h3>
               </div>
-              <p className="text-xs hidden md:block" style={{ color: 'rgba(255,255,255,0.5)' }}>
+              <p style={{ fontSize: 11, color: 'var(--tx-lo)' }}>
                 Only campaigns marked Live, Sending, or Completed have sent messages.
               </p>
             </header>
-            <ul className="divide-y" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
+            <ul style={{ borderColor: 'var(--line)' }}>
               {historyBatches.map(batch => {
                 const wf     = batch.workflowId ? workflowMap.get(batch.workflowId) : null
                 const bucket = wf?.ageBucket ?? null
                 const info   = DEALER_BATCH_STATUS[batch.status] ?? {
-                  chip:  'dlr-badge-preview',
+                  chip:  'badge badge-ghost',
                   label: batch.status,
                 }
                 const hasSends = batch.liveSendCount > 0
@@ -313,38 +304,38 @@ export default async function DealerBatchesPage() {
                   null
 
                 return (
-                  <li key={batch.id} className="px-5 py-4 flex items-start justify-between gap-3">
-                    <div className="min-w-0 flex-1 space-y-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="text-sm font-bold text-white truncate">
+                  <li key={batch.id} style={{ padding: '14px 20px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, borderBottom: '1px solid var(--line)' }}>
+                    <div style={{ minWidth: 0, flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                        <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx-hi)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {wf?.name ?? 'Unknown workflow'}
                         </p>
-                        <span className={`dlr-badge ${info.chip}`}>{info.label}</span>
+                        <span className={info.chip}>{info.label}</span>
                       </div>
-                      <p className="text-xs" style={{ color: 'rgba(255,255,255,0.45)' }}>
+                      <p style={{ fontSize: 11, color: 'var(--tx-lo)' }}>
                         {bucket ? `${BUCKET_LABEL[bucket]} · ` : ''}
                         {batch.leads.length} lead{batch.leads.length !== 1 ? 's' : ''}
                         {' · '}
                         {new Date(batch.createdAt).toLocaleDateString()}
                       </p>
                       {hasSends ? (
-                        <p className="text-xs" style={{ color: 'rgba(255,255,255,0.6)' }}>
-                          <strong className="font-bold text-white">{batch.liveSendCount}</strong> sent
+                        <p style={{ fontSize: 11, color: 'var(--tx-mid)' }}>
+                          <strong style={{ fontWeight: 700, color: 'var(--tx-hi)' }}>{batch.liveSendCount}</strong> sent
                           {' · '}
-                          <strong className="font-bold text-white">{batch.replyCount}</strong> repl{batch.replyCount === 1 ? 'y' : 'ies'}
+                          <strong style={{ fontWeight: 700, color: 'var(--tx-hi)' }}>{batch.replyCount}</strong> repl{batch.replyCount === 1 ? 'y' : 'ies'}
                           {' · '}
-                          <strong className="font-bold text-white">{batch.handoffCount}</strong> handoff{batch.handoffCount === 1 ? '' : 's'}
+                          <strong style={{ fontWeight: 700, color: 'var(--tx-hi)' }}>{batch.handoffCount}</strong> handoff{batch.handoffCount === 1 ? '' : 's'}
                         </p>
                       ) : (
-                        <p className="text-xs italic" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                        <p style={{ fontSize: 11, fontStyle: 'italic', color: 'var(--tx-lo)' }}>
                           No messages have been sent from this campaign.
                         </p>
                       )}
                     </div>
-                    <div className="flex-shrink-0 flex flex-col items-end gap-1.5">
+                    <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
                       <a
                         href={`/dealer/batches/${batch.id}`}
-                        className="dlr-btn-secondary"
+                        className="btn"
                         style={{ height: 32, padding: '0 12px', fontSize: 11 }}
                       >
                         View
@@ -353,8 +344,8 @@ export default async function DealerBatchesPage() {
                       {reportLabel && (
                         <a
                           href={`/dealer/campaigns/${batch.id}/report`}
-                          className="text-[11px] font-bold uppercase tracking-widest"
-                          style={{ color: '#ff5252' }}
+                          className="link-red"
+                          style={{ fontSize: 11 }}
                         >
                           {reportLabel} →
                         </a>
@@ -391,105 +382,58 @@ function CampaignRow({
 
   return (
     <article
-      className="flex flex-col md:grid items-stretch md:items-center transition-all gap-3 md:gap-5"
+      className="camp-row"
       style={{
-        // Mobile: column stack. Desktop: 3-col grid (icon+name | spacer | button).
-        // Inline desktop grid columns via media-aware className combo above.
-        background: 'rgba(12,12,14,0.9)',
-        border: isReady
-          ? '1px solid rgba(255,27,27,0.65)'
-          : '1px solid rgba(255,27,27,0.22)',
-        borderLeft: isReady
-          ? '3px solid #ff1b1b'
-          : '1px solid rgba(255,27,27,0.22)',
-        borderRadius: 12,
+        gridTemplateColumns: 'min-content 1fr auto',
         minHeight: 86,
-        padding: '18px 22px',
+        borderLeft: isReady ? '3px solid var(--red-core)' : undefined,
         boxShadow: isReady
           ? '0 0 24px rgba(255,27,27,0.32), 0 18px 50px rgba(0,0,0,0.45)'
-          : '0 18px 50px rgba(0,0,0,0.4)',
-        gridTemplateColumns: 'min-content 1fr auto',
+          : undefined,
       }}
     >
       {/* Calendar-style age icon */}
-      <div className="flex items-start sm:items-center gap-4">
-        <span
-          className="flex-shrink-0 inline-flex flex-col items-center justify-center rounded-md text-white"
-          style={{
-            width: 56,
-            height: 60,
-            background: 'linear-gradient(180deg, #1a0808, #050505)',
-            border: '1px solid rgba(255,27,27,0.45)',
-            boxShadow: isReady ? '0 0 14px rgba(255,27,27,0.5)' : '0 0 8px rgba(255,27,27,0.25)',
-          }}
-          aria-hidden="true"
-        >
-          <Calendar
-            size={14}
-            style={{ color: '#ff5252', marginTop: 6 }}
-          />
-          <span
-            className="font-black mt-0.5 leading-none"
-            style={{ fontSize: 13, color: '#fff' }}
-          >
-            {bucket.key === 'a' ? '14' : bucket.key === 'b' ? '30' : bucket.key === 'c' ? '60' : '90+'}
-          </span>
-          <span
-            className="font-bold leading-none"
-            style={{ fontSize: 8, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.5)' }}
-          >
-            DAYS
-          </span>
-        </span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
+        <div className="day-badge" aria-hidden="true">
+          <div className="d">{bucket.key === 'a' ? '14' : bucket.key === 'b' ? '30' : bucket.key === 'c' ? '60' : '90+'}</div>
+          <div className="u">Days</div>
+        </div>
 
         {/* Name + description + meta */}
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="text-base font-black text-white tracking-tight">{bucket.label}</h3>
+        <div className="camp-meta">
+          <h3 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {bucket.label}
             {bucket.recommended && ctaState === 'urgent_draft' && (
-              <span className="dlr-badge dlr-badge-live">Start Here</span>
+              <span className="badge badge-red">Start Here</span>
             )}
-          </div>
-          <p className="text-xs mt-1 leading-relaxed" style={{ color: 'rgba(255,255,255,0.55)' }}>
-            {bucket.description}
-          </p>
-          <div className="flex items-center gap-3 mt-2 flex-wrap">
-            <span className="text-[11px] font-bold" style={{ color: 'rgba(255,255,255,0.6)' }}>
+          </h3>
+          <p>{bucket.description}</p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4 }}>
+            <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx-mid)' }}>
               {leadCount > 0
                 ? `${leadCount} lead${leadCount === 1 ? '' : 's'}`
                 : ctaState === 'no_featured' ? 'No leads selected'
                 : 'No eligible leads'}
             </span>
-            <span className="text-[11px]" style={{ color: 'rgba(255,255,255,0.3)' }}>·</span>
-            <span className={`dlr-badge ${statusBadgeClass}`}>
-              {statusLabel}
-            </span>
+            <span style={{ color: 'var(--tx-lo)' }}>·</span>
+            <span className={statusBadgeClass}>{statusLabel}</span>
           </div>
         </div>
       </div>
 
-      {/* Status placeholder slot reserved by desktop grid; hidden on mobile so
-          the stacked row drops straight to the action button. */}
-      <span className="hidden md:block" />
+      {/* Spacer column */}
+      <span />
 
-      {/* Action button. Full-width on mobile (stacked row-card), inline on desktop. */}
-      <div className="flex-shrink-0 w-full md:w-auto">
+      {/* Action button */}
+      <div style={{ flexShrink: 0 }}>
         {ctaState === 'urgent_draft' && featuredHref && (
-          <a
-            href={featuredHref}
-            className="dlr-btn-primary w-full md:w-auto"
-            style={{ height: 40, padding: '0 18px', fontSize: 12 }}
-          >
+          <a href={featuredHref} className="btn btn-primary" style={{ height: 40, padding: '0 18px', fontSize: 12 }}>
             Review Campaign
             <ArrowRight size={14} />
           </a>
         )}
         {ctaState === 'view' && featuredHref && (
-          <a
-            href={featuredHref}
-            className="dlr-btn-secondary w-full md:w-auto"
-            style={{ height: 40, padding: '0 18px', fontSize: 12 }}
-          >
+          <a href={featuredHref} className="btn" style={{ height: 40, padding: '0 18px', fontSize: 12 }}>
             View Campaign
             <ArrowRight size={14} />
           </a>
@@ -497,30 +441,15 @@ function CampaignRow({
         {ctaState === 'empty' && featuredHref && (
           <a
             href={featuredHref}
-            className="inline-flex items-center justify-center gap-2 px-4 rounded-md text-xs font-bold uppercase tracking-widest w-full md:w-auto"
-            style={{
-              height: 40,
-              background: 'rgba(255,255,255,0.04)',
-              border: '1px dashed rgba(255,255,255,0.12)',
-              color: 'rgba(255,255,255,0.4)',
-              cursor: 'not-allowed',
-            }}
+            className="btn"
+            style={{ height: 40, padding: '0 18px', fontSize: 12, opacity: 0.4, cursor: 'not-allowed' }}
             aria-disabled="true"
           >
             No eligible leads
           </a>
         )}
         {ctaState === 'no_featured' && (
-          <a
-            href="/dealer/import"
-            className="inline-flex items-center justify-center gap-2 px-4 rounded-md text-xs font-bold uppercase tracking-widest w-full md:w-auto"
-            style={{
-              height: 40,
-              background: 'rgba(255,255,255,0.04)',
-              border: '1px dashed rgba(255,255,255,0.12)',
-              color: 'rgba(255,255,255,0.45)',
-            }}
-          >
+          <a href="/dealer/import" className="btn" style={{ height: 40, padding: '0 18px', fontSize: 12 }}>
             Upload leads
             <ArrowRight size={12} />
           </a>

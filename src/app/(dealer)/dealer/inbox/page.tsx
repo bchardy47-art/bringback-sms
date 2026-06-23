@@ -88,7 +88,7 @@ export default async function DealerInboxPage() {
 
         {state === 'pick_one' && (
           <>
-            <p className="dlr-cmd-label" style={{ color: '#ff5252' }}>Inbox Standby</p>
+            <p className="eyebrow red">Inbox Standby</p>
             <h2 className="text-xl font-black text-white mt-2 uppercase tracking-wide">Select a conversation</h2>
             <p className="text-sm mt-2" style={{ color: 'rgba(255,255,255,0.6)' }}>
               Pick a thread from the sidebar to view the conversation.
@@ -98,7 +98,7 @@ export default async function DealerInboxPage() {
 
         {state === 'mid_launch' && (
           <>
-            <p className="dlr-cmd-label" style={{ color: '#ff5252' }}>First Sends</p>
+            <p className="eyebrow red">First Sends</p>
             <h2 className="text-xl font-black text-white mt-2 uppercase tracking-wide">First sends are being prepared</h2>
             <p className="text-sm mt-2 leading-relaxed" style={{ color: 'rgba(255,255,255,0.65)' }}>
               Replies will appear here once leads respond — usually within 24–72 hours
@@ -112,13 +112,14 @@ export default async function DealerInboxPage() {
 
         {state === 'has_drafts' && (
           <>
-            <p className="dlr-cmd-label" style={{ color: '#fbbf24' }}>Campaigns Ready</p>
+            <p className="eyebrow" style={{ color: 'var(--amber)' }}>Campaigns Ready</p>
             <h2 className="text-xl font-black text-white mt-2 uppercase tracking-wide">Replies will appear here after your campaigns send</h2>
             <p className="text-sm mt-2 leading-relaxed" style={{ color: 'rgba(255,255,255,0.65)' }}>
               You have {draftBatchCount} draft campaign{draftBatchCount === 1 ? '' : 's'} ready for review.
               Replies will appear here once your campaigns are approved and messages go out.
             </p>
-            <a href="/dealer/batches" className="dlr-btn-primary mt-5 inline-flex">
+            <a href="/dealer/batches" className="btn btn-primary"
+              style={{ marginTop: 20, display: 'inline-flex' }}>
               Review draft campaigns
               <Send size={14} />
             </a>
@@ -127,13 +128,14 @@ export default async function DealerInboxPage() {
 
         {state === 'pre_launch' && (
           <>
-            <p className="dlr-cmd-label" style={{ color: '#fbbf24' }}>Pre-Launch</p>
+            <p className="eyebrow" style={{ color: 'var(--amber)' }}>Pre-Launch</p>
             <h2 className="text-xl font-black text-white mt-2 uppercase tracking-wide">No conversations yet</h2>
             <p className="text-sm mt-2 leading-relaxed" style={{ color: 'rgba(255,255,255,0.65)' }}>
               Replies will appear here after your first campaign is approved and sends.
               Check your dashboard to see the next setup step.
             </p>
-            <a href="/dealer/dashboard#setup-progress" className="dlr-btn-primary mt-5 inline-flex">
+            <a href="/dealer/dashboard#setup-progress" className="btn btn-primary"
+              style={{ marginTop: 20, display: 'inline-flex' }}>
               Check setup progress
               <Send size={14} />
             </a>

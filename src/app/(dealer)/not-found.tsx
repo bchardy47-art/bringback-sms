@@ -22,10 +22,10 @@ export default function DealerNotFound() {
         className="glass"
         style={{ maxWidth: 460, padding: 32, textAlign: 'center' }}
       >
-        <p className="dlr-cmd-label" style={{ color: '#fbbf24' }}>
+        <p className="eyebrow" style={{ color: 'var(--amber)' }}>
           Page not found
         </p>
-        <h1 className="dlr-headline" style={{ marginTop: 8 }}>
+        <h1 className="page-title" style={{ marginTop: 8, fontSize: 32 }}>
           We couldn&apos;t find that page
         </h1>
         <p
@@ -41,7 +41,7 @@ export default function DealerNotFound() {
         </p>
 
         <div style={{ marginTop: 24 }}>
-          <a href="/dealer/dashboard" className="dlr-btn-primary">
+          <a href="/dealer/dashboard" className="btn btn-primary">
             Back to dashboard
           </a>
         </div>

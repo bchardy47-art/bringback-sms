@@ -23,20 +23,20 @@ import {
 } from 'lucide-react'
 
 const STATE_BADGE: Record<string, { label: string; className: string }> = {
-  active:    { label: 'Active',    className: 'dlr-badge-preview' },
-  stale:     { label: 'Stale',     className: 'dlr-badge-approved' },
-  enrolled:  { label: 'Enrolled',  className: 'dlr-badge-live' },
-  responded: { label: 'Responded', className: 'dlr-badge-sending' },
-  revived:   { label: 'Revived',   className: 'dlr-badge-sending' },
-  exhausted: { label: 'Exhausted', className: 'dlr-badge-live' },
-  opted_out: { label: 'Opted Out', className: 'dlr-badge-live' },
-  dead:      { label: 'Dead',      className: 'dlr-badge-preview' },
+  active:    { label: 'Active',    className: 'badge badge-ghost' },
+  stale:     { label: 'Stale',     className: 'badge badge-amber' },
+  enrolled:  { label: 'Enrolled',  className: 'badge badge-red' },
+  responded: { label: 'Responded', className: 'badge badge-green' },
+  revived:   { label: 'Revived',   className: 'badge badge-green' },
+  exhausted: { label: 'Exhausted', className: 'badge badge-red' },
+  opted_out: { label: 'Opted Out', className: 'badge badge-red' },
+  dead:      { label: 'Dead',      className: 'badge badge-ghost' },
 }
 
 const CONV_STATUS_BADGE: Record<string, { label: string; className: string }> = {
-  open:      { label: 'Open',      className: 'dlr-badge-sending' },
-  closed:    { label: 'Closed',    className: 'dlr-badge-preview' },
-  opted_out: { label: 'Opted Out', className: 'dlr-badge-live' },
+  open:      { label: 'Open',      className: 'badge badge-green' },
+  closed:    { label: 'Closed',    className: 'badge badge-ghost' },
+  opted_out: { label: 'Opted Out', className: 'badge badge-red' },
 }
 
 export default async function DealerConversationPage({
@@ -68,7 +68,7 @@ export default async function DealerConversationPage({
   const isClosed        = conversation.status === 'closed'
   const canReply        = isOpen && isHumanOwned
   const statusBadge = CONV_STATUS_BADGE[conversation.status] ?? CONV_STATUS_BADGE.open
-  const stateBadge = STATE_BADGE[lead.state] ?? { label: lead.state, className: 'dlr-badge-preview' }
+  const stateBadge = STATE_BADGE[lead.state] ?? { label: lead.state, className: 'badge badge-ghost' }
   const initials = `${lead.firstName[0] ?? ''}${lead.lastName?.[0] ?? ''}`.toUpperCase()
 
   const showTakeOverBanner = isOpen
@@ -140,9 +140,9 @@ export default async function DealerConversationPage({
               <span className="text-sm font-black text-white">
                 {lead.firstName} {lead.lastName}
               </span>
-              <span className={`dlr-badge ${statusBadge.className}`}>{statusBadge.label}</span>
+              <span className={statusBadge.className}>{statusBadge.label}</span>
               {conversation.messages.length === 0 && (
-                <span className="dlr-badge dlr-badge-live">New Lead</span>
+                <span className="badge badge-red">New Lead</span>
               )}
             </div>
             <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.55)' }}>
@@ -289,10 +289,10 @@ export default async function DealerConversationPage({
 
           {/* Lead status / priority */}
           <div className="p-5 space-y-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-            <p className="dlr-cmd-label" style={{ color: '#ff5252' }}>Lead Status</p>
+            <p className="eyebrow red">Lead Status</p>
             <div className="flex flex-wrap gap-2">
-              <span className={`dlr-badge ${stateBadge.className}`}>{stateBadge.label}</span>
-              <span className={`dlr-badge ${statusBadge.className}`}>{statusBadge.label}</span>
+              <span className={stateBadge.className}>{stateBadge.label}</span>
+              <span className={statusBadge.className}>{statusBadge.label}</span>
             </div>
             <PriorityRow priority={priority} />
           </div>
@@ -301,7 +301,7 @@ export default async function DealerConversationPage({
           <div className="p-5 flex items-center gap-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
             <LeadScoreDial score={leadScore} />
             <div className="flex-1 min-w-0">
-              <p className="dlr-cmd-label" style={{ color: '#ff5252' }}>Lead Score</p>
+              <p className="eyebrow red">Lead Score</p>
               <p className="text-2xl font-black text-white mt-1 leading-none">{leadScore}</p>
               <p className="text-[11px] mt-1" style={{ color: 'rgba(255,255,255,0.5)' }}>
                 {leadScore >= 75 ? 'Hot — prioritize outreach' :
@@ -314,7 +314,7 @@ export default async function DealerConversationPage({
           {/* Tags */}
           {tags.length > 0 && (
             <div className="p-5" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-              <p className="dlr-cmd-label" style={{ color: '#ff5252' }}>Tags</p>
+              <p className="eyebrow red">Tags</p>
               <div className="flex flex-wrap gap-1.5 mt-2">
                 {tags.map((t) => (
                   <span
@@ -336,7 +336,7 @@ export default async function DealerConversationPage({
 
           {/* Lead info */}
           <div className="p-5 space-y-3.5" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-            <p className="dlr-cmd-label" style={{ color: '#ff5252' }}>Lead Info</p>
+            <p className="eyebrow red">Lead Info</p>
             <DetailRow
               icon={<User size={13} />}
               label="Last Contact"
@@ -383,7 +383,7 @@ export default async function DealerConversationPage({
           {/* Vehicle interest */}
           {lead.vehicleOfInterest && (
             <div className="p-5" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-              <p className="dlr-cmd-label" style={{ color: '#ff5252' }}>Vehicle Interest</p>
+              <p className="eyebrow red">Vehicle Interest</p>
               <div
                 className="flex items-center gap-2 mt-2 rounded-lg p-3"
                 style={{
@@ -404,11 +404,11 @@ export default async function DealerConversationPage({
               opt-out are gated behind a real backend, so they render as
               "Coming soon" links that don't fake any API call. */}
           <div className="p-5">
-            <p className="dlr-cmd-label" style={{ color: '#ff5252' }}>Actions</p>
+            <p className="eyebrow red">Actions</p>
             <div className="mt-3 space-y-2">
               <ConfirmTelLink
                 phone={conversation.leadPhone}
-                className="dlr-btn-secondary w-full"
+                className="btn w-full"
                 style={{ height: 40, fontSize: 12, justifyContent: 'flex-start' }}
                 ariaLabel="Call lead"
                 title="Call lead"
@@ -496,7 +496,7 @@ function PriorityRow({ priority }: { priority: 'HOT' | 'WARM' | 'COLD' }) {
 
   return (
     <div className="flex items-center gap-2">
-      <span className="dlr-cmd-label" style={{ color: 'rgba(255,255,255,0.5)' }}>Priority</span>
+      <span className="eyebrow" style={{ color: 'rgba(255,255,255,0.5)' }}>Priority</span>
       <span
         className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-black uppercase tracking-widest"
         style={{

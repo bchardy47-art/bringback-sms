@@ -76,7 +76,7 @@ export function BillingPortalButton({
             type="button"
             onClick={openPortal}
             disabled={busy}
-            className="dlr-btn-secondary"
+            className="btn"
             style={{ height: 38, fontSize: 13 }}
           >
             <CreditCard size={14} />

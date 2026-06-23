@@ -148,7 +148,7 @@ export default async function DealerBatchReviewPage({ params }: RouteContext) {
             batch.status === 'paused') && (
             <a
               href={`/dealer/campaigns/${params.batchId}/report`}
-              className="dlr-btn-secondary"
+              className="btn"
               style={{ height: 32, padding: '0 12px', fontSize: 12, textDecoration: 'none' }}
             >
               {batch.status === 'completed' ? 'View Results' : 'View Status'} →
@@ -156,7 +156,7 @@ export default async function DealerBatchReviewPage({ params }: RouteContext) {
           )}
           <a
             href="/dealer/batches"
-            className="dlr-btn-secondary"
+            className="btn"
             style={{ height: 32, padding: '0 12px', fontSize: 12, textDecoration: 'none' }}
           >
             ← All Campaigns

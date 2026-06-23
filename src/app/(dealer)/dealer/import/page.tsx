@@ -29,7 +29,6 @@ import type { PilotPreviewMessage } from '@/lib/db/schema'
 import { FIRST_PILOT_CAP, type AgeBucket } from '@/lib/db/schema'
 import { DEALER_BUCKET_LABEL } from '@/lib/pilot/age-classification'
 import { computeBucketPlan } from '@/lib/pilot/bucket-plan'
-import { DlrHeroArt } from '@/components/dealer/DlrHeroArt'
 import { ShieldCheck, CheckCircle2, AlertTriangle, Upload } from 'lucide-react'
 
 // ── Style maps (duplicated from admin page for independence) ──────────────────
@@ -201,52 +200,37 @@ export default async function DealerImportPage({
 
 
   return (
-    <div className="dlr-app-bg min-h-full text-white">
+    <div style={{ color: 'var(--tx)', fontFamily: 'var(--f-body)' }}>
 
       {/* ── HERO ───────────────────────────────────────────────────── */}
-      <section
-        className="relative overflow-hidden"
-        style={{
-          minHeight: 240,
-          borderBottom: '1px solid rgba(255,27,27,0.28)',
-        }}
-      >
-        <DlrHeroArt intensity="high" showTruck />
-        <div className="relative z-10 px-4 md:px-8 lg:px-10 py-8 md:py-10">
-          <p className="dlr-cmd-label" style={{ color: '#ff5252' }}>Lead Operations</p>
-          <h1 className="dlr-headline mt-2" style={{ fontSize: 'clamp(32px, 4.6vw, 56px)' }}>
-            Upload Leads
-          </h1>
-          <p className="mt-4 max-w-2xl text-sm md:text-base leading-relaxed" style={{ color: 'rgba(255,255,255,0.7)' }}>
-            DLR uses the original inquiry date to group leads into safe follow-up
-            campaigns.{' '}
-            <span className="font-bold" style={{ color: '#ff5252' }}>
-              No messages are sent from this page.
-            </span>{' '}
+      <section className="page-hd" style={{ marginBottom: 'var(--gap)' }}>
+        <div className="page-hd-stage" aria-hidden="true">
+          <div className="page-hd-truck" />
+          <div className="page-hd-vig" />
+        </div>
+        <div className="page-hd-txt">
+          <span className="eyebrow red">Lead Operations</span>
+          <h1 className="page-title" style={{ marginTop: 6 }}>Upload Leads</h1>
+          <p style={{ marginTop: 12, maxWidth: 500, fontSize: 14, lineHeight: 1.55, color: 'var(--tx-mid)' }}>
+            DLR uses the original inquiry date to group leads into safe follow-up campaigns.{' '}
+            <strong style={{ color: 'var(--red-core)' }}>No messages are sent from this page.</strong>{' '}
             Leads are validated, grouped, and queued for your campaign review.
           </p>
         </div>
       </section>
 
       {/* ── Body ──────────────────────────────────────────────────── */}
-      <div className="px-4 md:px-8 lg:px-10 py-6 md:py-8 space-y-6">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--gap)' }}>
 
         {/* ── Review status card ─────────────────────────────────── */}
         <div
-          className="dlr-card overflow-hidden"
+          className="glass"
           style={{
+            overflow: 'hidden',
             ...(leadsReady
-              ? {
-                  borderColor: 'rgba(34,197,94,0.55)',
-                  boxShadow:
-                    '0 0 0 1px rgba(34,197,94,0.18), 0 0 30px rgba(34,197,94,0.22), var(--dlr-shadow-card)',
-                }
+              ? { borderColor: 'rgba(47,217,107,0.5)', boxShadow: '0 0 30px rgba(47,217,107,0.18)' }
               : importedCount > 0
-              ? {
-                  borderColor: 'rgba(255,27,27,0.55)',
-                  boxShadow:
-                    '0 0 0 1px rgba(255,27,27,0.18), 0 0 30px rgba(255,27,27,0.25), var(--dlr-shadow-card)',
-                }
+              ? { borderColor: 'var(--line-redS)', boxShadow: '0 0 30px rgba(255,42,42,0.18)' }
               : {}),
           }}
         >
@@ -271,7 +255,7 @@ export default async function DealerImportPage({
               {leadsReady ? <CheckCircle2 size={26} /> : <ShieldCheck size={26} />}
             </span>
             <div className="flex-1 min-w-0">
-              <p className="dlr-cmd-label" style={{ color: leadsReady ? '#4ade80' : '#ff5252' }}>
+              <p className="eyebrow" style={{ color: leadsReady ? 'var(--green)' : 'var(--red-core)' }}>
                 Review Status
               </p>
               <h2 className="text-white text-xl md:text-2xl font-black mt-1 leading-tight">
@@ -453,7 +437,7 @@ export default async function DealerImportPage({
             row. The button caps at FIRST_PILOT_CAP and only counts the
             cap-headroom toward the suggested count. */}
         {eligibleCount > 0 && selectedCount < FIRST_PILOT_CAP && (
-          <div className="dlr-card-red p-5">
+          <div className="glass" style={{ padding: 20 }}>
             <DealerSelectAllButton
               tenantId={tenantId}
               apiBase={apiBase}
@@ -465,7 +449,7 @@ export default async function DealerImportPage({
         )}
 
         {/* ── Step 1: Upload CSV ─────────────────────────────────── */}
-        <section className="dlr-card-red overflow-hidden">
+        <section className="glass" style={{ overflow: 'hidden' }}>
           <header
             className="px-5 py-4 flex items-center gap-3"
             style={{ borderBottom: '1px solid rgba(255,27,27,0.32)' }}
@@ -521,7 +505,7 @@ export default async function DealerImportPage({
 
         {/* ── Step 2: Review & select ────────────────────────────── */}
         {allLeads.length > 0 && (
-          <section className="dlr-card overflow-hidden">
+          <section className="glass" style={{ overflow: 'hidden' }}>
             <header
               className="px-5 py-4 flex flex-wrap items-center gap-3 justify-between"
               style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}
@@ -553,7 +537,7 @@ export default async function DealerImportPage({
                 <StatusFilterSelect tenantId={tenantId} statusFilter={statusFilter} />
                 <BulkClearButton tenantId={tenantId} blockedCount={blockedCount} apiBase={apiBase} />
                 {selectedCount > 0 && (
-                  <span className="dlr-badge dlr-badge-live">
+                  <span className="badge badge-red">
                     {selectedCount} selected
                     {bucketPlan.length > 1 ? ` across ${bucketPlan.length} groups` : ''}
                   </span>
@@ -807,7 +791,7 @@ export default async function DealerImportPage({
 
         {/* Dry-run */}
         {allLeads.length > 0 && (
-          <div className="dlr-card overflow-hidden">
+          <div className="glass" style={{ overflow: 'hidden' }}>
             <DryRunReportPanel tenantId={tenantId} apiBase={apiBase} title="Preview Report" />
           </div>
         )}
@@ -815,7 +799,8 @@ export default async function DealerImportPage({
         {/* ── Step 3: Create batch ───────────────────────────────── */}
         {allLeads.length > 0 && (
           <section
-            className={selectedCount > 0 ? 'dlr-card-red overflow-hidden' : 'dlr-card overflow-hidden'}
+            className="glass"
+            style={{ overflow: 'hidden' }}
           >
             <header
               className="px-5 py-4 flex items-center gap-3"
@@ -958,16 +943,18 @@ function AgeMetricCard({
     'none'
   return (
     <div
-      className="dlr-card px-3 py-3 text-center relative overflow-hidden"
+      className="glass flat"
       style={{
+        padding: '12px',
+        textAlign: 'center',
+        position: 'relative',
+        overflow: 'hidden',
         borderColor: accent ? `${color}66` : undefined,
-        boxShadow: accent ? `${glow}, var(--dlr-shadow-card)` : 'var(--dlr-shadow-card)',
+        boxShadow: accent ? glow : undefined,
       }}
     >
-      <p className="text-2xl font-black tabular-nums" style={{ color }}>
-        {value}
-      </p>
-      <p className="dlr-cmd-label mt-1 truncate" style={{ fontSize: 10 }}>
+      <p className="stat-num" style={{ color, fontSize: 26 }}>{value}</p>
+      <p className="eyebrow" style={{ marginTop: 4, fontSize: 10, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
         {label}
       </p>
     </div>
