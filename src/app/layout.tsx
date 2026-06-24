@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Inter, Barlow, Barlow_Condensed } from 'next/font/google'
+import { Analytics } from '@vercel/analytics/react'
 import { SessionProvider } from '@/components/SessionProvider'
 import './globals.css'
 
@@ -30,6 +31,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body className={`${inter.className} ${barlow.variable} ${barlowCondensed.variable}`}>
         <SessionProvider>{children}</SessionProvider>
+        <Analytics />
       </body>
     </html>
   )
