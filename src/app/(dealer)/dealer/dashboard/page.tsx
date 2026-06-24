@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { eq, ne, and, count, inArray, notInArray, or, isNull, isNotNull, desc } from 'drizzle-orm'
 import { getDealerSession } from '@/lib/dealer/dev-auth-bypass'
+import { trackEvent } from '@/lib/activity/track'
 import { db } from '@/lib/db'
 import {
   pilotBatches,
@@ -37,6 +38,8 @@ export default async function DealerDashboardPage() {
   const session = await getDealerSession()
   if (!session) redirect('/login')
   if (session.user.role !== 'dealer') redirect('/dashboard')
+
+  await trackEvent('dealer_dashboard_viewed', { actor: session.user, path: '/dealer/dashboard' })
 
   const tenantId = session.user.tenantId
 

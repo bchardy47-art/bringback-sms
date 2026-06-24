@@ -13,6 +13,7 @@ import { pilotBatches, pilotBatchLeads, leads, workflows } from '@/lib/db/schema
 import { eq, and } from 'drizzle-orm'
 import { redirect, notFound } from 'next/navigation'
 import { getDealerSession } from '@/lib/dealer/dev-auth-bypass'
+import { trackEvent } from '@/lib/activity/track'
 import type { PilotPreviewMessage } from '@/lib/db/schema'
 import { DealerBatchChecklist } from './DealerBatchChecklist'
 import { DEALER_BUCKET_LABEL } from '@/lib/pilot/age-classification'
@@ -43,6 +44,12 @@ export default async function DealerBatchReviewPage({ params }: RouteContext) {
   const session = await getDealerSession()
   if (!session) redirect('/login')
   if (session.user.role !== 'dealer') redirect('/dashboard')
+
+  await trackEvent('dealer_campaign_detail_viewed', {
+    actor: session.user,
+    path: `/dealer/batches/${params.batchId}`,
+    metadata: { batchId: params.batchId },
+  })
 
   const tenantId = session.user.tenantId
 
