@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { and, desc, eq, isNotNull } from 'drizzle-orm'
 import { User, Shield, CreditCard, Building2, Headphones, Rocket } from 'lucide-react'
 import { getDealerSession } from '@/lib/dealer/dev-auth-bypass'
+import { trackEvent } from '@/lib/activity/track'
 import { db } from '@/lib/db'
 import { users, tenants, dealerIntakes } from '@/lib/db/schema'
 import { DealerProfileEditForm } from '@/components/dealer/DealerProfileEditForm'
@@ -12,6 +13,8 @@ export default async function DealerSettingsPage() {
   const session = await getDealerSession()
   if (!session) redirect('/login?callbackUrl=/dealer/settings')
   if (session.user.role !== 'dealer') redirect('/settings')
+
+  await trackEvent('dealer_settings_viewed', { actor: session.user, path: '/dealer/settings' })
 
   // Tenant + user + dealership profile — all read in parallel
   const [[tenantRow], [userRow], profileIntake] = await Promise.all([

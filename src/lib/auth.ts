@@ -63,4 +63,32 @@ export const authOptions: NextAuthOptions = {
       return session
     },
   },
+  // First-party activity logging (best-effort; never blocks auth). No request
+  // scope in events, so skip header capture. trackEvent swallows all errors.
+  events: {
+    async signIn({ user }) {
+      const { trackEvent } = await import('@/lib/activity/track')
+      await trackEvent('login_success', {
+        actor: {
+          id: (user as { id?: string }).id ?? null,
+          email: user.email ?? null,
+          role: (user as { role?: string }).role ?? null,
+          tenantId: (user as { tenantId?: string }).tenantId ?? null,
+        },
+        skipHeaders: true,
+      })
+    },
+    async signOut({ token }) {
+      const { trackEvent } = await import('@/lib/activity/track')
+      await trackEvent('logout_clicked', {
+        actor: {
+          id: (token?.id as string) ?? null,
+          email: (token?.email as string) ?? null,
+          role: (token?.role as string) ?? null,
+          tenantId: (token?.tenantId as string) ?? null,
+        },
+        skipHeaders: true,
+      })
+    },
+  },
 }

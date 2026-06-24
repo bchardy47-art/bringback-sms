@@ -8,6 +8,7 @@
 import { redirect } from 'next/navigation'
 import { desc, inArray } from 'drizzle-orm'
 import { getDealerSession } from '@/lib/dealer/dev-auth-bypass'
+import { trackEvent } from '@/lib/activity/track'
 import { db } from '@/lib/db'
 import { pilotBatches, workflows } from '@/lib/db/schema'
 import { DlrHeroArt } from '@/components/dealer/DlrHeroArt'
@@ -99,6 +100,8 @@ export default async function DealerBatchesPage() {
   const session = await getDealerSession()
   if (!session) redirect('/login')
   if (session.user.role !== 'dealer') redirect('/dashboard')
+
+  await trackEvent('dealer_campaigns_viewed', { actor: session.user, path: '/dealer/batches' })
 
   const tenantId = session.user.tenantId
 

@@ -1334,3 +1334,29 @@ export const passwordResetTokens = pgTable('password_reset_tokens', {
   usedAt:    timestamp('used_at',    { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 })
+
+// ── First-party admin activity log ──────────────────────────────────────────
+// Append-only event stream for the internal /admin/activity page. No paid
+// analytics. PRIVACY: never store raw IPs (hashed only), never store SMS bodies
+// or lead phone numbers. Columns are intentionally denormalised (actor/tenant
+// snapshotted) so the log survives user/tenant deletion. No FKs for the same
+// reason. Writes are best-effort and must never block a page or the auth flow.
+export const activityEvents = pgTable('activity_events', {
+  id:          uuid('id').primaryKey().defaultRandom(),
+  createdAt:   timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  actorUserId: uuid('actor_user_id'),          // nullable; no FK (append-only)
+  actorEmail:  text('actor_email'),
+  actorRole:   text('actor_role'),
+  tenantId:    uuid('tenant_id'),
+  tenantName:  text('tenant_name'),
+  eventType:   text('event_type').notNull(),
+  path:        text('path'),
+  method:      text('method'),
+  userAgent:   text('user_agent'),
+  ipHash:      text('ip_hash'),                 // sha256(salt+ip), never the raw IP
+  metadata:    jsonb('metadata').$type<Record<string, unknown>>(),
+}, (t) => ({
+  createdIdx: index('activity_events_created_idx').on(t.createdAt),
+  typeIdx:    index('activity_events_type_idx').on(t.eventType),
+  tenantIdx:  index('activity_events_tenant_idx').on(t.tenantId),
+}))

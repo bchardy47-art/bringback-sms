@@ -13,6 +13,7 @@ import { pilotLeadImports, workflows, leads } from '@/lib/db/schema'
 import { eq, and, ne } from 'drizzle-orm'
 import { redirect } from 'next/navigation'
 import { getDealerSession } from '@/lib/dealer/dev-auth-bypass'
+import { trackEvent } from '@/lib/activity/track'
 import { DealerImportForm } from './DealerImportForm'
 import { DealerConsentGate } from './DealerConsentGate'
 import {
@@ -101,6 +102,8 @@ export default async function DealerImportPage({
   const session = await getDealerSession()
   if (!session) redirect('/login')
   if (session.user.role !== 'dealer') redirect('/dashboard')
+
+  await trackEvent('dealer_import_viewed', { actor: session.user, path: '/dealer/import' })
 
   const tenantId     = session.user.tenantId
   const statusFilter = searchParams.status ?? ''
