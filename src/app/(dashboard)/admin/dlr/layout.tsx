@@ -10,6 +10,7 @@ import { authOptions } from '@/lib/auth'
 // Health panel, per-intake checklist). They were removed from this top
 // nav so a new operator sees a 5-step workflow instead of 16 tabs.
 const NAV = [
+  { href: '/admin',                  label: 'Command Center' },
   { href: '/admin/dlr',              label: 'Platform' },
   // "Dealers" points at the tenant-centric view at /admin/dlr/dealers.
   // The intake-centric view (where operators generate new intake links)
@@ -20,6 +21,7 @@ const NAV = [
   { href: '/admin/dlr/pilot',        label: 'Pilot Batches' },
   { href: '/admin/dlr/live-pilot',   label: 'Send Pilot' },
   { href: '/admin/dlr/handoffs',     label: 'Handoffs' },
+  { href: '/admin/outreach',         label: 'Outreach' },
   { href: '/admin/dlr/messages',     label: 'Messages' },
   { href: '/admin/dlr/health',       label: 'System Health' },
   { href: '/admin/dlr/demo-leads',   label: 'Demo Requests' },

@@ -1360,3 +1360,139 @@ export const activityEvents = pgTable('activity_events', {
   typeIdx:    index('activity_events_type_idx').on(t.eventType),
   tenantIdx:  index('activity_events_tenant_idx').on(t.tenantId),
 }))
+
+// ── Dealer Outreach CRM (admin/Brian-only) ───────────────────────────────────
+// Researched dealership PROSPECTS Brian is trying to sign — NOT customers and
+// NOT lead/SMS data. Fully separate from the tenant-scoped messaging tables.
+// No FKs into tenants/leads: these are external prospects. The send log is
+// append-only. PRIVACY: never copy SMS bodies or lead phone numbers here.
+
+// Prospect lifecycle. Drives eligibility + the CRM table filters.
+//   new | ready | sent_intro | follow_up | replied | interested | demo_booked
+//   | not_interested | do_not_contact | bad_email | missing_contact | archived
+export const prospectStatusValues = [
+  'new', 'ready', 'sent_intro', 'follow_up', 'replied', 'interested',
+  'demo_booked', 'not_interested', 'do_not_contact', 'bad_email',
+  'missing_contact', 'archived',
+] as const
+export type ProspectStatus = (typeof prospectStatusValues)[number]
+
+export const dealerProspects = pgTable('dealer_prospects', {
+  id:                  uuid('id').primaryKey().defaultRandom(),
+  createdAt:           timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt:           timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  dealershipName:      text('dealership_name').notNull(),
+  city:                text('city'),
+  state:               text('state'),
+  website:             text('website'),
+  mainPhone:           text('main_phone'),
+  publicEmail:         text('public_email'),
+  contactFormUrl:      text('contact_form_url'),
+  bestContactName:     text('best_contact_name'),
+  bestContactTitle:    text('best_contact_title'),
+  sourceUrl:           text('source_url'),
+  sourceNotes:         text('source_notes'),
+  fitNotes:            text('fit_notes'),
+  priority:            text('priority').default('B').notNull(),   // A | B | C
+  personalizationLine: text('personalization_line'),
+  status:              text('status').$type<ProspectStatus>().default('new').notNull(),
+  lastContactedAt:     timestamp('last_contacted_at',  { withTimezone: true }),
+  nextEligibleAt:      timestamp('next_eligible_at',   { withTimezone: true }),
+  doNotContactAt:      timestamp('do_not_contact_at',  { withTimezone: true }),
+  doNotContactReason:  text('do_not_contact_reason'),
+  archivedAt:          timestamp('archived_at',        { withTimezone: true }),
+  createdByUserId:     uuid('created_by_user_id'),
+  createdByEmail:      text('created_by_email'),
+  metadata:            jsonb('metadata').$type<Record<string, unknown>>(),
+}, (t) => ({
+  createdIdx:      index('dealer_prospects_created_idx').on(t.createdAt),
+  statusIdx:       index('dealer_prospects_status_idx').on(t.status),
+  priorityIdx:     index('dealer_prospects_priority_idx').on(t.priority),
+  publicEmailIdx:  index('dealer_prospects_public_email_idx').on(t.publicEmail),
+  websiteIdx:      index('dealer_prospects_website_idx').on(t.website),
+  nextEligibleIdx: index('dealer_prospects_next_eligible_idx').on(t.nextEligibleAt),
+}))
+
+export const outreachTemplates = pgTable('outreach_templates', {
+  id:            uuid('id').primaryKey().defaultRandom(),
+  createdAt:     timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt:     timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  key:           text('key').notNull().unique(),
+  name:          text('name').notNull(),
+  description:   text('description'),
+  subject:       text('subject').notNull(),
+  previewText:   text('preview_text'),
+  bodyText:      text('body_text').notNull(),
+  bodyHtml:      text('body_html'),
+  isActive:      boolean('is_active').default(true).notNull(),
+  createdByEmail: text('created_by_email'),
+  metadata:      jsonb('metadata').$type<Record<string, unknown>>(),
+})
+
+// Append-only send log. status: test_sent | sent | failed | skipped | dry_run
+export const outreachSends = pgTable('outreach_sends', {
+  id:                  uuid('id').primaryKey().defaultRandom(),
+  createdAt:           timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  prospectId:          uuid('prospect_id').notNull(),  // no FK — log survives deletes
+  templateId:          uuid('template_id'),
+  sentByUserId:        uuid('sent_by_user_id'),
+  sentByEmail:         text('sent_by_email'),
+  toEmail:             text('to_email').notNull(),
+  fromEmail:           text('from_email'),
+  subject:             text('subject').notNull(),
+  status:              text('status').notNull(),
+  provider:            text('provider'),
+  providerMessageId:   text('provider_message_id'),
+  failureReason:       text('failure_reason'),
+  skipReason:          text('skip_reason'),
+  isTest:              boolean('is_test').default(false).notNull(),
+  cooldownWindowStart: timestamp('cooldown_window_start', { withTimezone: true }),
+  cooldownWindowEnd:   timestamp('cooldown_window_end',   { withTimezone: true }),
+  metadata:            jsonb('metadata').$type<Record<string, unknown>>(),
+}, (t) => ({
+  createdIdx:  index('outreach_sends_created_idx').on(t.createdAt),
+  prospectIdx: index('outreach_sends_prospect_idx').on(t.prospectId),
+  toEmailIdx:  index('outreach_sends_to_email_idx').on(t.toEmail),
+  statusIdx:   index('outreach_sends_status_idx').on(t.status),
+}))
+
+export const outreachNotes = pgTable('outreach_notes', {
+  id:           uuid('id').primaryKey().defaultRandom(),
+  prospectId:   uuid('prospect_id').notNull(),
+  createdAt:    timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt:    timestamp('updated_at', { withTimezone: true }),
+  authorUserId: uuid('author_user_id'),
+  authorEmail:  text('author_email'),
+  body:         text('body').notNull(),
+}, (t) => ({
+  prospectIdx: index('outreach_notes_prospect_idx').on(t.prospectId),
+}))
+
+export const outreachSuppressions = pgTable('outreach_suppressions', {
+  id:            uuid('id').primaryKey().defaultRandom(),
+  createdAt:     timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  email:         text('email'),
+  domain:        text('domain'),
+  dealershipName: text('dealership_name'),
+  reason:        text('reason'),
+  source:        text('source'),
+  createdByEmail: text('created_by_email'),
+}, (t) => ({
+  emailIdx:  index('outreach_suppressions_email_idx').on(t.email),
+  domainIdx: index('outreach_suppressions_domain_idx').on(t.domain),
+}))
+
+// ── Per-tenant admin notes (dealer command center) ───────────────────────────
+// Internal notes admins keep on a dealership. No FK so notes survive teardown.
+// PRIVACY: never auto-capture SMS bodies or lead phone numbers.
+export const adminNotes = pgTable('admin_notes', {
+  id:           uuid('id').primaryKey().defaultRandom(),
+  tenantId:     uuid('tenant_id').notNull(),
+  createdAt:    timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt:    timestamp('updated_at', { withTimezone: true }),
+  authorUserId: uuid('author_user_id'),
+  authorEmail:  text('author_email'),
+  body:         text('body').notNull(),
+}, (t) => ({
+  tenantIdx: index('admin_notes_tenant_idx').on(t.tenantId),
+}))

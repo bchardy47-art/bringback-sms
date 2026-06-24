@@ -25,6 +25,18 @@ const EVENT_LABELS: Record<string, string> = {
   dealer_campaign_detail_viewed: 'Campaign detail',
   dealer_settings_viewed: 'Settings view',
   admin_activity_viewed: 'Admin activity view',
+  admin_command_center_viewed: 'Command center view',
+  admin_dealer_detail_viewed: 'Dealer detail view',
+  admin_outreach_viewed: 'Outreach view',
+  outreach_prospect_imported: 'Prospects imported',
+  outreach_template_previewed: 'Outreach preview',
+  outreach_test_email_sent: 'Outreach test sent',
+  outreach_monthly_invite_sent: 'Demo invite sent',
+  outreach_monthly_invite_skipped: 'Demo invite skipped',
+  outreach_batch_send_started: 'Outreach batch started',
+  outreach_batch_send_completed: 'Outreach batch completed',
+  outreach_prospect_marked_dnc: 'Prospect marked DNC',
+  outreach_prospect_status_changed: 'Prospect status changed',
 }
 const labelFor = (t: string) => EVENT_LABELS[t] ?? t
 
