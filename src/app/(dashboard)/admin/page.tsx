@@ -67,7 +67,7 @@ export default async function AdminCommandCenter() {
         <div>
           <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">BCHardy LLC · DLR Operations</p>
           <h1 className="text-2xl font-bold text-gray-900 mt-0.5">DLR Admin Command Center</h1>
-          <p className="text-sm text-gray-500 mt-1">Run dealer onboarding, pilots, outreach, and system checks from one place.</p>
+          <p className="text-sm text-gray-500 mt-1">Your daily queue for dealers, campaigns, outreach, messages, and system checks.</p>
           <p className="text-xs text-gray-400 mt-1">Signed in as {user.email}</p>
         </div>
       </div>
@@ -80,6 +80,18 @@ export default async function AdminCommandCenter() {
         <QuickButton href="/admin/activity" label="Activity" />
         <QuickButton href="/admin/dlr/health" label="System Health" />
       </div>
+
+      {/* Setup Pipeline pointer — onboarding lives on the older /admin/dlr view */}
+      <Link
+        href="/admin/dlr"
+        className="flex items-center justify-between gap-4 bg-white rounded-xl border border-gray-200 px-5 py-3.5 hover:border-gray-300 hover:shadow-sm transition-all"
+      >
+        <div>
+          <p className="text-sm font-semibold text-gray-900">Setup Pipeline →</p>
+          <p className="text-xs text-gray-500 mt-0.5">Dealer onboarding, intakes, 10DLC, numbers, and pilot setup.</p>
+        </div>
+        <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap">Onboarding</span>
+      </Link>
 
       {/* Needs Brian queue */}
       <section>
@@ -198,9 +210,9 @@ export default async function AdminCommandCenter() {
             <Link href="/admin/dlr/health" className="text-xs text-red-600 hover:underline">Health →</Link>
           </div>
           <div className="space-y-1.5">
-            <StatusRow label="SMS_LIVE_MODE" ok={cc.system.smsLiveMode} yes="live" no="off" />
-            <StatusRow label="DRY_RUN" ok={!cc.system.dryRun} yes="off" no="on — suppressed" />
-            <StatusRow label="OUTREACH_SEND_ENABLED" ok={cc.system.outreachSendEnabled} yes="armed" no="dry-run" />
+            <StatusRow label="Live texting" ok={cc.system.smsLiveMode} yes="on" no="test mode" />
+            <StatusRow label="Message sending" ok={!cc.system.dryRun} yes="enabled" no="suppressed (test)" />
+            <StatusRow label="Outreach emails" ok={cc.system.outreachSendEnabled} yes="live sending armed" no="test mode — emails off" />
           </div>
           <dl className="space-y-1.5 text-sm mt-3 pt-3 border-t border-gray-100">
             <SnapRow label="Failed sends (24h)" value={cc.system.failedSends24h} highlight={cc.system.failedSends24h > 0} warn />
@@ -242,7 +254,7 @@ function SnapRow({ label, value, highlight, warn }: { label: string; value: numb
 function StatusRow({ label, ok, yes, no }: { label: string; ok: boolean; yes: string; no: string }) {
   return (
     <div className="flex items-center justify-between">
-      <span className="text-xs text-gray-600 font-mono">{label}</span>
+      <span className="text-xs text-gray-600">{label}</span>
       <span className={`flex items-center gap-1.5 text-xs font-semibold ${ok ? 'text-green-600' : 'text-amber-600'}`}>
         <span className={`w-1.5 h-1.5 rounded-full ${ok ? 'bg-green-500' : 'bg-amber-500'}`} />
         {ok ? yes : no}

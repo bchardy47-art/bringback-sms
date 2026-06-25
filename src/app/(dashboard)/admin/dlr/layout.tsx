@@ -3,28 +3,27 @@ import { getServerSession } from 'next-auth'
 import { redirect } from 'next/navigation'
 import { authOptions } from '@/lib/auth'
 
-// Primary admin nav. Kept intentionally short and operator-facing — the
-// "developer/debug" surfaces (production, readiness, go-no-go, pre-live,
-// first-pilot, pilot-pack, suppression, workflows) still exist as routes
-// on disk and are linked from /admin/dlr itself (Today's Tasks, System
-// Health panel, per-intake checklist). They were removed from this top
-// nav so a new operator sees a 5-step workflow instead of 16 tabs.
+// Secondary "Setup Pipeline" toolbar. The primary daily admin nav (Command
+// Center / Dealers / Campaigns / Outreach / Messages / System) now lives in
+// the parent /admin layout and appears on every page. This toolbar is the
+// occasional-use, advanced setup/operations surface — onboarding, carrier
+// readiness, live-send controls — and only renders inside /admin/dlr/**.
+//
+// Items duplicated in the primary nav (Command Center, Dealers, Outreach,
+// Messages, System Health) were removed here. Nothing is orphaned: the
+// advanced routes that were previously only linked inline are now reachable
+// from this toolbar.
 const NAV = [
-  { href: '/admin',                  label: 'Command Center' },
-  { href: '/admin/dlr',              label: 'Platform' },
-  // "Dealers" points at the tenant-centric view at /admin/dlr/dealers.
-  // The intake-centric view (where operators generate new intake links)
-  // is still reachable from the dealers page footer + from per-tenant
-  // rows ("Open command center" → /admin/dlr/intakes/<id>).
-  { href: '/admin/dlr/dealers',      label: 'Dealers' },
+  { href: '/admin/dlr',              label: 'Setup Home' },
+  { href: '/admin/dlr/intakes',      label: 'Intakes' },
   { href: '/admin/dlr/pilot-leads',  label: 'Lead Review' },
-  { href: '/admin/dlr/pilot',        label: 'Pilot Batches' },
   { href: '/admin/dlr/live-pilot',   label: 'Send Pilot' },
+  { href: '/admin/dlr/readiness',    label: 'Readiness' },
+  { href: '/admin/dlr/production',   label: 'Production' },
+  { href: '/admin/dlr/workflows',    label: 'Workflows' },
   { href: '/admin/dlr/handoffs',     label: 'Handoffs' },
-  { href: '/admin/outreach',         label: 'Outreach' },
-  { href: '/admin/dlr/messages',     label: 'Messages' },
-  { href: '/admin/dlr/health',       label: 'System Health' },
   { href: '/admin/dlr/demo-leads',   label: 'Demo Requests' },
+  { href: '/admin/dlr/suppression',  label: 'Suppression' },
 ]
 
 export default async function DlrAdminLayout({
@@ -46,7 +45,7 @@ export default async function DlrAdminLayout({
       <div className="bg-white border-b border-gray-200 px-4 md:px-8">
         <div className="flex items-center gap-0.5 md:gap-1 py-2 overflow-x-auto">
           <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider mr-2 md:mr-3 whitespace-nowrap">
-            DLR Admin
+            Setup Pipeline
           </span>
           {NAV.map(({ href, label }) => (
             <Link

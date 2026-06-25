@@ -118,14 +118,15 @@ export async function middleware(req: NextRequest) {
     if (pathname.startsWith('/admin') && token.role !== 'admin') {
       return applyAuthedNoCache(NextResponse.redirect(new URL('/dashboard', req.url)))
     }
-    // Platform admins should land in the admin console, not the dealer-style
-    // /dashboard tenant overview. Managers and agents continue to use
+    // Platform admins should land on the Command Center (their daily queue),
+    // not the dealer-style /dashboard tenant overview and not the Setup
+    // Pipeline view at /admin/dlr. Managers and agents continue to use
     // /dashboard exactly as before.
     if (
       (pathname === '/dashboard' || pathname.startsWith('/dashboard/')) &&
       token.role === 'admin'
     ) {
-      return NextResponse.redirect(new URL('/admin/dlr', req.url))
+      return NextResponse.redirect(new URL('/admin', req.url))
     }
   }
 

@@ -29,8 +29,8 @@ export function SidebarTenantLabel({ tenantName, role }: Props) {
     role === 'admin' &&
     (pathname === '/admin' || pathname.startsWith('/admin/'))
 
-  const title    = isPlatformAdmin ? 'DLR Platform Admin'                 : tenantName
-  const subtitle = isPlatformAdmin ? 'BCHardy LLC · Platform Operations'  : 'Dead Lead Revival'
+  const title    = isPlatformAdmin ? 'DLR Admin'                          : tenantName
+  const subtitle = isPlatformAdmin ? 'Command Center · BCHardy LLC'       : 'Dead Lead Revival'
 
   return (
     <>
