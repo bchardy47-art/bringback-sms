@@ -1,3 +1,5 @@
+import { BookDemoForm } from './book-demo/BookDemoForm'
+
 export const metadata = {
   title: 'DLR — Dead Lead Revival',
   description:
@@ -206,6 +208,60 @@ const trustFootnote: React.CSSProperties = {
   marginBottom: 0,
 }
 
+// ── Contact / Book-demo section (black + red, matches the DLR brand) ─────────
+const contactSection: React.CSSProperties = {
+  background: '#06060a',
+  backgroundImage: 'radial-gradient(circle at 50% 0%, rgba(255,42,42,0.12), transparent 60%)',
+  borderTop: '1px solid rgba(255,42,42,0.35)',
+  padding: '64px 0 72px',
+}
+
+const contactInner: React.CSSProperties = {
+  maxWidth: 760,
+  margin: '0 auto',
+  padding: '0 24px',
+  textAlign: 'center',
+}
+
+const contactEyebrow: React.CSSProperties = {
+  fontSize: 12,
+  fontWeight: 700,
+  letterSpacing: '0.22em',
+  textTransform: 'uppercase',
+  color: '#ff2a2a',
+  margin: '0 0 12px',
+}
+
+const contactH2: React.CSSProperties = {
+  fontSize: 32,
+  fontWeight: 800,
+  letterSpacing: '-0.01em',
+  lineHeight: 1.15,
+  color: '#ffffff',
+  margin: '0 0 14px',
+}
+
+const contactLead: React.CSSProperties = {
+  fontSize: 16,
+  lineHeight: 1.6,
+  color: '#a6a6b3',
+  maxWidth: 540,
+  margin: '0 auto 28px',
+}
+
+const contactCard: React.CSSProperties = {
+  maxWidth: 420,
+  margin: '0 auto',
+  padding: '26px 26px 30px',
+  textAlign: 'left',
+}
+
+const contactAlt: React.CSSProperties = {
+  fontSize: 13,
+  color: '#6f6f7c',
+  margin: '22px 0 0',
+}
+
 const footer: React.CSSProperties = {
   borderTop: '1px solid #ececec',
   padding: '24px 0 40px',
@@ -342,6 +398,29 @@ export default function RootPage() {
           <p style={p}>
             Questions, setup help, or anything compliance-related:{' '}
             <a href="mailto:support@dlr-sms.com" style={link}>support@dlr-sms.com</a>
+          </p>
+        </div>
+      </section>
+
+      {/* ── Book a demo (contact anchor) ───────────────────────────────── */}
+      <section id="contact" style={contactSection}>
+        <div style={contactInner}>
+          <p style={contactEyebrow}>Dead Lead Revival</p>
+          <h2 style={contactH2}>
+            Book Your <span style={{ color: '#ff2a2a' }}>DLR Demo</span>
+          </h2>
+          <p style={contactLead}>
+            Your dealership already paid for the leads. See how DLR brings old, missed,
+            and inactive prospects back into real conversations. Takes less than 60 seconds.
+          </p>
+          <div className="glass" style={contactCard}>
+            <BookDemoForm />
+          </div>
+          <p style={contactAlt}>
+            Prefer email?{' '}
+            <a href="mailto:brian@dlr-sms.com" style={{ color: '#ff2a2a', textDecoration: 'none' }}>
+              brian@dlr-sms.com
+            </a>
           </p>
         </div>
       </section>
