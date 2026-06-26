@@ -24,7 +24,7 @@ const TEAM_NAV_ITEMS: NavItem[] = [
   { href: '/settings', label: 'Settings', icon: Settings },
 ]
 
-const ADMIN_NAV_ITEM: NavItem = { href: '/admin/dlr', label: 'Admin', icon: Shield }
+const ADMIN_NAV_ITEM: NavItem = { href: '/admin', label: 'Command Center', icon: Shield }
 
 interface SidebarNavProps {
   inboxCount?: number
@@ -33,14 +33,14 @@ interface SidebarNavProps {
 
 export function SidebarNav({ inboxCount = 0, role }: SidebarNavProps) {
   const pathname = usePathname()
-  // Admins land in /admin/dlr (middleware redirects /dashboard → /admin/dlr
-  // for them). Hide the dealer-style /dashboard item from the admin sidebar
-  // so it doesn't dangle as a dead/redirecting link; the "Admin" entry below
-  // already provides the right destination.
+  // Admins land on the Command Center (/admin). The dealer-style team items
+  // (Leads, Inbox, Workflows, Reports, Settings) point at the admin's own
+  // sandbox tenant and are noise for Brian's cross-tenant admin workflow, so
+  // the admin sidebar shows only the Command Center entry. Day-to-day admin
+  // navigation lives in the top admin nav (Dealers / Campaigns / Outreach /
+  // Messages / System). Managers and agents keep the full team nav.
   const items: NavItem[] =
-    role === 'admin'
-      ? [...TEAM_NAV_ITEMS.filter(i => i.href !== '/dashboard'), ADMIN_NAV_ITEM]
-      : TEAM_NAV_ITEMS
+    role === 'admin' ? [ADMIN_NAV_ITEM] : TEAM_NAV_ITEMS
 
   return (
     <nav className="px-3 py-5 space-y-0.5">

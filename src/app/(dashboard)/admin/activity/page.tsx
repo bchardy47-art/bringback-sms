@@ -13,6 +13,7 @@ import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { activityEvents } from '@/lib/db/schema'
 import { trackEvent } from '@/lib/activity/track'
+import { ActivityLiveControls } from './ActivityLiveControls'
 
 export const dynamic = 'force-dynamic'
 
@@ -40,7 +41,7 @@ const EVENT_LABELS: Record<string, string> = {
 }
 const labelFor = (t: string) => EVENT_LABELS[t] ?? t
 
-type SearchParams = { type?: string; tenant?: string; q?: string }
+type SearchParams = { type?: string; tenant?: string; q?: string; _t?: string }
 
 export default async function AdminActivityPage({
   searchParams,
@@ -51,7 +52,15 @@ export default async function AdminActivityPage({
   if (!session) redirect('/login?callbackUrl=/admin/activity')
   if (session.user.role !== 'admin') redirect('/dashboard')
 
-  await trackEvent('admin_activity_viewed', { actor: session.user, path: '/admin/activity' })
+  // `_t` is only set by the live auto/manual refresh. Skip the page-view ping
+  // on those background refreshes so the monitor isn't flooded with the
+  // admin's own "Admin activity view" events. Real loads/filter-applies (no
+  // `_t`) track exactly as before.
+  if (!searchParams._t) {
+    await trackEvent('admin_activity_viewed', { actor: session.user, path: '/admin/activity' })
+  }
+
+  const renderedAt = new Date().toISOString()
 
   const type = (searchParams.type ?? '').trim()
   const tenant = (searchParams.tenant ?? '').trim()
@@ -92,11 +101,14 @@ export default async function AdminActivityPage({
 
   return (
     <div className="p-6 md:p-8 max-w-[1200px] mx-auto">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Activity</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          First-party event log (read-only). Newest first · last 200 matching events.
-        </p>
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Activity</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            First-party event log (read-only). Newest first · last 200 matching events. Live · auto-refreshes every 30s.
+          </p>
+        </div>
+        <ActivityLiveControls renderedAt={renderedAt} />
       </div>
 
       {/* Summary cards */}

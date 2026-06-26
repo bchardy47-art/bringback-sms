@@ -11,9 +11,7 @@
  * Server-only. Call from server components / server actions / NextAuth events.
  */
 
-import 'server-only'
 import { createHash } from 'crypto'
-import { headers } from 'next/headers'
 import { eq } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { activityEvents, tenants } from '@/lib/db/schema'
@@ -89,6 +87,10 @@ export async function trackEvent(eventType: string, opts: TrackOptions = {}): Pr
     let ipHash: string | null = null
     if (!opts.skipHeaders) {
       try {
+        // Lazy import so non-Next runtimes (e.g. plain `tsx` CLI scripts) don't
+        // fail to load this module; outside a request scope this throws and is
+        // caught below, leaving userAgent/ipHash null.
+        const { headers } = await import('next/headers')
         const h = headers()
         userAgent = (h.get('user-agent') ?? '').slice(0, 300) || null
         const fwd = h.get('x-forwarded-for') ?? h.get('x-real-ip') ?? ''

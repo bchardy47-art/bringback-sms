@@ -62,16 +62,30 @@ export default async function DlrPlatformAdminPage() {
   return (
     <div className="px-4 md:px-8 py-6 space-y-6 max-w-7xl mx-auto">
 
+      {/* ── Setup Pipeline notice ──────────────────────────────────────── */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5">
+        <p className="text-sm text-amber-800">
+          <span className="font-semibold">Setup Pipeline View</span>
+          {' — '}daily operations live in the Command Center.
+        </p>
+        <Link
+          href="/admin"
+          className="text-xs font-semibold text-amber-900 hover:underline whitespace-nowrap"
+        >
+          ← Back to Command Center
+        </Link>
+      </div>
+
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <div>
         <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">
           BCHardy LLC · Platform Operations
         </p>
         <h1 className="text-2xl font-bold text-gray-900 mt-0.5">
-          DLR Platform Admin
+          DLR Setup Pipeline
         </h1>
         <p className="text-sm text-gray-500 mt-1">
-          Platform Control Center — dealerships, onboarding, 10DLC, numbers, and pilots.
+          Dealer onboarding, 10DLC, numbers, and pilot setup. For your daily queue, use the Command Center.
         </p>
       </div>
 

@@ -18,6 +18,7 @@ import {
 import { getAdminUser } from '@/lib/admin/access'
 import { trackEvent } from '@/lib/activity/track'
 import { addAdminNoteAction, pauseDealerAction, resumeDealerAction } from '../actions'
+import { ConfirmingForm } from '../../dlr/ConfirmingForm'
 
 export const dynamic = 'force-dynamic'
 
@@ -181,15 +182,21 @@ export default async function DealerDetailPage({ params }: { params: { tenantId:
               <Link href={`/admin/dlr/dealers`} className="block w-full text-center px-3 py-1.5 text-xs font-semibold text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50">Open in DLR dealers</Link>
               <Link href={`/admin/dlr/messages`} className="block w-full text-center px-3 py-1.5 text-xs font-semibold text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50">Messages / replies</Link>
               {tenant.automationPaused ? (
-                <form action={resumeDealerAction}>
+                <ConfirmingForm
+                  action={resumeDealerAction}
+                  confirmMessage={`Resume automation for ${tenant.name}? Automated follow-ups may continue according to current settings.`}
+                >
                   <input type="hidden" name="tenantId" value={tenant.id} />
                   <button type="submit" className="w-full px-3 py-1.5 text-xs font-semibold text-green-600 border border-green-200 rounded-lg hover:bg-green-50">Resume automation</button>
-                </form>
+                </ConfirmingForm>
               ) : (
-                <form action={pauseDealerAction}>
+                <ConfirmingForm
+                  action={pauseDealerAction}
+                  confirmMessage={`Pause automation for ${tenant.name}? Automated follow-ups will stop until you resume.`}
+                >
                   <input type="hidden" name="tenantId" value={tenant.id} />
                   <button type="submit" className="w-full px-3 py-1.5 text-xs font-semibold text-red-600 border border-red-200 rounded-lg hover:bg-red-50">Pause automation</button>
-                </form>
+                </ConfirmingForm>
               )}
             </div>
           </Card>

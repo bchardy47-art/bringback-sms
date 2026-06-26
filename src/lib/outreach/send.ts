@@ -14,13 +14,11 @@
  * status (sent | test_sent | dry_run | skipped | failed) and reason.
  */
 
-import 'server-only'
 import { and, desc, eq, gte, inArray, or } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { dealerProspects, outreachSends, outreachSuppressions } from '@/lib/db/schema'
 import { trackEvent } from '@/lib/activity/track'
-import { BRIAN_EMAIL } from '@/lib/admin/access'
-import { getTemplateByKey, renderTemplate } from './templates'
+import { getTemplateByKey, renderTemplate, hasBusinessAddress } from './templates'
 import { sendOutreachEmail, outreachFromEmail } from './email'
 import {
   cooldownStart,
@@ -30,6 +28,11 @@ import {
   normalizeEmail,
   sendEnabled,
 } from './eligibility'
+
+// Defined locally (previously imported from @/lib/admin/access) so this module —
+// and CLI scripts that import it — don't transitively pull server-only auth code.
+// Same value as admin/access.ts BRIAN_EMAIL; that file is left unchanged.
+const BRIAN_EMAIL = 'brian@dlr-sms.com'
 
 type Prospect = typeof dealerProspects.$inferSelect
 type Actor = { id: string; email: string }
@@ -187,6 +190,16 @@ export async function sendMonthlyInvite(
       metadata: { prospectId, templateKey: tpl.key, reason: 'send_disabled' },
     })
     return { ok: false, kind: 'dry_run', reason: 'send_disabled', detail: 'OUTREACH_SEND_ENABLED is not true — logged as dry_run.' }
+  }
+
+  // 3b. Compliance fail-safe — a real CAN-SPAM postal address is REQUIRED. If
+  // OUTREACH_BUSINESS_ADDRESS is unset/blank, refuse the live send (so the
+  // footer never ships a placeholder) and log it as skipped, not failed.
+  if (!hasBusinessAddress()) {
+    return skip(
+      prospect, tpl, actor, 'missing_business_address',
+      'OUTREACH_BUSINESS_ADDRESS is not set — live send blocked so no placeholder address ships.',
+    )
   }
 
   // 4. Send for real.

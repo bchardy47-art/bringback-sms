@@ -12,7 +12,6 @@
  * wire to a single recipient.
  */
 
-import 'server-only'
 import { Resend } from 'resend'
 
 export type OutreachEmailResult =
@@ -21,6 +20,16 @@ export type OutreachEmailResult =
 
 export function outreachFromEmail(): string | null {
   return process.env.EMAIL_FROM ?? null
+}
+
+/** Display name on outreach emails. Env-overridable via OUTREACH_FROM_NAME. */
+export function outreachFromName(): string {
+  return process.env.OUTREACH_FROM_NAME ?? 'Brian Hardy | Dead Lead Revival'
+}
+
+/** Reply-to for outreach emails. Env-overridable via OUTREACH_REPLY_TO. */
+export function outreachReplyTo(): string {
+  return process.env.OUTREACH_REPLY_TO ?? 'brian@dlr-sms.com'
 }
 
 export async function sendOutreachEmail(params: {
@@ -43,9 +52,9 @@ export async function sendOutreachEmail(params: {
   try {
     const resend = new Resend(apiKey)
     const { data, error } = await resend.emails.send({
-      from: `Brian — Dead Lead Revival <${emailFrom}>`,
+      from: `${outreachFromName()} <${emailFrom}>`,
       to: params.to,
-      replyTo: 'support@dlr-sms.com',
+      replyTo: outreachReplyTo(),
       subject: params.subject,
       text: params.text,
       html: params.html,

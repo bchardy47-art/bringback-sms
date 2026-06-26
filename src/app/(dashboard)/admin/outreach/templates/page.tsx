@@ -20,7 +20,7 @@ export default async function TemplatesPage() {
         <h1 className="text-2xl font-bold text-gray-900">Outreach templates</h1>
         <p className="text-sm text-gray-500 mt-1">
           Merge fields: <code>{'{{dealershipName}}'}</code>, <code>{'{{contactFirstNameOrTeam}}'}</code>, <code>{'{{personalizationLine}}'}</code>,
-          {' '}<code>{'{{ctaUrl}}'}</code>, <code>{'{{businessContactFooter}}'}</code>. Only the active &ldquo;What is DLR?&rdquo; template is wired to sending in V1.
+          {' '}<code>{'{{ctaUrl}}'}</code>, <code>{'{{businessContactFooter}}'}</code>. Templates marked <span className="font-semibold text-emerald-700">Active</span> are wired to sending.
         </p>
       </div>
 

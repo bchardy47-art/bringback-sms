@@ -71,8 +71,8 @@ export default async function OutreachDashboard({ searchParams }: { searchParams
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${sendEnabled() ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
-            {sendEnabled() ? 'Live sending armed' : 'Dry-run mode (OUTREACH_SEND_ENABLED ≠ true)'}
+          <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${sendEnabled() ? 'bg-red-600 text-white' : 'bg-amber-50 text-amber-700 ring-1 ring-amber-200'}`}>
+            {sendEnabled() ? 'Live sending armed' : 'Test mode — real dealer emails are off'}
           </span>
         </div>
       </div>

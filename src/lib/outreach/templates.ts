@@ -12,7 +12,6 @@
  * {{personalizationLine}}, {{businessContactFooter}}, {{ctaUrl}}.
  */
 
-import 'server-only'
 import { eq } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { outreachTemplates, dealerProspects } from '@/lib/db/schema'
@@ -37,6 +36,105 @@ export function ctaUrl(): string {
   return `${base.replace(/\/$/, '')}/book-demo`
 }
 
+/**
+ * Real physical business mailing address shown in the email footer, sourced from
+ * OUTREACH_BUSINESS_ADDRESS. CAN-SPAM requires a valid postal address in every
+ * marketing email. Returns null when unset/blank — callers MUST fail safe and
+ * block live sends (see send.ts) so a placeholder address never goes out.
+ */
+export function businessAddress(): string | null {
+  const v = process.env.OUTREACH_BUSINESS_ADDRESS?.trim()
+  return v ? v : null
+}
+
+/** True when a real footer address is configured. Required for live sends. */
+export function hasBusinessAddress(): boolean {
+  return businessAddress() !== null
+}
+
+// Branded, email-safe HTML for the "Red Revival" pilot invite. The approved DLR
+// hero image (hosted JPG over HTTPS) sits at the top, wrapped in a link to the
+// /book-demo page. Everything below it — intro copy, the "Book My Free Demo"
+// button, sign-off, and compliance footer — is real HTML text on a black
+// background (never an image-only email, no background images). Responsive via a
+// single media query. Merge fields: {{dealershipName}}, {{contactFirstNameOrTeam}},
+// {{businessAddress}}.
+const RED_REVIVAL_HTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="x-apple-disable-message-reformatting" />
+<meta name="color-scheme" content="dark light" />
+<meta name="supported-color-schemes" content="dark light" />
+<title>Dead Lead Revival</title>
+<style>
+  @media only screen and (max-width:600px){
+    .dlr-container{width:100% !important;}
+    .dlr-pad{padding-left:24px !important;padding-right:24px !important;}
+    .dlr-cta a{display:block !important;}
+  }
+</style>
+</head>
+<body style="margin:0;padding:0;background:#000000;background-color:#000000;-webkit-text-size-adjust:100%;">
+  <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;font-size:1px;line-height:1px;color:#000000;opacity:0;">DLR helps dealerships reconnect with old leads they already paid for.</div>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#000000" style="background-color:#000000;background-image:radial-gradient(circle at 50% 0%, #3a0a0a 0%, #000000 60%);">
+    <tr>
+      <td align="center" style="padding:24px 12px 34px;">
+        <table role="presentation" class="dlr-container" width="700" cellpadding="0" cellspacing="0" border="0" style="width:700px;max-width:700px;background-color:#0a0a0a;border:1px solid #ff2a2a;border-radius:16px;box-shadow:0 0 46px rgba(255,42,42,0.38);overflow:hidden;">
+
+          <tr>
+            <td align="center" style="padding:0;line-height:0;font-size:0;">
+              <a href="https://dlr-sms.com/book-demo" style="display:block;text-decoration:none;border:0;">
+                <img src="https://dlr-sms.com/email/dlr-pilot-hero-v1.jpg" width="700" alt="Ready to revive your dead leads? Book your free DLR demo." style="width:100%; max-width:700px; display:block; border:0;" />
+              </a>
+            </td>
+          </tr>
+
+          <tr>
+            <td class="dlr-pad" style="padding:30px 40px 6px;font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:1.65;color:#d6d6d6;">
+              <p style="margin:0 0 18px;">Hi {{contactFirstNameOrTeam}} &mdash; I'm <strong style="color:#ffffff;">Brian Hardy</strong>, local here in Utah. I'm opening a small free pilot for a few dealerships to see if DLR actually works in a real store. If you'd be open to a quick look, book a free demo below.</p>
+            </td>
+          </tr>
+
+          <tr>
+            <td class="dlr-pad" align="center" style="padding:10px 40px 6px;">
+              <table role="presentation" class="dlr-cta" cellpadding="0" cellspacing="0" border="0" align="center">
+                <tr>
+                  <td align="center" bgcolor="#ff2a2a" style="border-radius:12px;box-shadow:0 0 26px rgba(255,42,42,0.6);">
+                    <a href="https://dlr-sms.com/book-demo" style="display:inline-block;padding:17px 44px;font-family:Arial,Helvetica,sans-serif;font-size:17px;font-weight:bold;color:#ffffff;text-decoration:none;text-transform:uppercase;letter-spacing:0.5px;border-radius:12px;">&#9889; Book My Free Demo</a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr><td class="dlr-pad" align="center" style="padding:4px 40px 22px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#8a8a8a;">Or just reply to this email and we'll find a time.</td></tr>
+
+          <tr>
+            <td class="dlr-pad" style="padding:4px 40px 24px;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#d6d6d6;">
+              <p style="margin:0;">Talk soon,</p>
+              <p style="margin:4px 0 0;color:#ffffff;font-weight:bold;">Brian Hardy</p>
+              <p style="margin:2px 0 0;color:#9a9a9a;font-size:13px;">Dead Lead Revival &middot; <a href="mailto:brian@dlr-sms.com" style="color:#ff2a2a;text-decoration:none;">brian@dlr-sms.com</a></p>
+            </td>
+          </tr>
+
+          <tr>
+            <td class="dlr-pad" style="padding:18px 40px 26px;background-color:#050505;border-top:1px solid #1f1f1f;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.6;color:#6b6b6b;">
+              <p style="margin:0 0 8px;">You're receiving this one-time invitation because {{dealershipName}} is an independent dealership that may be a fit for DLR. This is a personal outreach email, not a subscription.</p>
+              <p style="margin:0 0 8px;"><strong style="color:#9a9a9a;">Not interested?</strong> Just reply &ldquo;no&rdquo; and I won't follow up &mdash; or <a href="mailto:brian@dlr-sms.com?subject=Unsubscribe" style="color:#9a9a9a;text-decoration:underline;">unsubscribe here</a>. You won't hear from me again.</p>
+              <p style="margin:0;color:#5a5a5a;">DLR by BCHardy LLC &middot; {{businessAddress}} &middot; <a href="mailto:support@dlr-sms.com" style="color:#6b6b6b;">support@dlr-sms.com</a></p>
+            </td>
+          </tr>
+        </table>
+        <table role="presentation" class="dlr-container" width="700" cellpadding="0" cellspacing="0" border="0" style="width:700px;max-width:700px;">
+          <tr><td align="center" style="padding:16px 20px 0;font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#4a4a4a;">&copy; BCHardy LLC &middot; Saratoga Springs, Utah</td></tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`
+
 export type DefaultTemplate = {
   key: string
   name: string
@@ -46,9 +144,49 @@ export type DefaultTemplate = {
   bodyText: string
   /** When false, seeded but not offered for real sending (preview-only). */
   isActive: boolean
+  /**
+   * Optional custom email-safe HTML. When present it's stored on the row and
+   * used verbatim (after merge-field substitution) instead of the generated
+   * default HTML. Must be table-based + inline-styled for email clients.
+   */
+  bodyHtml?: string | null
 }
 
 export const DEFAULT_TEMPLATES: DefaultTemplate[] = [
+  {
+    key: 'dlr_pilot_invite_v1_red_revival',
+    name: 'DLR Pilot Invite v1 - Red Revival',
+    description:
+      'Branded black/red pilot invite. Approved DLR hero image (hosted JPG) at the top linked to ' +
+      '/book-demo, real HTML intro + "Book My Free Demo" button + compliance footer. CTA: dlr-sms.com/book-demo. Active.',
+    subject: '{{dealershipName}} — want to test DLR free for 30 days?',
+    previewText: 'DLR helps dealerships reconnect with old leads they already paid for.',
+    isActive: true,
+    bodyText: [
+      'Ready to revive your dead leads? Book your free DLR demo:',
+      'https://dlr-sms.com/book-demo',
+      '',
+      "Hi {{contactFirstNameOrTeam}} — I'm Brian Hardy, local here in Utah. I'm opening a",
+      'small free pilot for a few dealerships to see if DLR actually works in a real',
+      "store. If you'd be open to a quick look, book a free demo below.",
+      '',
+      '⚡ Book My Free Demo:',
+      'https://dlr-sms.com/book-demo',
+      '',
+      "Or just reply to this email and we'll find a time.",
+      '',
+      'Talk soon,',
+      'Brian Hardy',
+      'Dead Lead Revival · brian@dlr-sms.com',
+      '',
+      '—',
+      "You're receiving this one-time invitation because {{dealershipName}} is an independent",
+      'dealership that may be a fit for DLR. This is a personal outreach email, not a subscription.',
+      'Not interested? Reply "no" and I won\'t follow up — or email brian@dlr-sms.com with "unsubscribe". You won\'t hear from me again.',
+      'DLR by BCHardy LLC · {{businessAddress}} · support@dlr-sms.com',
+    ].join('\n'),
+    bodyHtml: RED_REVIVAL_HTML,
+  },
   {
     key: 'what_is_dlr',
     name: 'What is DLR?',
@@ -143,6 +281,7 @@ export type RenderVars = {
   contactFirstNameOrTeam: string
   personalizationLine: string
   businessContactFooter: string
+  businessAddress: string
   ctaUrl: string
 }
 
@@ -152,6 +291,7 @@ export function buildRenderVars(p: Prospect): RenderVars {
     contactFirstNameOrTeam: firstNameOrTeam(p),
     personalizationLine: (p.personalizationLine ?? '').trim(),
     businessContactFooter: BUSINESS_CONTACT_FOOTER,
+    businessAddress: businessAddress() ?? '',
     ctaUrl: ctaUrl(),
   }
 }
@@ -162,6 +302,7 @@ function applyVars(str: string, vars: RenderVars): string {
     .replace(/\{\{\s*contactFirstNameOrTeam\s*\}\}/g, vars.contactFirstNameOrTeam)
     .replace(/\{\{\s*personalizationLine\s*\}\}/g, vars.personalizationLine)
     .replace(/\{\{\s*businessContactFooter\s*\}\}/g, vars.businessContactFooter)
+    .replace(/\{\{\s*businessAddress\s*\}\}/g, vars.businessAddress)
     .replace(/\{\{\s*ctaUrl\s*\}\}/g, vars.ctaUrl)
 }
 
@@ -250,7 +391,7 @@ export async function ensureDefaultTemplates(): Promise<void> {
         subject: t.subject,
         previewText: t.previewText,
         bodyText: t.bodyText,
-        bodyHtml: null,
+        bodyHtml: t.bodyHtml ?? null,
         isActive: t.isActive,
         createdByEmail: 'system',
       })),
