@@ -86,14 +86,14 @@ const RED_REVIVAL_HTML = `<!DOCTYPE html>
           <tr>
             <td align="center" style="padding:0;line-height:0;font-size:0;">
               <a href="https://dlr-sms.com/book-demo" style="display:block;text-decoration:none;border:0;">
-                <img src="https://dlr-sms.com/email/dlr-pilot-hero-v1.jpg" width="700" alt="Ready to revive your dead leads? Book your free DLR demo." style="width:100%; max-width:700px; display:block; border:0;" />
+                <img src="https://dlr-sms.com/email/dlr-free-pilot-email-v2.jpg" width="700" alt="Ready to revive your dead leads? Book your free DLR demo." style="width:100%; max-width:700px; display:block; border:0;" />
               </a>
             </td>
           </tr>
 
           <tr>
             <td class="dlr-pad" style="padding:30px 40px 6px;font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:1.65;color:#d6d6d6;">
-              <p style="margin:0 0 18px;">Hi {{contactFirstNameOrTeam}} &mdash; I'm <strong style="color:#ffffff;">Brian Hardy</strong>, local here in Utah. I'm opening a small free pilot for a few dealerships to see if DLR actually works in a real store. If you'd be open to a quick look, book a free demo below.</p>
+              <p style="margin:0 0 18px;">Hi there &mdash; I'm <strong style="color:#ffffff;">Brian Hardy</strong>, local here in Utah. I'm opening a small free pilot for a few dealerships to see if DLR can help bring dead CRM leads back to life. No new lead spend, no rip-and-replace. We reactivate the leads already sitting in your CRM &mdash; and you keep every appointment we surface. If it doesn't work, you've lost nothing.</p>
             </td>
           </tr>
 
@@ -122,7 +122,7 @@ const RED_REVIVAL_HTML = `<!DOCTYPE html>
             <td class="dlr-pad" style="padding:18px 40px 26px;background-color:#050505;border-top:1px solid #1f1f1f;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.6;color:#6b6b6b;">
               <p style="margin:0 0 8px;">You're receiving this one-time invitation because {{dealershipName}} is an independent dealership that may be a fit for DLR. This is a personal outreach email, not a subscription.</p>
               <p style="margin:0 0 8px;"><strong style="color:#9a9a9a;">Not interested?</strong> Just reply &ldquo;no&rdquo; and I won't follow up &mdash; or <a href="mailto:brian@dlr-sms.com?subject=Unsubscribe" style="color:#9a9a9a;text-decoration:underline;">unsubscribe here</a>. You won't hear from me again.</p>
-              <p style="margin:0;color:#5a5a5a;">DLR by BCHardy LLC &middot; {{businessAddress}} &middot; <a href="mailto:support@dlr-sms.com" style="color:#6b6b6b;">support@dlr-sms.com</a></p>
+              <p style="margin:0;color:#5a5a5a;">DLR by BCHardy LLC &middot; 1347 W Fort Rock Dr, Saratoga Springs, UT 84045 &middot; <a href="mailto:support@dlr-sms.com" style="color:#6b6b6b;">support@dlr-sms.com</a></p>
             </td>
           </tr>
         </table>
@@ -163,12 +163,11 @@ export const DEFAULT_TEMPLATES: DefaultTemplate[] = [
     previewText: 'DLR helps dealerships reconnect with old leads they already paid for.',
     isActive: true,
     bodyText: [
-      'Ready to revive your dead leads? Book your free DLR demo:',
-      'https://dlr-sms.com/book-demo',
-      '',
-      "Hi {{contactFirstNameOrTeam}} — I'm Brian Hardy, local here in Utah. I'm opening a",
-      'small free pilot for a few dealerships to see if DLR actually works in a real',
-      "store. If you'd be open to a quick look, book a free demo below.",
+      "Hi there — I'm Brian Hardy, local here in Utah. I'm opening a small free pilot",
+      'for a few dealerships to see if DLR can help bring dead CRM leads back to life.',
+      'No new lead spend, no rip-and-replace. We reactivate the leads already sitting',
+      "in your CRM — and you keep every appointment we surface. If it doesn't work,",
+      "you've lost nothing.",
       '',
       '⚡ Book My Free Demo:',
       'https://dlr-sms.com/book-demo',
@@ -183,7 +182,7 @@ export const DEFAULT_TEMPLATES: DefaultTemplate[] = [
       "You're receiving this one-time invitation because {{dealershipName}} is an independent",
       'dealership that may be a fit for DLR. This is a personal outreach email, not a subscription.',
       'Not interested? Reply "no" and I won\'t follow up — or email brian@dlr-sms.com with "unsubscribe". You won\'t hear from me again.',
-      'DLR by BCHardy LLC · {{businessAddress}} · support@dlr-sms.com',
+      'DLR by BCHardy LLC · 1347 W Fort Rock Dr, Saratoga Springs, UT 84045 · support@dlr-sms.com',
     ].join('\n'),
     bodyHtml: RED_REVIVAL_HTML,
   },
