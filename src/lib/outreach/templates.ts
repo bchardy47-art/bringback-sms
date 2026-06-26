@@ -52,13 +52,15 @@ export function hasBusinessAddress(): boolean {
   return businessAddress() !== null
 }
 
-// Branded, email-safe HTML for the "Red Revival" pilot invite. The approved DLR
-// hero image (hosted JPG over HTTPS) sits at the top, wrapped in a link to the
-// /book-demo page. Everything below it — intro copy, the "Book My Free Demo"
-// button, sign-off, and compliance footer — is real HTML text on a black
-// background (never an image-only email, no background images). Responsive via a
-// single media query. Merge fields: {{dealershipName}}, {{contactFirstNameOrTeam}},
-// {{businessAddress}}.
+// Branded, email-safe HTML for the "Red Revival" pilot invite. The finalized
+// free-pilot body image is the primary visual, fully wrapped in a link to the
+// /book-demo page. Everything below it is real HTML text so the email still
+// works if images are blocked.
+const RED_REVIVAL_SUBJECT = 'Want to try Dead Lead Revival for FREE for 30 Days?'
+const RED_REVIVAL_PREVIEW = 'Free 30-day DLR pilot — no new lead spend, no rip-and-replace.'
+const RED_REVIVAL_IMAGE_URL = 'https://dlr-sms.com/email/dlr-free-pilot-email-v2-hq.jpg'
+const RED_REVIVAL_CTA_URL = 'https://dlr-sms.com/book-demo'
+
 const RED_REVIVAL_HTML = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -77,57 +79,52 @@ const RED_REVIVAL_HTML = `<!DOCTYPE html>
 </style>
 </head>
 <body style="margin:0;padding:0;background:#000000;background-color:#000000;-webkit-text-size-adjust:100%;">
-  <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;font-size:1px;line-height:1px;color:#000000;opacity:0;">DLR helps dealerships reconnect with old leads they already paid for.</div>
+  <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;font-size:1px;line-height:1px;color:#000000;opacity:0;">${RED_REVIVAL_PREVIEW}</div>
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#000000" style="background-color:#000000;background-image:radial-gradient(circle at 50% 0%, #3a0a0a 0%, #000000 60%);">
     <tr>
       <td align="center" style="padding:24px 12px 34px;">
         <table role="presentation" class="dlr-container" width="700" cellpadding="0" cellspacing="0" border="0" style="width:700px;max-width:700px;background-color:#0a0a0a;border:1px solid #ff2a2a;border-radius:16px;box-shadow:0 0 46px rgba(255,42,42,0.38);overflow:hidden;">
-
           <tr>
             <td align="center" style="padding:0;line-height:0;font-size:0;">
-              <a href="https://dlr-sms.com/book-demo" style="display:block;text-decoration:none;border:0;">
-                <img src="https://dlr-sms.com/email/dlr-free-pilot-email-v2.jpg" width="700" alt="Ready to revive your dead leads? Book your free DLR demo." style="width:100%; max-width:700px; display:block; border:0;" />
+              <a href="${RED_REVIVAL_CTA_URL}" style="display:block;text-decoration:none;border:0;">
+                <img src="${RED_REVIVAL_IMAGE_URL}" width="700" alt="Dead Lead Revival free 30-day pilot — book your free demo." style="width:100%;max-width:700px;display:block;border:0;" />
               </a>
             </td>
           </tr>
 
           <tr>
-            <td class="dlr-pad" style="padding:30px 40px 6px;font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:1.65;color:#d6d6d6;">
-              <p style="margin:0 0 18px;">Hi there &mdash; I'm <strong style="color:#ffffff;">Brian Hardy</strong>, local here in Utah. I'm opening a small free pilot for a few dealerships to see if DLR can help bring dead CRM leads back to life. No new lead spend, no rip-and-replace. We reactivate the leads already sitting in your CRM &mdash; and you keep every appointment we surface. If it doesn't work, you've lost nothing.</p>
+            <td class="dlr-pad" style="padding:30px 40px 0;font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:1.7;color:#d6d6d6;">
+              <p style="margin:0 0 18px;">Hi there &mdash; I&rsquo;m Brian Hardy, local here in Utah. I&rsquo;m opening a small free pilot for a few dealerships to see if DLR can help bring dead CRM leads back to life.</p>
+              <p style="margin:0 0 18px;">No new lead spend, no rip-and-replace. We reactivate the leads already sitting in your CRM &mdash; and you keep every appointment we surface. If it doesn&rsquo;t work, you&rsquo;ve lost nothing.</p>
             </td>
           </tr>
 
           <tr>
-            <td class="dlr-pad" align="center" style="padding:10px 40px 6px;">
+            <td class="dlr-pad" align="center" style="padding:10px 40px 18px;">
               <table role="presentation" class="dlr-cta" cellpadding="0" cellspacing="0" border="0" align="center">
                 <tr>
                   <td align="center" bgcolor="#ff2a2a" style="border-radius:12px;box-shadow:0 0 26px rgba(255,42,42,0.6);">
-                    <a href="https://dlr-sms.com/book-demo" style="display:inline-block;padding:17px 44px;font-family:Arial,Helvetica,sans-serif;font-size:17px;font-weight:bold;color:#ffffff;text-decoration:none;text-transform:uppercase;letter-spacing:0.5px;border-radius:12px;">&#9889; Book My Free Demo</a>
+                    <a href="${RED_REVIVAL_CTA_URL}" style="display:inline-block;padding:17px 44px;font-family:Arial,Helvetica,sans-serif;font-size:17px;font-weight:bold;color:#ffffff;text-decoration:none;text-transform:uppercase;letter-spacing:0.5px;border-radius:12px;">&#9889; Book My Free Demo</a>
                   </td>
                 </tr>
               </table>
             </td>
           </tr>
-          <tr><td class="dlr-pad" align="center" style="padding:4px 40px 22px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#8a8a8a;">Or just reply to this email and we'll find a time.</td></tr>
 
           <tr>
-            <td class="dlr-pad" style="padding:4px 40px 24px;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#d6d6d6;">
-              <p style="margin:0;">Talk soon,</p>
+            <td class="dlr-pad" style="padding:0 40px 24px;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.65;color:#d6d6d6;">
+              <p style="margin:0;">All the best,</p>
               <p style="margin:4px 0 0;color:#ffffff;font-weight:bold;">Brian Hardy</p>
-              <p style="margin:2px 0 0;color:#9a9a9a;font-size:13px;">Dead Lead Revival &middot; <a href="mailto:brian@dlr-sms.com" style="color:#ff2a2a;text-decoration:none;">brian@dlr-sms.com</a></p>
+              <p style="margin:2px 0 0;color:#9a9a9a;font-size:13px;">Dead Lead Revival</p>
             </td>
           </tr>
 
           <tr>
-            <td class="dlr-pad" style="padding:18px 40px 26px;background-color:#050505;border-top:1px solid #1f1f1f;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.6;color:#6b6b6b;">
-              <p style="margin:0 0 8px;">You're receiving this one-time invitation because {{dealershipName}} is an independent dealership that may be a fit for DLR. This is a personal outreach email, not a subscription.</p>
-              <p style="margin:0 0 8px;"><strong style="color:#9a9a9a;">Not interested?</strong> Just reply &ldquo;no&rdquo; and I won't follow up &mdash; or <a href="mailto:brian@dlr-sms.com?subject=Unsubscribe" style="color:#9a9a9a;text-decoration:underline;">unsubscribe here</a>. You won't hear from me again.</p>
-              <p style="margin:0;color:#5a5a5a;">DLR by BCHardy LLC &middot; 1347 W Fort Rock Dr, Saratoga Springs, UT 84045 &middot; <a href="mailto:support@dlr-sms.com" style="color:#6b6b6b;">support@dlr-sms.com</a></p>
+            <td class="dlr-pad" style="padding:18px 40px 26px;background-color:#050505;border-top:1px solid #1f1f1f;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.7;color:#8f8f8f;">
+              <p style="margin:0 0 10px;">You&rsquo;re receiving this one-time invitation because your dealership may be a fit for a limited DLR pilot. No worries if this is not a fit &mdash; reply &ldquo;no&rdquo; and we will not follow up.</p>
+              <p style="margin:0;color:#6f6f6f;">1347 W Fort Rock Dr, Saratoga Springs, UT 84045</p>
             </td>
           </tr>
-        </table>
-        <table role="presentation" class="dlr-container" width="700" cellpadding="0" cellspacing="0" border="0" style="width:700px;max-width:700px;">
-          <tr><td align="center" style="padding:16px 20px 0;font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#4a4a4a;">&copy; BCHardy LLC &middot; Saratoga Springs, Utah</td></tr>
         </table>
       </td>
     </tr>
@@ -157,32 +154,26 @@ export const DEFAULT_TEMPLATES: DefaultTemplate[] = [
     key: 'dlr_pilot_invite_v1_red_revival',
     name: 'DLR Pilot Invite v1 - Red Revival',
     description:
-      'Branded black/red pilot invite. Approved DLR hero image (hosted JPG) at the top linked to ' +
-      '/book-demo, real HTML intro + "Book My Free Demo" button + compliance footer. CTA: dlr-sms.com/book-demo. Active.',
-    subject: '{{dealershipName}} — want to test DLR free for 30 days?',
-    previewText: 'DLR helps dealerships reconnect with old leads they already paid for.',
+      'Branded black/red pilot invite using the finalized free-pilot body image linked to ' +
+      '/book-demo, plus generic Utah-local copy, CTA button, and limited-pilot footer. Active.',
+    subject: RED_REVIVAL_SUBJECT,
+    previewText: RED_REVIVAL_PREVIEW,
     isActive: true,
     bodyText: [
-      "Hi there — I'm Brian Hardy, local here in Utah. I'm opening a small free pilot",
-      'for a few dealerships to see if DLR can help bring dead CRM leads back to life.',
-      'No new lead spend, no rip-and-replace. We reactivate the leads already sitting',
-      "in your CRM — and you keep every appointment we surface. If it doesn't work,",
-      "you've lost nothing.",
+      'Hi there — I’m Brian Hardy, local here in Utah. I’m opening a small free pilot for a few dealerships to see if DLR can help bring dead CRM leads back to life.',
       '',
-      '⚡ Book My Free Demo:',
+      'No new lead spend, no rip-and-replace. We reactivate the leads already sitting in your CRM — and you keep every appointment we surface. If it doesn’t work, you’ve lost nothing.',
+      '',
+      '⚡ Book My Free Demo',
       'https://dlr-sms.com/book-demo',
       '',
-      "Or just reply to this email and we'll find a time.",
-      '',
-      'Talk soon,',
+      'All the best,',
       'Brian Hardy',
-      'Dead Lead Revival · brian@dlr-sms.com',
+      'Dead Lead Revival',
       '',
-      '—',
-      "You're receiving this one-time invitation because {{dealershipName}} is an independent",
-      'dealership that may be a fit for DLR. This is a personal outreach email, not a subscription.',
-      'Not interested? Reply "no" and I won\'t follow up — or email brian@dlr-sms.com with "unsubscribe". You won\'t hear from me again.',
-      'DLR by BCHardy LLC · 1347 W Fort Rock Dr, Saratoga Springs, UT 84045 · support@dlr-sms.com',
+      'You’re receiving this one-time invitation because your dealership may be a fit for a limited DLR pilot. No worries if this is not a fit — reply “no” and we will not follow up.',
+      '',
+      '1347 W Fort Rock Dr, Saratoga Springs, UT 84045',
     ].join('\n'),
     bodyHtml: RED_REVIVAL_HTML,
   },
@@ -398,6 +389,48 @@ export async function ensureDefaultTemplates(): Promise<void> {
   } catch {
     // Best-effort seed — never block a page render if the table is missing.
   }
+}
+
+function getDefaultTemplateByKey(key: string): DefaultTemplate | undefined {
+  return DEFAULT_TEMPLATES.find(t => t.key === key)
+}
+
+/**
+ * Force-sync one default template row by key so code-approved copy replaces a
+ * stale DB row. Used by the CLI pilot script to guarantee test sends reflect
+ * the latest Red Revival content without changing admin/UI behavior broadly.
+ */
+export async function syncDefaultTemplateByKey(key: string): Promise<void> {
+  const tpl = getDefaultTemplateByKey(key)
+  if (!tpl) return
+
+  const values = {
+    name: tpl.name,
+    description: tpl.description,
+    subject: tpl.subject,
+    previewText: tpl.previewText,
+    bodyText: tpl.bodyText,
+    bodyHtml: tpl.bodyHtml ?? null,
+    isActive: tpl.isActive,
+    updatedAt: new Date(),
+  }
+
+  const existing = await db
+    .select({ id: outreachTemplates.id })
+    .from(outreachTemplates)
+    .where(eq(outreachTemplates.key, key))
+    .limit(1)
+
+  if (existing[0]) {
+    await db.update(outreachTemplates).set(values).where(eq(outreachTemplates.key, key))
+    return
+  }
+
+  await db.insert(outreachTemplates).values({
+    key: tpl.key,
+    ...values,
+    createdByEmail: 'system',
+  })
 }
 
 export async function getTemplateByKey(
