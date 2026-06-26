@@ -25,7 +25,7 @@ import 'dotenv/config'
 import { eq } from 'drizzle-orm'
 import { db } from '../src/lib/db'
 import { dealerProspects } from '../src/lib/db/schema'
-import { ensureDefaultTemplates, hasBusinessAddress, businessAddress } from '../src/lib/outreach/templates'
+import { ensureDefaultTemplates, hasBusinessAddress, businessAddress, syncDefaultTemplateByKey, getTemplateByKey, renderTemplate } from '../src/lib/outreach/templates'
 import { sendMonthlyInvite } from '../src/lib/outreach/send'
 import { sendEnabled } from '../src/lib/outreach/eligibility'
 
@@ -69,8 +69,10 @@ async function main() {
     console.log(`Footer address: ${businessAddress()}\n`)
   }
 
-  // 1. Make sure the Red Revival template is seeded into outreach_templates.
+  // 1. Make sure the Red Revival template exists, then force-sync this one key
+  // so CLI tests always reflect the latest approved Red Revival copy.
   await ensureDefaultTemplates()
+  await syncDefaultTemplateByKey(TEMPLATE_KEY)
 
   // 2. Upsert the United Auto Utah prospect by email (idempotent).
   const existing = await db
@@ -114,13 +116,38 @@ async function main() {
     console.log(`Created prospect ${prospectId} (${DEALERSHIP}).`)
   }
 
-  // 3. Send via the guarded orchestrator (test prospect only).
+  // 3. Show the exact rendered output the send path will use.
+  const tpl = await getTemplateByKey(TEMPLATE_KEY)
+  if (!tpl) {
+    console.error(`Template not found after sync: ${TEMPLATE_KEY}`)
+    process.exit(1)
+  }
+  const prospect = (await db.select().from(dealerProspects).where(eq(dealerProspects.id, prospectId)).limit(1))[0]
+  if (!prospect) {
+    console.error(`Prospect not found after upsert: ${prospectId}`)
+    process.exit(1)
+  }
+  const rendered = renderTemplate(tpl, prospect)
+  console.log('Rendered subject:', rendered.subject)
+  console.log('Rendered text preview:', rendered.text.slice(0, 500).replace(/\n/g, ' | '))
+  console.log('Rendered checks:', JSON.stringify({
+    htmlHasHiUnitedAutoUtahTeam: rendered.html.includes('Hi United Auto Utah team'),
+    htmlHasUnitedAutoUtah: rendered.html.includes('United Auto Utah'),
+    textHasUnitedAutoUtah: rendered.text.includes('United Auto Utah'),
+    htmlHasHiThere: rendered.html.includes('Hi there'),
+    textHasHiThere: rendered.text.includes('Hi there'),
+    htmlHasFinalImage: rendered.html.includes('dlr-free-pilot-email-v2.jpg'),
+  }, null, 2))
+
+  // 4. Send via the guarded orchestrator (test prospect only).
   console.log(`\nOUTREACH_SEND_ENABLED=${process.env.OUTREACH_SEND_ENABLED ?? '(unset)'} → ` +
     `${sendEnabled() ? 'REAL SEND armed' : 'DRY RUN (no email leaves the building)'}`)
   console.log(`Template: ${TEMPLATE_KEY}`)
   console.log(`To:       ${recipient}\n`)
 
-  const outcome = await sendMonthlyInvite(prospectId, TEMPLATE_KEY, SCRIPT_ACTOR)
+  const outcome = await sendMonthlyInvite(prospectId, TEMPLATE_KEY, SCRIPT_ACTOR, {
+    bypassCooldownForTestRecipient: Boolean(toOverride),
+  })
 
   console.log('Outcome:', JSON.stringify(outcome, null, 2))
   if (outcome.ok && outcome.kind === 'sent') {

@@ -142,9 +142,10 @@ export async function sendMonthlyInvite(
   prospectId: string,
   templateKey: string,
   actor: Actor,
-  opts: { now?: Date } = {},
+  opts: { now?: Date; bypassCooldownForTestRecipient?: boolean } = {},
 ): Promise<SendOutcome> {
   const now = opts.now ?? new Date()
+  const bypassCooldown = opts.bypassCooldownForTestRecipient === true
   const prospect = await loadProspect(prospectId)
   if (!prospect) return { ok: false, kind: 'failed', reason: 'prospect_not_found' }
 
@@ -152,7 +153,10 @@ export async function sendMonthlyInvite(
   if (!tpl) return { ok: false, kind: 'failed', reason: 'template_not_found' }
 
   // 1. Eligibility (prospect state + authoritative 30-day send-log check).
-  const sent30 = await sentWithinCooldown(prospectId, now)
+  // Test-recipient overrides may intentionally re-send to Brian for iteration,
+  // but only when the caller opts in explicitly. All normal/admin sends still
+  // enforce the full 30-day cooldown path.
+  const sent30 = bypassCooldown ? false : await sentWithinCooldown(prospectId, now)
   const elig = evaluateEligibility(
     {
       id: prospect.id,
@@ -162,7 +166,7 @@ export async function sendMonthlyInvite(
       status: prospect.status,
       archivedAt: prospect.archivedAt,
       doNotContactAt: prospect.doNotContactAt,
-      nextEligibleAt: prospect.nextEligibleAt,
+      nextEligibleAt: bypassCooldown ? null : prospect.nextEligibleAt,
     },
     { now, sentWithinCooldown: sent30 },
   )
