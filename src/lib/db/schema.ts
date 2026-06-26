@@ -1482,6 +1482,28 @@ export const outreachSuppressions = pgTable('outreach_suppressions', {
   domainIdx: index('outreach_suppressions_domain_idx').on(t.domain),
 }))
 
+// Append-only Resend outreach lifecycle events (delivered/opened/clicked/etc.)
+// captured from /api/webhooks/resend and best-effort matched back to a row in
+// outreach_sends via providerMessageId first, then recipient+subject fallback.
+export const outreachEmailEvents = pgTable('outreach_email_events', {
+  id:               uuid('id').primaryKey().defaultRandom(),
+  createdAt:        timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  provider:         text('provider').notNull(),
+  eventType:        text('event_type').notNull(),
+  providerEventId:  text('provider_event_id'),
+  resendEmailId:    text('resend_email_id'),
+  toEmail:          text('to_email'),
+  subject:          text('subject'),
+  outreachSendId:   uuid('outreach_send_id'),
+  rawPayload:       jsonb('raw_payload').$type<Record<string, unknown>>().notNull(),
+  occurredAt:       timestamp('occurred_at', { withTimezone: true }),
+}, (t) => ({
+  providerEventIdx: uniqueIndex('outreach_email_events_provider_event_idx').on(t.provider, t.providerEventId),
+  resendEmailIdx:   index('outreach_email_events_resend_email_idx').on(t.resendEmailId),
+  outreachSendIdx:  index('outreach_email_events_send_idx').on(t.outreachSendId),
+  createdIdx:       index('outreach_email_events_created_idx').on(t.createdAt),
+}))
+
 // ── Per-tenant admin notes (dealer command center) ───────────────────────────
 // Internal notes admins keep on a dealership. No FK so notes survive teardown.
 // PRIVACY: never auto-capture SMS bodies or lead phone numbers.
