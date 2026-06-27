@@ -441,18 +441,25 @@ export default async function DealerDashboardPage() {
         <DlrHeroArt intensity="high" showTruck />
 
         {/* Today&apos;s Pulse panel — absolute overlay on right */}
-        <div className="pulse-panel">
-          <div className="card-hd" style={{ paddingBottom: 10, marginBottom: 4 }}>
+        <div
+          className="pulse-panel"
+          style={{
+            borderColor: 'rgba(255,27,27,0.16)',
+            boxShadow: '0 0 18px rgba(255,27,27,0.14)',
+            background: 'rgba(10,10,12,0.88)',
+          }}
+        >
+          <div className="card-hd" style={{ paddingBottom: 8, marginBottom: 2 }}>
             <span className="card-title">Today&apos;s Pulse</span>
             <span className="dot dot-live" aria-hidden="true" />
           </div>
           {pulseStats.map(s => (
             <div key={s.label} className="pulse-row">
               <span className="k">{s.label}</span>
-              <span className="v stat-num" style={{ fontSize: 20 }}>{s.value}</span>
+              <span className="v stat-num" style={{ fontSize: 18 }}>{s.value}</span>
             </div>
           ))}
-          <a href={inboxHref} className="link-red" style={{ marginTop: 10, fontSize: 12 }}>
+          <a href={inboxHref} className="link-red" style={{ marginTop: 8, fontSize: 11.5 }}>
             View Inbox <ArrowRight size={13} />
           </a>
         </div>
@@ -629,7 +636,21 @@ export default async function DealerDashboardPage() {
           </div>
         </div>
 
-        {/* ── SECTION 4: PERFORMANCE PULSE ──────────────────────── */}
+        {/* ── SECTION 5: SETUP PROGRESS (secondary — only during onboarding) ── */}
+        {setup.showPanel && (
+          <SetupProgressCard
+            setup={setup}
+            progressPct={progressPct}
+            totalSteps={totalSteps}
+            currentStepNumber={currentStepNumber}
+            paymentPending={paymentPending}
+            actionForStep={actionForStep}
+            nextStepKey={nextStep?.stepKey ?? null}
+            dealershipName={dealershipName}
+          />
+        )}
+
+        {/* ── SECTION 6: PERFORMANCE PULSE ──────────────────────── */}
         <div className="glass" style={{ padding: 'var(--pad)' }}>
           <div className="card-hd">
             <span className="card-title">Performance Pulse — Last 14 Days</span>
@@ -646,20 +667,6 @@ export default async function DealerDashboardPage() {
           </div>
           <PerformancePulse messagesSent={messagesSent} conversations={inboxCount} />
         </div>
-
-        {/* ── SECTION 5: SETUP PROGRESS (secondary — only during onboarding) ── */}
-        {setup.showPanel && (
-          <SetupProgressCard
-            setup={setup}
-            progressPct={progressPct}
-            totalSteps={totalSteps}
-            currentStepNumber={currentStepNumber}
-            paymentPending={paymentPending}
-            actionForStep={actionForStep}
-            nextStepKey={nextStep?.stepKey ?? null}
-            dealershipName={dealershipName}
-          />
-        )}
 
         {/* Empty-state CTA — only when zero leads AND dealer can actually act */}
         {importCount === 0 && canUploadNow && (
