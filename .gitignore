@@ -83,3 +83,6 @@ test_age_buckets.csv
 test_lead_validation.csv
 scripts/live-smoke-test.csv
 scripts/test-leads-smoke.csv
+
+# TypeScript build cache
+tsconfig.tsbuildinfo
