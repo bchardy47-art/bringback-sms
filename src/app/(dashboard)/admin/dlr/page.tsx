@@ -287,18 +287,28 @@ export default async function DlrPlatformAdminPage() {
       {/* ── Urgent Handoffs (cross-tenant) ──────────────────────────────── */}
       {urgentHandoffs.length > 0 && (
         <section>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-semibold text-gray-700">Urgent Handoffs</h2>
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+            <div>
+              <h2 className="text-sm font-semibold text-gray-700">Urgent Handoffs</h2>
+              <p className="text-xs text-gray-500 mt-0.5">
+                High-priority replies that need human follow-up, kept below today&apos;s main admin queue.
+              </p>
+            </div>
             <Link href="/admin/dlr/handoffs" className="text-xs text-red-600 hover:underline">
               All handoffs →
             </Link>
           </div>
-          <div className="bg-white rounded-xl border border-red-200 overflow-hidden">
+          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
             {/* ── Mobile card list (hidden on md+) ── */}
             <ul className="md:hidden divide-y divide-gray-100">
               {urgentHandoffs.map(h => (
                 <li key={h.id} className="px-4 py-3">
-                  <p className="font-semibold text-gray-900">{h.tenantName}</p>
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="font-semibold text-gray-900">{h.tenantName}</p>
+                    <span className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-600">
+                      urgent
+                    </span>
+                  </div>
                   <p className="text-xs text-gray-500 mt-0.5">
                     Lead: <span className="text-gray-700">{h.leadFirstName} {h.leadLastName}</span>
                   </p>
@@ -317,7 +327,7 @@ export default async function DlrPlatformAdminPage() {
 
             {/* ── Desktop table (md+) ── */}
             <table className="hidden md:table w-full text-sm">
-              <thead className="bg-red-50 text-xs text-red-600 uppercase tracking-wider text-left">
+              <thead className="bg-gray-50 text-xs text-gray-500 uppercase tracking-wider text-left">
                 <tr>
                   <th className="px-5 py-3">Dealership</th>
                   <th className="px-5 py-3">Lead</th>
@@ -350,73 +360,75 @@ export default async function DlrPlatformAdminPage() {
 
       {/* ── System Health (de-emphasised, scoped to admin's own tenant) ── */}
       {health && (
-        <section className="pt-4 border-t border-gray-200">
-          <div className="flex items-center gap-2 mb-3">
-            <h2 className="text-sm font-semibold text-gray-700">
-              System Health
-            </h2>
-            <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-500">
-              Internal sandbox only
-            </span>
-          </div>
-          <p className="text-xs text-gray-500 mb-3 max-w-2xl">
-            Internal test activity only. This is not dealership production traffic.
-          </p>
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            <SmallStat label="Active Enrollments" value={health.activeEnrollments} />
-            <SmallStat label="Sent (24h)"         value={health.messagesLast24h.sent} />
-            <SmallStat label="Skipped (24h)"      value={health.messagesLast24h.skipped} alert={health.messagesLast24h.skipped > 0} />
-            <SmallStat label="Failed (24h)"       value={health.messagesLast24h.failed}  alert={health.messagesLast24h.failed > 0} />
-          </div>
-          <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
-            <div className="bg-white border border-gray-200 rounded-xl p-4">
-              <h3 className="text-xs font-semibold text-gray-700 mb-2">SMS Plumbing</h3>
-              <div className="space-y-1.5">
-                <StatusRow label="SMS_LIVE_MODE"     ok={health.smsLiveMode}             yes="live"    no="off — sends blocked" />
-                <StatusRow label="DRY_RUN"           ok={!health.dryRun}                 yes="off"     no="on — sends suppressed" />
-                <StatusRow label="Tenant automation" ok={!health.tenant.automationPaused} yes="running" no="paused" />
-              </div>
-              <div className="mt-3 flex gap-2">
-                {!health.tenant.automationPaused ? (
-                  <ConfirmingForm
-                    action={pause}
-                    confirmMessage={`This will pause automation for ${health.tenant.name}. No automated follow-up will run until resumed.`}
-                  >
-                    <button type="submit" className="px-3 py-1.5 text-xs font-semibold text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors">
-                      Pause {health.tenant.name} automation
-                    </button>
-                  </ConfirmingForm>
-                ) : (
-                  <ConfirmingForm
-                    action={resume}
-                    confirmMessage={`This will resume automation for ${health.tenant.name}. Only approved/live workflows will continue.`}
-                  >
-                    <button type="submit" className="px-3 py-1.5 text-xs font-semibold text-green-600 border border-green-200 rounded-lg hover:bg-green-50 transition-colors">
-                      Resume {health.tenant.name} automation
-                    </button>
-                  </ConfirmingForm>
-                )}
-              </div>
+        <section className="pt-6 border-t border-gray-200">
+          <div className="rounded-2xl border border-gray-200 bg-gray-50/80 p-4 md:p-5">
+            <div className="flex flex-wrap items-center gap-2 mb-3">
+              <h2 className="text-sm font-semibold text-gray-700">
+                System Health
+              </h2>
+              <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-white text-gray-500 border border-gray-200">
+                Internal sandbox only
+              </span>
             </div>
-            <div className="bg-white border border-gray-200 rounded-xl p-4">
-              <h3 className="text-xs font-semibold text-gray-700 mb-2">Skip Reasons (24h, BCHardy)</h3>
-              {Object.keys(health.skipReasonBreakdown).length === 0 ? (
-                <p className="text-xs text-gray-400">No skipped sends in the last 24 hours.</p>
-              ) : (
-                <div className="space-y-1">
-                  {Object.entries(health.skipReasonBreakdown)
-                    .sort(([, a], [, b]) => b - a)
-                    .map(([reason, count]) => (
-                      <div key={reason} className="flex items-center justify-between text-xs">
-                        <span className="font-mono text-gray-600">{reason}</span>
-                        <span className="font-bold text-gray-900">{count}</span>
-                      </div>
-                    ))}
+            <p className="text-xs text-gray-500 mb-3 max-w-2xl">
+              Internal test activity only. This is not dealership production traffic.
+            </p>
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+              <SmallStat label="Active Enrollments" value={health.activeEnrollments} subtle />
+              <SmallStat label="Sent (24h)"         value={health.messagesLast24h.sent} subtle />
+              <SmallStat label="Skipped (24h)"      value={health.messagesLast24h.skipped} alert={health.messagesLast24h.skipped > 0} subtle />
+              <SmallStat label="Failed (24h)"       value={health.messagesLast24h.failed}  alert={health.messagesLast24h.failed > 0} subtle />
+            </div>
+            <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+              <div className="bg-white/90 border border-gray-200 rounded-xl p-4">
+                <h3 className="text-xs font-semibold text-gray-700 mb-2">SMS Plumbing</h3>
+                <div className="space-y-1.5">
+                  <StatusRow label="SMS_LIVE_MODE"     ok={health.smsLiveMode}             yes="live"    no="off — sends blocked" />
+                  <StatusRow label="DRY_RUN"           ok={!health.dryRun}                 yes="off"     no="on — sends suppressed" />
+                  <StatusRow label="Tenant automation" ok={!health.tenant.automationPaused} yes="running" no="paused" />
                 </div>
-              )}
-              <Link href="/admin/dlr/suppression" className="mt-3 block text-xs text-red-600 hover:underline">
-                Full suppression report →
-              </Link>
+                <div className="mt-3 flex gap-2">
+                  {!health.tenant.automationPaused ? (
+                    <ConfirmingForm
+                      action={pause}
+                      confirmMessage={`This will pause automation for ${health.tenant.name}. No automated follow-up will run until resumed.`}
+                    >
+                      <button type="submit" className="px-3 py-1.5 text-xs font-semibold text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors">
+                        Pause {health.tenant.name} automation
+                      </button>
+                    </ConfirmingForm>
+                  ) : (
+                    <ConfirmingForm
+                      action={resume}
+                      confirmMessage={`This will resume automation for ${health.tenant.name}. Only approved/live workflows will continue.`}
+                    >
+                      <button type="submit" className="px-3 py-1.5 text-xs font-semibold text-green-600 border border-green-200 rounded-lg hover:bg-green-50 transition-colors">
+                        Resume {health.tenant.name} automation
+                      </button>
+                    </ConfirmingForm>
+                  )}
+                </div>
+              </div>
+              <div className="bg-white/90 border border-gray-200 rounded-xl p-4">
+                <h3 className="text-xs font-semibold text-gray-700 mb-2">Skip Reasons (24h, BCHardy)</h3>
+                {Object.keys(health.skipReasonBreakdown).length === 0 ? (
+                  <p className="text-xs text-gray-400">No skipped sends in the last 24 hours.</p>
+                ) : (
+                  <div className="space-y-1">
+                    {Object.entries(health.skipReasonBreakdown)
+                      .sort(([, a], [, b]) => b - a)
+                      .map(([reason, count]) => (
+                        <div key={reason} className="flex items-center justify-between text-xs">
+                          <span className="font-mono text-gray-600">{reason}</span>
+                          <span className="font-bold text-gray-900">{count}</span>
+                        </div>
+                      ))}
+                  </div>
+                )}
+                <Link href="/admin/dlr/suppression" className="mt-3 block text-xs text-red-600 hover:underline">
+                  Full suppression report →
+                </Link>
+              </div>
             </div>
           </div>
         </section>
@@ -453,14 +465,15 @@ function PlatformStatCard({
 }
 
 function SmallStat({
-  label, value, alert,
+  label, value, alert, subtle,
 }: {
   label: string
   value: number
   alert?: boolean
+  subtle?: boolean
 }) {
   return (
-    <div className={`bg-white rounded-xl border p-3 ${alert ? 'border-red-200' : 'border-gray-200'}`}>
+    <div className={`rounded-xl border p-3 ${alert ? 'border-red-200' : 'border-gray-200'} ${subtle ? 'bg-white/90' : 'bg-white'}`}>
       <p className="text-xs text-gray-500">{label}</p>
       <p className={`text-xl font-bold mt-0.5 ${alert ? 'text-red-600' : 'text-gray-900'}`}>{value}</p>
     </div>

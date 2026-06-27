@@ -425,11 +425,11 @@ export default async function DashboardPage() {
           </div>
         </div>
 
-        {/* ── Bottom row ────────────────────────────────────────────────── */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        {/* ── Lower priority activity ──────────────────────────────────── */}
+        <div className="space-y-5">
           {/* Recent Conversations */}
           <div
-            className="lg:col-span-2 bg-white rounded-2xl overflow-hidden"
+            className="bg-white rounded-2xl overflow-hidden"
             style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.05), 0 4px 16px rgba(0,0,0,0.05)' }}
           >
             <div
@@ -516,7 +516,7 @@ export default async function DashboardPage() {
           </div>
 
           {/* Activity Timeline */}
-          <div className="bg-white rounded-2xl" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.05), 0 4px 16px rgba(0,0,0,0.05)' }}>
+          <div className="bg-white rounded-2xl overflow-hidden" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.05), 0 4px 16px rgba(0,0,0,0.05)' }}>
             <div
               className="flex items-center justify-between px-6 py-4"
               style={{ borderBottom: '1px solid #f3f4f6' }}
@@ -549,7 +549,6 @@ export default async function DashboardPage() {
                       href={`/inbox/${conv.id}`}
                       className="flex gap-3 p-2.5 rounded-xl hover:bg-gray-50 transition-colors"
                     >
-                      {/* Timeline dot + icon */}
                       <div className="flex flex-col items-center gap-1 flex-shrink-0">
                         <div
                           className="w-8 h-8 rounded-full flex items-center justify-center"
