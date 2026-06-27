@@ -828,12 +828,35 @@ function SetupProgressCard({
   nextStepKey: string | null
   dealershipName: string
 }) {
-  const blocked   = setup.overall === 'blocked'
+  const blocked = setup.overall === 'blocked'
   const doneCount = setup.steps.filter(s => s.status === 'done').length
-  const radius = 36
-  const stroke = 6
+  const nextStep = setup.steps.find(s => s.status === 'needs_your_action')
+    ?? setup.steps.find(s => s.status === 'in_progress')
+    ?? setup.steps.find(s => s.status === 'waiting_on_dlr')
+    ?? null
+  const radius = 28
+  const stroke = 5
   const c = 2 * Math.PI * radius
   const offset = c - (progressPct / 100) * c
+  const summaryTitle = blocked
+    ? setup.title
+    : setup.title || `${doneCount} of ${totalSteps} steps complete`
+  const summaryMeta = blocked
+    ? 'DLR is holding your setup safely until launch-ready.'
+    : `Step ${Math.min(currentStepNumber, totalSteps || 1)} of ${Math.max(totalSteps, 1)} • ${doneCount} complete`
+  const summaryDescription = setup.subtitle || `${dealershipName} setup in progress.`
+  const nextLabel = blocked
+    ? 'Status'
+    : nextStep?.status === 'waiting_on_dlr'
+      ? 'Waiting on DLR'
+      : nextStep?.status === 'in_progress'
+        ? 'In progress'
+        : nextStep?.status === 'needs_your_action'
+          ? 'Next step'
+          : 'Current status'
+  const nextText = blocked
+    ? summaryDescription
+    : setup.nextHint || nextStep?.detail || summaryDescription
 
   return (
     <section
@@ -844,20 +867,19 @@ function SetupProgressCard({
         overflow: 'hidden',
         borderColor: blocked ? 'var(--line-redS)' : undefined,
         boxShadow: blocked
-          ? '0 0 0 1px rgba(255,42,42,0.4), 0 0 30px rgba(255,42,42,0.32)'
+          ? '0 0 0 1px rgba(255,42,42,0.32), 0 0 24px rgba(255,42,42,0.22)'
           : undefined,
       }}
     >
       <div
         style={{
-          padding: '20px 20px 16px',
+          padding: '16px 18px 14px',
           display: 'flex',
           alignItems: 'flex-start',
-          gap: 16,
+          gap: 14,
           borderBottom: '1px solid var(--line)',
         }}
       >
-        {/* Progress ring */}
         <div style={{ flexShrink: 0 }}>
           <svg width={radius * 2 + stroke * 2} height={radius * 2 + stroke * 2}>
             <circle
@@ -879,15 +901,15 @@ function SetupProgressCard({
               strokeDasharray={c}
               strokeDashoffset={offset}
               transform={`rotate(-90 ${radius + stroke} ${radius + stroke})`}
-              style={{ filter: 'drop-shadow(0 0 6px var(--red-glow))' }}
+              style={{ filter: 'drop-shadow(0 0 5px var(--red-glow))' }}
             />
             <text
               x={radius + stroke}
-              y={radius + stroke + 5}
+              y={radius + stroke + 4}
               textAnchor="middle"
               fill="#fff"
               fontWeight="900"
-              fontSize="16"
+              fontSize="13"
             >
               {progressPct}%
             </text>
@@ -895,21 +917,47 @@ function SetupProgressCard({
         </div>
 
         <div style={{ flex: 1, minWidth: 0 }}>
-          <span className="eyebrow red">
-            {blocked ? setup.title : 'Setup Progress'}
-          </span>
-          <p style={{ fontFamily: 'var(--f-display)', fontWeight: 800, fontSize: 20, color: '#fff', marginTop: 3, lineHeight: 1 }}>
-            {blocked ? 'Your pilot is being set up' : `${doneCount} of ${totalSteps} steps complete`}
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+            <div style={{ minWidth: 0 }}>
+              <span className="eyebrow red">
+                {blocked ? 'Setup status' : 'Setup progress'}
+              </span>
+              <p style={{ fontFamily: 'var(--f-display)', fontWeight: 800, fontSize: 18, color: '#fff', marginTop: 4, lineHeight: 1.05 }}>
+                {summaryTitle}
+              </p>
+              <p style={{ fontSize: 11, marginTop: 4, color: 'var(--tx-lo)', lineHeight: 1.35 }}>
+                {summaryMeta}
+              </p>
+            </div>
+            <span className={DEALER_STEP_STATUS_CLASS[nextStep?.status ?? (paymentPending ? 'waiting_on_dlr' : 'in_progress')]}>
+              {blocked ? 'Waiting on DLR' : nextStep ? DEALER_STEP_STATUS_LABEL[nextStep.status] : 'In progress'}
+            </span>
+          </div>
+
+          <p style={{ fontSize: 12, marginTop: 8, color: 'var(--tx-mid)', lineHeight: 1.45 }}>
+            {summaryDescription}
           </p>
-          {/* paymentPending label removed — payment step is now 'waiting_on_dlr'
-              for pilot accounts; 'needs_your_action' can no longer fire here. */}
-          <p style={{ fontSize: 12, marginTop: 4, color: 'var(--tx-mid)', lineHeight: 1.4 }}>
-            {setup.subtitle || `${dealershipName} setup in progress.`}
-          </p>
+
+          <div
+            style={{
+              marginTop: 10,
+              padding: '8px 10px',
+              borderRadius: 10,
+              background: 'rgba(255,255,255,0.03)',
+              border: '1px solid rgba(255,255,255,0.06)',
+            }}
+          >
+            <p style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--tx-lo)', marginBottom: 4, fontWeight: 700 }}>
+              {nextLabel}
+            </p>
+            <p style={{ fontSize: 12, color: 'var(--tx-mid)', lineHeight: 1.4 }}>
+              {nextText}
+            </p>
+          </div>
         </div>
       </div>
 
-      <ol style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+      <ol style={{ listStyle: 'none', padding: '6px 0', margin: 0 }}>
         {setup.steps.map((step, idx) => (
           <SetupStepRow
             key={step.key}
@@ -932,22 +980,24 @@ function SetupStepRow({
   step:    DealerSetupStep
   action?: { label: string; href: string } | null
 }) {
-  const isDone   = step.status === 'done'
+  const isDone = step.status === 'done'
   const isActive = step.status === 'in_progress' || step.status === 'needs_your_action'
+  const isWaiting = step.status === 'waiting_on_dlr'
 
   return (
     <li
       style={{
         display: 'flex',
         alignItems: 'flex-start',
-        gap: 12,
-        padding: '12px 20px',
-        borderBottom: '1px solid var(--line)',
+        gap: 10,
+        padding: '9px 18px',
+        borderBottom: '1px solid rgba(255,255,255,0.05)',
+        opacity: isDone ? 0.72 : 1,
       }}
     >
       <span
         className={`step-num${isDone ? ' done' : isActive ? ' cur' : ''}`}
-        style={{ flexShrink: 0, marginTop: 1 }}
+        style={{ flexShrink: 0, marginTop: 1, transform: 'scale(0.92)' }}
         aria-hidden="true"
       >
         {isDone ? '✓' : index}
@@ -957,11 +1007,10 @@ function SetupStepRow({
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
           <p
             style={{
-              fontSize: 14,
-              fontWeight: 600,
+              fontSize: 13,
+              fontWeight: isDone ? 500 : 600,
               color: isDone ? 'var(--tx-lo)' : 'var(--tx-hi)',
-              textDecoration: isDone ? 'line-through' : 'none',
-              textDecorationColor: 'rgba(255,255,255,0.25)',
+              textDecoration: 'none',
             }}
           >
             {step.label}
@@ -971,8 +1020,8 @@ function SetupStepRow({
           </span>
         </div>
 
-        {step.detail && (
-          <p style={{ fontSize: 11, marginTop: 3, color: 'var(--tx-mid)', lineHeight: 1.45 }}>
+        {step.detail && (!isDone || isWaiting || action) && (
+          <p style={{ fontSize: 10.5, marginTop: 2, color: 'var(--tx-mid)', lineHeight: 1.4 }}>
             {step.detail}
           </p>
         )}
@@ -981,9 +1030,9 @@ function SetupStepRow({
           <a
             href={action.href}
             className="btn btn-primary"
-            style={{ marginTop: 8, padding: '8px 14px', fontSize: 12, borderRadius: 9 }}
+            style={{ marginTop: 7, padding: '7px 12px', fontSize: 11.5, borderRadius: 9 }}
           >
-            {action.label} <ArrowRight size={12} />
+            {action.label} <ArrowRight size={11} />
           </a>
         )}
       </div>
