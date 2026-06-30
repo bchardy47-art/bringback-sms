@@ -142,7 +142,18 @@ export async function sendMonthlyInvite(
   prospectId: string,
   templateKey: string,
   actor: Actor,
-  opts: { now?: Date; bypassCooldownForTestRecipient?: boolean } = {},
+  opts: {
+    now?: Date
+    bypassCooldownForTestRecipient?: boolean
+    /**
+     * When set, sends this exact subject/text/html verbatim instead of
+     * rendering the looked-up template against the prospect. The template
+     * row is still loaded (for templateId logging only) but its bodyHtml/
+     * bodyText/subject are never used. Used by the Batch 2 sender so the
+     * email body always matches the on-disk file, never a DB template.
+     */
+    override?: { subject: string; text: string; html: string }
+  } = {},
 ): Promise<SendOutcome> {
   const now = opts.now ?? new Date()
   const bypassCooldown = opts.bypassCooldownForTestRecipient === true
@@ -183,7 +194,7 @@ export async function sendMonthlyInvite(
 
   // 3. Safety toggle — real sends require OUTREACH_SEND_ENABLED=true.
   if (!sendEnabled()) {
-    const rendered = renderTemplate(tpl, prospect)
+    const rendered = opts.override ?? renderTemplate(tpl, prospect)
     await logSend({
       prospect, tpl, actor, toEmail: to, subject: rendered.subject,
       status: 'dry_run', skipReason: 'send_disabled',
@@ -207,7 +218,7 @@ export async function sendMonthlyInvite(
   }
 
   // 4. Send for real.
-  const rendered = renderTemplate(tpl, prospect)
+  const rendered = opts.override ?? renderTemplate(tpl, prospect)
   const result = await sendOutreachEmail({
     to, subject: rendered.subject, text: rendered.text, html: rendered.html,
   })

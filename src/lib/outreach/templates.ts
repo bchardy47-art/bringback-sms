@@ -178,6 +178,19 @@ export const DEFAULT_TEMPLATES: DefaultTemplate[] = [
     bodyHtml: RED_REVIVAL_HTML,
   },
   {
+    key: 'dlr_pilot_invite_v2_hero_hybrid',
+    name: 'DLR Pilot Invite v2 - Hero Hybrid',
+    description:
+      'Bookkeeping-only row for the hero-image hybrid pilot invite. The actual subject/HTML sent ' +
+      'is read live from public/email/DLR Pilot Invite - EMAIL.html by the Batch 2 sender — this ' +
+      'row exists only so outreach_sends has a stable templateId to log against. Not rendered.',
+    subject: '30-day free pilot for Utah dealerships',
+    previewText: 'Free 30-day DLR pilot — claim your spot.',
+    isActive: true,
+    bodyText: '(Not used for sending — see public/email/DLR Pilot Invite - EMAIL.html.)',
+    bodyHtml: null,
+  },
+  {
     key: 'what_is_dlr',
     name: 'What is DLR?',
     description: 'First monthly demo invite. The only template wired to real sending in V1.',
