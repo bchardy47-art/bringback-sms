@@ -26,6 +26,7 @@ const ITEMS: AdminNavItem[] = [
   { href: '/admin/dealers',      label: 'Dealers',        match: ['/admin/dealers', '/admin/dlr/dealers'] },
   { href: '/admin/dlr/pilot',    label: 'Campaigns',      match: ['/admin/dlr/pilot', '/admin/dlr/pilot-leads', '/admin/dlr/live-pilot', '/admin/dlr/first-pilot'] },
   { href: '/admin/outreach',     label: 'Outreach',       match: ['/admin/outreach'] },
+  { href: '/admin/acquisition',  label: 'Acquisition',    match: ['/admin/acquisition'] },
   { href: '/admin/dlr/messages', label: 'Messages',       match: ['/admin/dlr/messages', '/admin/dlr/handoffs'] },
   { href: '/admin/dlr/health',   label: 'System',         match: ['/admin/dlr/health', '/admin/activity', '/admin/dlr/suppression', '/admin/dlr/workflows', '/admin/dlr/production', '/admin/dlr/readiness'] },
 ]

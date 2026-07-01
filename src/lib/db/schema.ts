@@ -1377,6 +1377,16 @@ export const prospectStatusValues = [
 ] as const
 export type ProspectStatus = (typeof prospectStatusValues)[number]
 
+// Dealer Acquisition CRM pipeline stage — a SEPARATE dimension from `status`
+// above (which drives send eligibility). Tracks the sales funnel toward the
+// 20-paid-dealers goal. Free text, app-enforced (see admin/acquisition).
+export const pipelineStageValues = [
+  'prospect_found', 'decision_maker_found', 'email_1_sent', 'call_attempted',
+  'follow_up_sent', 'interested', 'pilot_offered', 'pilot_active',
+  'results_sent', 'paid', 'lost', 'follow_up_later',
+] as const
+export type PipelineStage = (typeof pipelineStageValues)[number]
+
 export const dealerProspects = pgTable('dealer_prospects', {
   id:                  uuid('id').primaryKey().defaultRandom(),
   createdAt:           timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
@@ -1404,6 +1414,30 @@ export const dealerProspects = pgTable('dealer_prospects', {
   createdByUserId:     uuid('created_by_user_id'),
   createdByEmail:      text('created_by_email'),
   metadata:            jsonb('metadata').$type<Record<string, unknown>>(),
+
+  // ── Dealer Acquisition CRM (V1) — separate from `status`/`nextEligibleAt` ──
+  pipelineStatus:          text('pipeline_status').$type<PipelineStage>().default('prospect_found').notNull(),
+  nextFollowUpAt:          timestamp('next_follow_up_at', { withTimezone: true }),
+  dealerType:              text('dealer_type'),
+  // Pilot metrics
+  pilotStartDate:          timestamp('pilot_start_date', { withTimezone: true }),
+  pilotEndDate:            timestamp('pilot_end_date',   { withTimezone: true }),
+  pilotLeadCount:          integer('pilot_lead_count'),
+  pilotTextsSent:          integer('pilot_texts_sent'),
+  pilotTotalReplies:       integer('pilot_total_replies'),
+  pilotPositiveReplies:    integer('pilot_positive_replies'),
+  pilotAppointments:       integer('pilot_appointments'),
+  pilotOptOuts:            integer('pilot_opt_outs'),
+  pilotBadNumbers:         integer('pilot_bad_numbers'),
+  pilotSoldUnitsReported:  integer('pilot_sold_units_reported'),
+  estimatedValueCreated:   integer('estimated_value_created'),
+  // Conversion / MRR
+  monthlyPrice:            integer('monthly_price'),
+  paymentStatus:           text('payment_status'),
+  convertedAt:             timestamp('converted_at', { withTimezone: true }),
+  founderPricing:          boolean('founder_pricing').default(false).notNull(),
+  referralAsked:           boolean('referral_asked').default(false).notNull(),
+  referralsGiven:          integer('referrals_given').default(0).notNull(),
 }, (t) => ({
   createdIdx:      index('dealer_prospects_created_idx').on(t.createdAt),
   statusIdx:       index('dealer_prospects_status_idx').on(t.status),
@@ -1411,6 +1445,8 @@ export const dealerProspects = pgTable('dealer_prospects', {
   publicEmailIdx:  index('dealer_prospects_public_email_idx').on(t.publicEmail),
   websiteIdx:      index('dealer_prospects_website_idx').on(t.website),
   nextEligibleIdx: index('dealer_prospects_next_eligible_idx').on(t.nextEligibleAt),
+  pipelineIdx:     index('dealer_prospects_pipeline_status_idx').on(t.pipelineStatus),
+  nextFollowUpIdx: index('dealer_prospects_next_follow_up_idx').on(t.nextFollowUpAt),
 }))
 
 export const outreachTemplates = pgTable('outreach_templates', {
