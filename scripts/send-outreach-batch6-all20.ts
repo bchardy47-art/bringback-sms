@@ -328,7 +328,7 @@ async function main() {
   }))
 
   console.log(
-    `\nLIVE_SEND_COMMAND=OUTREACH_BUSINESS_ADDRESS="1347 W Fort Rock Dr, Saratoga Springs, UT 84045" ` +
+    `\nLIVE_SEND_COMMAND=OUTREACH_BUSINESS_ADDRESS="1346 W Fort Rock Dr, Saratoga Springs, UT 84045" ` +
       `CONFIRM_DLR_BATCH6_SEND=${REQUIRED_CONFIRM} OUTREACH_SEND_ENABLED=true ` +
       `npx tsx scripts/send-outreach-batch6-all20.ts --send`,
   )

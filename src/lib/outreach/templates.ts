@@ -122,7 +122,7 @@ const RED_REVIVAL_HTML = `<!DOCTYPE html>
           <tr>
             <td class="dlr-pad" style="padding:18px 40px 26px;background-color:#050505;border-top:1px solid #1f1f1f;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.7;color:#8f8f8f;">
               <p style="margin:0 0 10px;">You&rsquo;re receiving this one-time invitation because your dealership may be a fit for a limited DLR pilot. No worries if this is not a fit &mdash; reply &ldquo;no&rdquo; and we will not follow up.</p>
-              <p style="margin:0;color:#6f6f6f;">1347 W Fort Rock Dr, Saratoga Springs, UT 84045</p>
+              <p style="margin:0;color:#6f6f6f;">1346 W Fort Rock Dr, Saratoga Springs, UT 84045</p>
             </td>
           </tr>
         </table>
@@ -173,7 +173,7 @@ export const DEFAULT_TEMPLATES: DefaultTemplate[] = [
       '',
       'You’re receiving this one-time invitation because your dealership may be a fit for a limited DLR pilot. No worries if this is not a fit — reply “no” and we will not follow up.',
       '',
-      '1347 W Fort Rock Dr, Saratoga Springs, UT 84045',
+      '1346 W Fort Rock Dr, Saratoga Springs, UT 84045',
     ].join('\n'),
     bodyHtml: RED_REVIVAL_HTML,
   },

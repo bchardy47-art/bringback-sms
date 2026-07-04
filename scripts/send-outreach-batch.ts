@@ -199,7 +199,7 @@ async function main() {
     reasons: Object.fromEntries([...outcomeReasons.entries()].sort((a, b) => a[0].localeCompare(b[0]))),
   }))
 
-  console.log(`\nLIVE_SEND_COMMAND=OUTREACH_BUSINESS_ADDRESS="1347 W Fort Rock Dr, Saratoga Springs, UT 84045" CONFIRM_DLR_BATCH_SEND=${expectedConfirm} OUTREACH_SEND_ENABLED=true npx tsx scripts/send-outreach-batch.ts --template ${templateKey}${eligibleOnly ? ' --eligible-only' : ''}${limit ? ` --limit ${limit}` : ''} --send`)
+  console.log(`\nLIVE_SEND_COMMAND=OUTREACH_BUSINESS_ADDRESS="1346 W Fort Rock Dr, Saratoga Springs, UT 84045" CONFIRM_DLR_BATCH_SEND=${expectedConfirm} OUTREACH_SEND_ENABLED=true npx tsx scripts/send-outreach-batch.ts --template ${templateKey}${eligibleOnly ? ' --eligible-only' : ''}${limit ? ` --limit ${limit}` : ''} --send`)
 }
 
 main().catch(err => {
