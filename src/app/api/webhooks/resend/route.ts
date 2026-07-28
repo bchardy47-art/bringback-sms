@@ -21,10 +21,17 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
   }
 
+  // The Svix message id (stable across retries and replays) is the idempotency key.
+  const svixMessageId = req.headers.get('svix-id')
+
   try {
-    await logResendWebhookEvent(payload)
+    await logResendWebhookEvent(payload, svixMessageId)
   } catch (err) {
-    console.error('[webhook/resend] handler error:', err)
+    // Never silently swallow a production write failure: log it and return a
+    // 5xx so Resend retries. logResendWebhookEvent is idempotent (dedupes on
+    // provider_event_id + a unique index), so retries are safe.
+    console.error('[webhook/resend] failed to store event:', err)
+    return NextResponse.json({ error: 'Failed to store webhook event' }, { status: 500 })
   }
 
   return NextResponse.json({ ok: true })

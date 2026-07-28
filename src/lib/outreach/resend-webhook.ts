@@ -120,8 +120,16 @@ async function matchOutreachSend(payload: ResendWebhookPayload) {
   return fallback[0]?.id ?? null
 }
 
-export async function logResendWebhookEvent(payload: ResendWebhookPayload): Promise<void> {
-  const pEventId = providerEventId(payload)
+export async function logResendWebhookEvent(
+  payload: ResendWebhookPayload,
+  svixMessageId?: string | null,
+): Promise<void> {
+  // Resend webhook bodies carry no stable event id, but every delivery includes
+  // a unique Svix message id in the `svix-id` header that is preserved across
+  // automatic retries and dashboard replays. Prefer it as the idempotency key so
+  // repeated deliveries of the same event dedupe on the
+  // (provider, provider_event_id) unique index; fall back to any body id.
+  const pEventId = asString(svixMessageId) ?? providerEventId(payload)
   if (pEventId) {
     const dup = await db
       .select({ id: outreachEmailEvents.id })
@@ -135,15 +143,26 @@ export async function logResendWebhookEvent(payload: ResendWebhookPayload): Prom
   }
 
   const matchedSendId = await matchOutreachSend(payload)
-  await db.insert(outreachEmailEvents).values({
-    provider: 'resend',
-    eventType: asString(payload.type) ?? 'unknown',
-    providerEventId: pEventId,
-    resendEmailId: resendEmailId(payload),
-    toEmail: pickRecipient(payload),
-    subject: subjectOf(payload),
-    outreachSendId: matchedSendId,
-    rawPayload: payload,
-    occurredAt: eventOccurredAt(payload),
-  })
+  try {
+    await db.insert(outreachEmailEvents).values({
+      provider: 'resend',
+      eventType: asString(payload.type) ?? 'unknown',
+      providerEventId: pEventId,
+      resendEmailId: resendEmailId(payload),
+      toEmail: pickRecipient(payload),
+      subject: subjectOf(payload),
+      outreachSendId: matchedSendId,
+      rawPayload: payload,
+      occurredAt: eventOccurredAt(payload),
+    })
+  } catch (err) {
+    // Idempotency: a concurrent/duplicate delivery can race the pre-insert
+    // dedupe check and hit the unique index on (provider, provider_event_id).
+    // Postgres reports that as SQLSTATE 23505 (unique_violation) — treat it as
+    // an already-stored no-op. Any other error is a real storage failure and
+    // must propagate so the webhook route can return non-2xx and Resend retries.
+    const code = (err as { code?: string }).code
+    if (code === '23505') return
+    throw err
+  }
 }
