@@ -22,7 +22,9 @@ import {
 
 export const dynamic = 'force-dynamic'
 
-const TEMPLATE_KEY = 'what_is_dlr'
+// TEMP (internal pipeline test): points the admin "Send test to Brian" button at
+// the dedicated internal_test_pipeline template. Revert to 'what_is_dlr' after QA.
+const TEMPLATE_KEY = 'internal_test_pipeline'
 
 export default async function ProspectDetailPage({ params }: { params: { id: string } }) {
   const user = await getAdminUser()
