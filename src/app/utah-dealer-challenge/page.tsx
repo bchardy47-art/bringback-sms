@@ -31,7 +31,15 @@ function Step({ n, children }: { n: number; children: React.ReactNode }) {
   )
 }
 
-export default function UtahDealerChallengePage() {
+export default function UtahDealerChallengePage(
+  { searchParams }: { searchParams?: { dealer?: string } },
+) {
+  // Carry dealer-page attribution (e.g. from /for/<slug> CTA) through to the
+  // form. Only a clean slug is forwarded; the server action validates it against
+  // the live-dealer allowlist before storing (anti-impersonation).
+  const rawDealer = searchParams?.dealer
+  const dealer =
+    typeof rawDealer === 'string' && /^[a-z0-9-]{1,60}$/.test(rawDealer) ? rawDealer : undefined
   return (
     <main style={page}>
       {/* Hero */}
@@ -96,7 +104,7 @@ export default function UtahDealerChallengePage() {
             how many old leads you have and which CRM or lead tool you use — mention it when we connect.
           </p>
           <div style={{ background: '#0f0f13', borderRadius: 12, padding: 8 }}>
-            <BookDemoForm />
+            <BookDemoForm dealer={dealer} />
           </div>
         </section>
 

@@ -41,7 +41,7 @@ export default async function MountainlandForPage() {
             Prepared specifically for {DEALER_NAME} · Heber City, UT
           </div>
           <h1 style={{ fontSize: 30, fontWeight: 900, lineHeight: 1.18, margin: '12px 0' }}>
-            {DEALER_NAME} — some buyers you already paid to reach may still be in the market.
+            Mountainland may already have its next sale sitting in a lead it paid for months ago.
           </h1>
           <p style={{ color: '#c9c9d1', maxWidth: 660, margin: '10px auto 0' }}>
             This page was prepared specifically for {DEALER_NAME} using publicly available dealership information.

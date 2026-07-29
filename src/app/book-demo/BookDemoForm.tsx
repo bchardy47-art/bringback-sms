@@ -34,7 +34,7 @@ const FIELDS: Array<{
   { key: 'email',             label: 'Email Address',          type: 'email', placeholder: 'e.g. john@smithhonda.com', autoComplete: 'email' },
 ]
 
-export function BookDemoForm() {
+export function BookDemoForm({ dealer }: { dealer?: string } = {}) {
   const [fields, setFields] = useState<Fields>({
     dealershipName:    '',
     decisionMakerName: '',
@@ -65,6 +65,7 @@ export function BookDemoForm() {
         decisionMakerName: fields.decisionMakerName.trim(),
         phone:             fields.phone.trim(),
         email:             fields.email.trim().toLowerCase(),
+        dealer,
       })
       if (result.ok) {
         setIsSuccess(true)

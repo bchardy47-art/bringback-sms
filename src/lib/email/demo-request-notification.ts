@@ -13,6 +13,7 @@ export async function sendDemoRequestNotification(params: {
   phone: string
   email: string
   submittedAt: Date
+  dealer?: string | null
 }): Promise<DemoRequestNotificationResult> {
   const apiKey = process.env.RESEND_API_KEY
   const emailFrom = process.env.EMAIL_FROM
@@ -79,6 +80,7 @@ function buildPlainText(p: {
   phone: string
   email: string
   submittedAt: Date
+  dealer?: string | null
 }): string {
   return [
     'New DLR demo request received.',
@@ -87,6 +89,7 @@ function buildPlainText(p: {
     `Decision maker/contact name: ${p.decisionMakerName}`,
     `Phone: ${p.phone}`,
     `Email: ${p.email}`,
+    ...(p.dealer ? [`Dealer page attribution: ${p.dealer}`] : []),
     `Submitted: ${fmt(p.submittedAt)}`,
     '',
     `Admin: ${ADMIN_URL}`,
@@ -99,6 +102,7 @@ function buildHtml(p: {
   phone: string
   email: string
   submittedAt: Date
+  dealer?: string | null
 }): string {
   return `<!DOCTYPE html>
 <html>
@@ -114,6 +118,7 @@ function buildHtml(p: {
       <p style="margin:0 0 14px;"><strong>Decision maker/contact name:</strong> ${esc(p.decisionMakerName)}</p>
       <p style="margin:0 0 14px;"><strong>Phone:</strong> ${esc(p.phone)}</p>
       <p style="margin:0 0 14px;"><strong>Email:</strong> ${esc(p.email)}</p>
+      ${p.dealer ? `<p style="margin:0 0 14px;"><strong>Dealer page attribution:</strong> ${esc(p.dealer)}</p>` : ''}
       <p style="margin:0 0 22px;"><strong>Submitted:</strong> ${esc(fmt(p.submittedAt))}</p>
       <p style="margin:20px 0 0;">
         <a href="${ADMIN_URL}" style="display:inline-block;background:#dc2626;color:#fff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 20px;border-radius:10px;">Open Demo Leads Admin</a>
