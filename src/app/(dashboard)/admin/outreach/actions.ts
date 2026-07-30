@@ -151,22 +151,12 @@ export async function sendTestAction(formData: FormData) {
   return { ok: outcome.ok, outcome }
 }
 
-// TEMP (Batch 1 live send): one-off 30-day cooldown bypass, scoped to a single
-// prospect (West Auto Sales). Every other prospect still gets the full cooldown
-// check. Remove this constant and the bypass argument after the authorized send.
-const LIVE_SEND_BYPASS_PROSPECT_ID = 'e0805aa6-7de3-40ab-92cb-1e7782cd6e37'
-
 export async function sendInviteAction(formData: FormData) {
   const actor = await assertBrian()
   const id = String(formData.get('prospectId') ?? '')
   const templateKey = String(formData.get('templateKey') ?? 'what_is_dlr')
   if (!id) return { ok: false as const, error: 'missing prospect' }
-  const outcome = await sendMonthlyInvite(
-    id,
-    templateKey,
-    { id: actor.id, email: actor.email },
-    { bypassCooldownForTestRecipient: id === LIVE_SEND_BYPASS_PROSPECT_ID },
-  )
+  const outcome = await sendMonthlyInvite(id, templateKey, { id: actor.id, email: actor.email })
   revalidateOutreach(id)
   return { ok: outcome.ok, outcome }
 }

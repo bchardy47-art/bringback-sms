@@ -22,15 +22,7 @@ import {
 
 export const dynamic = 'force-dynamic'
 
-// TEMP (Batch 1 live send): points the prospect page at the West Auto re-engagement
-// template. Paired with a West-Auto-only invite-button enable + cooldown bypass
-// (see LIVE_SEND_BYPASS_PROSPECT_ID below and in actions.ts). Revert to
-// 'what_is_dlr' and remove the bypass after the single authorized send.
-const TEMPLATE_KEY = 'reengagement_batch_1_west_auto'
-
-// One-off: the only prospect for which the invite button is force-enabled (its
-// 30-day cooldown is being intentionally bypassed for a single authorized send).
-const LIVE_SEND_BYPASS_PROSPECT_ID = 'e0805aa6-7de3-40ab-92cb-1e7782cd6e37'
+const TEMPLATE_KEY = 'what_is_dlr'
 
 export default async function ProspectDetailPage({ params }: { params: { id: string } }) {
   const user = await getAdminUser()
@@ -139,7 +131,7 @@ export default async function ProspectDetailPage({ params }: { params: { id: str
           {brian ? (
             <div className="bg-white rounded-xl border border-gray-200 p-5">
               <h2 className="text-sm font-semibold text-gray-700 mb-3">Send</h2>
-              <SendControls prospectId={prospect.id} templateKey={TEMPLATE_KEY} eligible={eligibility.eligible || prospect.id === LIVE_SEND_BYPASS_PROSPECT_ID} eligibilityDetail={eligibility.detail} />
+              <SendControls prospectId={prospect.id} templateKey={TEMPLATE_KEY} eligible={eligibility.eligible} eligibilityDetail={eligibility.detail} />
             </div>
           ) : (
             <div className="bg-gray-50 rounded-xl border border-dashed border-gray-200 p-5">
